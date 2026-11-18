@@ -70,9 +70,7 @@ class _OpportunityDetailsScreenState extends State<OpportunityDetailsScreen> {
     final offer = _offer ?? {};
     final vehicleType = (offer['vehicleType'] ?? 'Vehicle category unavailable').toString();
     final pickup = offer['pickupLocation'] as Map<String, dynamic>?;
-    final drop = offer['dropLocation'] as Map<String, dynamic>?;
     final pickupAddr = (pickup?['address'] ?? offer['pickup'] ?? 'Pickup Location').toString();
-    final dropAddr = (drop?['address'] ?? offer['drop'] ?? 'Drop Location').toString();
     final requirement = offer['requirement'] as Map<String, dynamic>?;
     final payout = DriverService.resolveDriverPayout(offer);
     final rawId = (requirement?['id'] ?? offer['id'] ?? offer['requirementId'] ?? '').toString();
@@ -85,14 +83,6 @@ class _OpportunityDetailsScreenState extends State<OpportunityDetailsScreen> {
         (pickup?['lng'] as num?)?.toDouble() ??
         (requirement?['pickupLng'] as num?)?.toDouble() ??
         78.4867;
-    final dLat = (drop?['latitude'] as num?)?.toDouble() ??
-        (drop?['lat'] as num?)?.toDouble() ??
-        (requirement?['dropLat'] as num?)?.toDouble() ??
-        17.4435;
-    final dLng = (drop?['longitude'] as num?)?.toDouble() ??
-        (drop?['lng'] as num?)?.toDouble() ??
-        (requirement?['dropLng'] as num?)?.toDouble() ??
-        78.3808;
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
@@ -218,16 +208,16 @@ class _OpportunityDetailsScreenState extends State<OpportunityDetailsScreen> {
                             ),
                             const SizedBox(height: AppSpacing.lg),
 
-                            // ── Live Interactive Google Route Map Preview ──────
+                            // ── Live Interactive Google Route Map Preview (Pickup only until OTP verified) ──
                             ClipRRect(
                               borderRadius: BorderRadius.circular(AppRadius.lg),
                               child: GoogleRouteMapWidget(
                                 pickupLat: pLat,
                                 pickupLng: pLng,
-                                dropLat: dLat,
-                                dropLng: dLng,
+                                dropLat: 0.0,
+                                dropLng: 0.0,
                                 pickupAddress: pickupAddr,
-                                dropAddress: dropAddr,
+                                dropAddress: 'Drop location unlocks after pickup OTP verification',
                                 height: 180,
                               ),
                             ),
@@ -276,29 +266,20 @@ class _OpportunityDetailsScreenState extends State<OpportunityDetailsScreen> {
                                   ),
                                   const SizedBox(height: AppSpacing.md),
                                   Row(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment: CrossAxisAlignment.center,
                                     children: [
-                                      const Icon(Icons.circle, size: 10, color: AppColors.error),
-                                      const SizedBox(width: 12),
+                                      Icon(
+                                        Icons.lock_outline_rounded,
+                                        size: 14,
+                                        color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                                      ),
+                                      const SizedBox(width: 10),
                                       Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              'Destination',
-                                              style: AppTypography.body(
-                                                color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 2),
-                                            Text(
-                                              dropAddr,
-                                              style: AppTypography.caption(
-                                                color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                                              ),
-                                            ),
-                                          ],
+                                        child: Text(
+                                          'Drop location unlocks after pickup OTP verification',
+                                          style: AppTypography.caption(
+                                            color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                                          ).copyWith(fontStyle: FontStyle.italic),
                                         ),
                                       ),
                                     ],

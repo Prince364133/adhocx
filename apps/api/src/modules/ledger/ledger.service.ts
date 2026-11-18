@@ -262,7 +262,7 @@ export class LedgerService {
         };
       }
 
-      const [entries, settlements] = await Promise.all([
+      const [entries, settlements, completedTrips] = await Promise.all([
         this.db.ledgerEntry.findMany({
           where: { accountId: driver.id, accountType: 'DRIVER' },
           orderBy: { createdAt: 'desc' },
@@ -272,7 +272,42 @@ export class LedgerService {
           where: { driverId: driver.id },
           orderBy: { createdAt: 'desc' },
         }),
+        this.db.trip.findMany({
+          where: { driverId: driver.id, status: 'COMPLETED' },
+          select: {
+            id: true,
+            completedAt: true,
+            updatedAt: true,
+            totalDriverEarnings: true,
+          },
+        }),
       ]);
+
+      // Compute Today's Activity in India Standard Time (UTC+05:30)
+      const istOffsetMs = 5.5 * 60 * 60 * 1000;
+      const nowIst = new Date(Date.now() + istOffsetMs);
+      const startOfTodayIstUtc = new Date(
+        Date.UTC(nowIst.getUTCFullYear(), nowIst.getUTCMonth(), nowIst.getUTCDate()) - istOffsetMs,
+      );
+
+      let todayTripsCount = 0;
+      let todayTripEarnings = 0;
+      for (const t of completedTrips) {
+        const ts = t.completedAt || t.updatedAt;
+        if (ts && new Date(ts) >= startOfTodayIstUtc) {
+          todayTripsCount += 1;
+          todayTripEarnings += Number(t.totalDriverEarnings || 0);
+        }
+      }
+
+      let todayLedgerCredits = 0;
+      for (const e of entries) {
+        if (e.entryType === LedgerEntryType.CREDIT && e.createdAt && new Date(e.createdAt) >= startOfTodayIstUtc) {
+          todayLedgerCredits += Number(e.amount);
+        }
+      }
+      const todayEarnings = todayLedgerCredits > 0 ? todayLedgerCredits : todayTripEarnings;
+      const completedTripsCount = completedTrips.length;
 
       let totalEarned = 0;
       let totalWithdrawn = 0;
@@ -329,9 +364,13 @@ export class LedgerService {
         totalWithdrawn,
         pendingSettlements,
         hasPendingWithdrawal,
+        completedTripsCount,
+        totalTrips: completedTripsCount,
+        todayTripsCount,
+        todayEarnings,
         recentLedgerEntries,
         withdrawals,
-      };
+      } as any;
     } catch (_) {
       return {
         walletBalance: 0,

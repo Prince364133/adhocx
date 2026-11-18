@@ -558,9 +558,9 @@ class DriverService {
     return response;
   }
 
-  Future<dynamic> getTrip(String tripId) async {
+  Future<dynamic> getTrip(String tripId, {bool force = true}) async {
     await _ensureDriverSession();
-    return await _api.get('/trips/$tripId');
+    return await _api.get('/trips/$tripId', force: force);
   }
 
   Future<List<dynamic>> getTripMessages(String tripId) async {

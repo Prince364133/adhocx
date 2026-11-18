@@ -38,7 +38,7 @@ class UserActiveTripScreen extends StatefulWidget {
 }
 
 class _UserActiveTripScreenState extends State<UserActiveTripScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   Map<String, dynamic>? _trip;
   Map<String, dynamic>? _requirement;
   int _selectedVehicleIndex = 0;
@@ -49,45 +49,50 @@ class _UserActiveTripScreenState extends State<UserActiveTripScreen>
   Timer? _refreshTimer;
   bool _hasPromptedRating = false;
 
+  String? _seedTripId;
+  String? _seedRequirementId;
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1800),
     )..repeat(reverse: true);
 
-    // Seed initial data if available
-    if (widget.initialData != null && widget.initialData!.isNotEmpty) {
-      final initial = widget.initialData!;
-      _requirement = initial;
+    // Extract target IDs only — NEVER display stale passed snapshot before fetching real-time data!
+    final initial = widget.initialData;
+    final passedTrip = widget.trip;
 
-      // Only treat initialData as a Trip if it contains verified driver assignment
-      final bool hasDriverInfo = initial['driverId'] != null ||
-          initial['driver'] != null ||
-          initial['driverName'] != null ||
-          (initial['assignedDrivers'] is List && (initial['assignedDrivers'] as List).isNotEmpty);
+    _seedTripId = widget.tripId ??
+        passedTrip?['id']?.toString() ??
+        passedTrip?['tripId']?.toString() ??
+        initial?['tripId']?.toString();
 
-      final bool isTripEntity = initial['tripId'] != null ||
-          (widget.tripId != null && widget.tripId == initial['id']);
+    _seedRequirementId = widget.requirementId ??
+        passedTrip?['requirementId']?.toString() ??
+        initial?['requirementId']?.toString() ??
+        (initial != null && initial['id'] != null && initial['id']?.toString() != _seedTripId
+            ? initial['id']?.toString()
+            : null);
 
-      if (widget.trip != null && widget.trip!.isNotEmpty) {
-        _trip = widget.trip;
-      } else if (isTripEntity && hasDriverInfo) {
-        _trip = initial;
-      }
-      _isLoading = false;
-    } else if (widget.trip != null && widget.trip!.isNotEmpty) {
-      _trip = widget.trip;
-      _isLoading = false;
-    }
-
+    // Always block display on initial load until live backend state arrives
+    _isLoading = true;
     _loadData();
     _startPeriodicRefresh();
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && mounted) {
+      _loadData(silent: true);
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _refreshTimer?.cancel();
     _pulseController.dispose();
     super.dispose();
@@ -135,122 +140,122 @@ class _UserActiveTripScreenState extends State<UserActiveTripScreen>
   }
 
   Future<void> _loadData({bool silent = false}) async {
-    if (!silent) setState(() => _isLoading = _trip == null && _requirement == null);
+    if (!silent) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+    }
 
     try {
-      final effectiveTripId = widget.tripId ??
-          _trip?['id']?.toString() ??
+      final effectiveTripId = _trip?['id']?.toString() ??
           _trip?['tripId']?.toString() ??
-          widget.initialData?['tripId']?.toString();
+          _seedTripId;
 
-      final effectiveReqId = widget.requirementId ??
-          _requirement?['id']?.toString() ??
+      final effectiveReqId = _requirement?['id']?.toString() ??
           _trip?['requirementId']?.toString() ??
-          widget.initialData?['requirementId']?.toString() ??
-          widget.initialData?['id']?.toString();
+          _seedRequirementId;
 
       bool tripLoaded = false;
       bool reqLoaded = false;
 
-      // 1. Fetch Trip details if trip ID exists
-      if (effectiveTripId != null && effectiveTripId.isNotEmpty) {
+      // 1 & 2. Fetch Trip and Requirement in parallel with force: true (real-time, zero cache!)
+      final Future<dynamic> tripFuture = (effectiveTripId != null && effectiveTripId.isNotEmpty)
+          ? UserService.instance.getTrip(effectiveTripId, force: true).catchError((_) => null)
+          : Future.value(null);
+      final Future<dynamic> reqFuture = (effectiveReqId != null && effectiveReqId.isNotEmpty)
+          ? UserService.instance.getRequirement(effectiveReqId, force: true).catchError((_) => null)
+          : Future.value(null);
+
+      final results = await Future.wait([tripFuture, reqFuture]);
+      final tripData = results[0];
+      dynamic reqData = results[1];
+
+      Map<String, dynamic>? freshTrip;
+      Map<String, dynamic>? freshReq;
+
+      if (tripData is Map) {
+        freshTrip = Map<String, dynamic>.from(tripData);
+        tripLoaded = true;
+      }
+
+      // If we got a requirementId back from the live trip and didn't fetch req yet, fetch it now
+      final discoveredReqId = freshTrip?['requirementId']?.toString();
+      if (reqData == null &&
+          discoveredReqId != null &&
+          discoveredReqId.isNotEmpty &&
+          discoveredReqId != effectiveReqId) {
         try {
-          final tripData = await UserService.instance.getTrip(effectiveTripId);
-          if (tripData is Map && mounted) {
-            setState(() {
-              _trip = Map<String, dynamic>.from(tripData);
-              _errorMessage = null;
-            });
-            tripLoaded = true;
-            _checkTripCompletionPrompt();
-          }
+          reqData = await UserService.instance.getRequirement(discoveredReqId, force: true);
         } catch (_) {}
       }
 
-      // 2. Fetch Requirement details if requirement ID exists
-      final reqTargetId = effectiveReqId ?? _trip?['requirementId']?.toString();
-      if (reqTargetId != null && reqTargetId.isNotEmpty) {
-        try {
-          final reqData = await UserService.instance.getRequirement(reqTargetId);
-          if (reqData is Map && mounted) {
-            setState(() {
-              _requirement = Map<String, dynamic>.from(reqData);
-              _errorMessage = null;
-            });
-            reqLoaded = true;
+      if (reqData is Map) {
+        freshReq = Map<String, dynamic>.from(reqData);
+        reqLoaded = true;
 
-            // If trip wasn't loaded directly, resolve from requirement's trips or assignedDrivers
-            if (!tripLoaded) {
-              final assignedDrivers = _requirement?['assignedDrivers'] is List
-                  ? (_requirement!['assignedDrivers'] as List)
-                  : [];
-              final trips = _requirement?['trips'] is List
-                  ? (_requirement!['trips'] as List)
-                  : [];
+        // If trip wasn't loaded directly, resolve from live requirement's trips or assignedDrivers
+        if (!tripLoaded) {
+          final assignedDrivers = freshReq['assignedDrivers'] is List
+              ? (freshReq['assignedDrivers'] as List)
+              : [];
+          final trips = freshReq['trips'] is List ? (freshReq['trips'] as List) : [];
 
-              if (trips.isNotEmpty) {
-                final safeIndex = _selectedVehicleIndex.clamp(0, trips.length - 1);
-                final t = trips[safeIndex];
-                if (t is Map) {
-                  setState(() => _trip = Map<String, dynamic>.from(t));
-                  tripLoaded = true;
-                  _checkTripCompletionPrompt();
-                }
-              } else if (assignedDrivers.isNotEmpty) {
-                final safeIndex = _selectedVehicleIndex.clamp(0, assignedDrivers.length - 1);
-                final d = assignedDrivers[safeIndex];
-                if (d is Map) {
-                  setState(() {
-                    _trip = {
-                      'id': d['tripId'] ?? d['id'],
-                      'status': d['status'] ?? 'ASSIGNED',
-                      'startOtp': d['startOtp'] ?? d['otp'],
-                      'driver': d['driver'] ?? d,
-                      'driverName': d['driverName'] ?? d['fullName'],
-                      'driverPhone': d['driverPhone'] ?? d['phone'],
-                      'vehiclePlate': d['vehiclePlate'] ?? d['plate'],
-                      'vehicleModel': d['vehicleModel'] ?? d['vehicleType'],
-                      'pickupLocation': _requirement?['pickupLocation'] ?? _requirement?['pickupAddress'],
-                      'dropLocation': _requirement?['dropLocation'] ?? _requirement?['dropAddress'],
-                      'agreedRate': _requirement?['ratePerVehicle'],
-                    };
-                  });
-                  tripLoaded = true;
-                }
-              }
+          if (trips.isNotEmpty) {
+            final safeIndex = _selectedVehicleIndex.clamp(0, trips.length - 1);
+            final t = trips[safeIndex];
+            if (t is Map) {
+              freshTrip = Map<String, dynamic>.from(t);
+              tripLoaded = true;
+            }
+          } else if (assignedDrivers.isNotEmpty) {
+            final safeIndex = _selectedVehicleIndex.clamp(0, assignedDrivers.length - 1);
+            final d = assignedDrivers[safeIndex];
+            if (d is Map) {
+              freshTrip = {
+                'id': d['tripId'] ?? d['id'],
+                'status': d['status'] ?? 'ASSIGNED',
+                'startOtp': d['startOtp'] ?? d['otp'],
+                'driver': d['driver'] ?? d,
+                'driverName': d['driverName'] ?? d['fullName'],
+                'driverPhone': d['driverPhone'] ?? d['phone'],
+                'vehiclePlate': d['vehiclePlate'] ?? d['plate'],
+                'vehicleModel': d['vehicleModel'] ?? d['vehicleType'],
+                'pickupLocation': freshReq['pickupLocation'] ?? freshReq['pickupAddress'],
+                'dropLocation': freshReq['dropLocation'] ?? freshReq['dropAddress'],
+                'agreedRate': freshReq['ratePerVehicle'],
+              };
+              tripLoaded = true;
             }
           }
-        } catch (_) {}
+        }
       }
 
-      // If requirement is assigned/fulfilled but trip wasn't embedded, match from active user trips
-      if (!tripLoaded && reqLoaded && mounted) {
-        final reqStatus = _requirement?['status']?.toString();
+      // If requirement is assigned/fulfilled but trip wasn't embedded, match from live user trips
+      final reqTargetId = freshReq?['id']?.toString() ?? effectiveReqId;
+      if (!tripLoaded && reqLoaded && reqTargetId != null && reqTargetId.isNotEmpty) {
+        final reqStatus = freshReq?['status']?.toString();
         if (reqStatus == 'ASSIGNED' || reqStatus == 'FULFILLED' || reqStatus == 'PARTIALLY_FULFILLED') {
           try {
-            final allTrips = await UserService.instance.getTrips();
+            final allTrips = await UserService.instance.getTrips(force: true);
             final matching = allTrips.where((t) {
               if (t is Map) {
                 return t['requirementId']?.toString() == reqTargetId;
               }
               return false;
             }).toList();
-            if (matching.isNotEmpty && mounted) {
-              setState(() {
-                _trip = Map<String, dynamic>.from(matching.first as Map);
-                _errorMessage = null;
-              });
+            if (matching.isNotEmpty) {
+              freshTrip = Map<String, dynamic>.from(matching.first as Map);
               tripLoaded = true;
-              _checkTripCompletionPrompt();
             }
           } catch (_) {}
         }
       }
 
-      // 3. Fallback: query active user trips if nothing was loaded
-      if (!tripLoaded && !reqLoaded && mounted) {
-        final list = await UserService.instance.getTrips();
-        if (list.isNotEmpty && mounted) {
+      // 3. Fallback: query active user trips if nothing was loaded yet
+      if (!tripLoaded && !reqLoaded) {
+        final list = await UserService.instance.getTrips(force: true);
+        if (list.isNotEmpty) {
           final active = list.firstWhere(
             (t) =>
                 t['status'] == 'IN_PROGRESS' ||
@@ -259,19 +264,48 @@ class _UserActiveTripScreenState extends State<UserActiveTripScreen>
                 t['status'] == 'ACCEPTED',
             orElse: () => list.first,
           );
-          setState(() {
-            _trip = active is Map<String, dynamic> ? active : Map<String, dynamic>.from(active as Map);
+          freshTrip = active is Map<String, dynamic> ? active : Map<String, dynamic>.from(active as Map);
+          tripLoaded = true;
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          if (freshTrip != null) {
+            _trip = freshTrip;
             _errorMessage = null;
-          });
+          }
+          if (freshReq != null) {
+            _requirement = freshReq;
+            _errorMessage = null;
+          }
+          // Network-offline fallback only if live load returned nothing at all
+          if (_trip == null && _requirement == null) {
+            if (widget.trip != null && widget.trip!.isNotEmpty) {
+              _trip = widget.trip;
+            } else if (widget.initialData != null && widget.initialData!.isNotEmpty) {
+              _requirement = widget.initialData;
+            }
+          }
+          _isLoading = false;
+        });
+        if (tripLoaded) {
           _checkTripCompletionPrompt();
         }
       }
     } catch (e) {
       if (!silent && mounted) {
-        setState(() => _errorMessage = AppToast.cleanErrorMessage(e));
+        setState(() {
+          if (_trip == null && _requirement == null) {
+            _errorMessage = AppToast.cleanErrorMessage(e);
+          }
+          _isLoading = false;
+        });
       }
     } finally {
-      if (!silent && mounted) setState(() => _isLoading = false);
+      if (!silent && mounted && _isLoading) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -1086,8 +1120,11 @@ class _UserActiveTripScreenState extends State<UserActiveTripScreen>
     final bool isCompleted = status.toUpperCase() == 'COMPLETED' ||
         (_trip?['completedAt'] != null && _trip!['completedAt'].toString().isNotEmpty) ||
         (req['status']?.toString().toUpperCase() == 'COMPLETED');
-    final bool isArrived = status == 'ARRIVED' || status == 'IN_PROGRESS' || isCompleted;
-    final bool isStarted = status == 'IN_PROGRESS' || isCompleted;
+    final bool isArrived = status == 'ARRIVED' || status == 'IN_PROGRESS' || status == 'STARTED' || isCompleted;
+    final bool isStarted = status == 'IN_PROGRESS' ||
+        status == 'STARTED' ||
+        (_trip?['startedAt'] != null && _trip!['startedAt'].toString().isNotEmpty) ||
+        isCompleted;
     final bool isBeforeTripStart = (status == 'ASSIGNED' || status == 'ACCEPTED' || status == 'ARRIVED') && !isStarted && !isCompleted;
 
     final String driverName = hasAssignedDriver ? (rawDriverName ?? 'Assigned Driver') : '';

@@ -1149,48 +1149,68 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
                     ),
                   ],
                 ),
-                Padding(
-                  padding: const EdgeInsets.only(left: 5, top: 4, bottom: 4),
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: Container(
-                      width: 2,
-                      height: 16,
-                      color: colors.borderSubtle,
-                    ),
-                  ),
-                ),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.only(top: 2),
-                      child: Icon(Icons.location_on, color: colors.errorRed, size: 14),
-                    ),
-                    const SizedBox(width: 9),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'DROP OFF',
-                            style: TextStyle(
-                                color: colors.textMuted, fontSize: 10, fontWeight: FontWeight.bold),
-                          ),
-                          Text(
-                            dropAddress,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                                color: colors.textSecondary,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500),
-                          ),
-                        ],
+                if (isEnRouteToDrop) ...[
+                  Padding(
+                    padding: const EdgeInsets.only(left: 5, top: 4, bottom: 4),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Container(
+                        width: 2,
+                        height: 16,
+                        color: colors.borderSubtle,
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Icon(Icons.location_on, color: colors.errorRed, size: 14),
+                      ),
+                      const SizedBox(width: 9),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'DROP OFF',
+                              style: TextStyle(
+                                  color: colors.textMuted, fontSize: 10, fontWeight: FontWeight.bold),
+                            ),
+                            Text(
+                              dropAddress,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                  color: colors.textSecondary,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ] else ...[
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Icon(Icons.lock_outline_rounded, color: colors.textMuted, size: 13),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Drop location unlocks after pickup OTP verification',
+                          style: TextStyle(
+                            color: colors.textMuted,
+                            fontSize: 11,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),

@@ -206,12 +206,11 @@ class _NotificationsFeedScreenState extends State<NotificationsFeedScreen> {
           if (dismissedSyntheticIds.contains(syntheticId)) continue;
           final rate = offer['payoutAmount'] ?? offer['fare'] ?? 450;
           final pickup = offer['pickupLocation']?['address'] ?? 'Pickup point';
-          final drop = offer['dropLocation']?['address'] ?? 'Drop point';
 
           items.add(NotificationItem(
             id: syntheticId,
             title: 'New Trip Offer — ₹$rate',
-            body: 'Direct Dispatch offer from $pickup to $drop. Tap to view and accept.',
+            body: 'Direct Dispatch pickup at $pickup. Tap to view and accept.',
             timestamp: 'Just now',
             icon: Icons.local_offer_rounded,
             color: AppColors.warning,

@@ -66,12 +66,13 @@ void main() {
         findsOneWidget,
       );
 
-      // 6. Verify Pickup and Dropoff addresses
+      // 6. Verify Pickup is shown and Dropoff address is hidden until pickup OTP verification
       expect(find.text('Meerpet, Hyderabad, Telangana'), findsOneWidget);
       expect(
         find.text('Gar Laxmi Infobahn, 12th Floor- Tower-2, Sy no.107(P, Village, Kokapet, Hyderabad'),
-        findsOneWidget,
+        findsNothing,
       );
+      expect(find.text('Drop location unlocks after pickup OTP verification'), findsOneWidget);
     });
 
     testWidgets('omits escort badge and notice when trip does not have escort', (tester) async {

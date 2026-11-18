@@ -141,9 +141,9 @@ class UserService {
     return response is List ? response : [];
   }
 
-  Future<dynamic> getRequirement(String id) async {
+  Future<dynamic> getRequirement(String id, {bool force = true}) async {
     await _ensureSession();
-    return await _api.get('/requirements/$id');
+    return await _api.get('/requirements/$id', force: force);
   }
 
   Future<dynamic> cancelRequirement(String id, {String? reason}) async {
@@ -343,11 +343,11 @@ class UserService {
   }
 
   // Booker / User Trips
-  Future<List<dynamic>> getTrips({String? status}) async {
+  Future<List<dynamic>> getTrips({String? status, bool force = true}) async {
     await _ensureSession();
     try {
       final query = status != null ? {'status': status} : null;
-      final response = await _api.get('/trips', queryParameters: query);
+      final response = await _api.get('/trips', queryParameters: query, force: force);
       if (response is List) return response;
       if (response is Map) {
         if (response['items'] is List) return response['items'] as List<dynamic>;
@@ -360,9 +360,9 @@ class UserService {
     }
   }
 
-  Future<dynamic> getTrip(String tripId) async {
+  Future<dynamic> getTrip(String tripId, {bool force = true}) async {
     await _ensureSession();
-    return await _api.get('/trips/$tripId');
+    return await _api.get('/trips/$tripId', force: force);
   }
 
   Future<List<dynamic>> getTripMessages(String tripId) async {

@@ -242,19 +242,77 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             }
           }
 
+          // Compute today's completed trips directly from live trips list (works immediately even offline/cached)
+          final nowLocal = DateTime.now();
+          int localTodayTrips = 0;
+          int localTotalCompletedTrips = 0;
+          double localTodayEarnings = 0.0;
+          for (final rawTrip in trips) {
+            if (rawTrip is! Map) continue;
+            final tStatus = (rawTrip['status'] ?? '').toString().toUpperCase();
+            if (tStatus != 'COMPLETED') continue;
+            localTotalCompletedTrips++;
+            final tsStr = (rawTrip['completedAt'] ?? rawTrip['updatedAt'] ?? rawTrip['createdAt'])?.toString();
+            final ts = tsStr != null ? DateTime.tryParse(tsStr)?.toLocal() : null;
+            if (ts != null &&
+                ts.year == nowLocal.year &&
+                ts.month == nowLocal.month &&
+                ts.day == nowLocal.day) {
+              localTodayTrips++;
+              localTodayEarnings += DriverService.resolveDriverPayout(Map<String, dynamic>.from(rawTrip)).toDouble();
+            }
+          }
+
           if (wallet != null) {
             final num avail = wallet['availableBalance'] as num? ??
                 wallet['walletBalance'] as num? ??
                 wallet['balance'] as num? ??
                 0.0;
-            final num earn = wallet['todayEarnings'] as num? ?? avail;
-            final num count = wallet['completedTripsCount'] as num? ?? wallet['totalTrips'] as num? ?? 0;
+            final num? backendTodayTrips = wallet['todayTripsCount'] as num?;
+            final num? backendTotalCompleted = wallet['completedTripsCount'] as num? ?? wallet['totalTrips'] as num?;
+            final num? backendTodayEarn = wallet['todayEarnings'] as num?;
+
             _availablePayoutBalance = avail.toDouble();
-            _todayEarnings = earn.toDouble();
-            _todayTripsCount = count.toInt();
+
+            final resolvedTodayTrips = (backendTodayTrips != null && backendTodayTrips > localTodayTrips)
+                ? backendTodayTrips.toInt()
+                : localTodayTrips;
+            final resolvedTotalCompleted = (backendTotalCompleted != null && backendTotalCompleted > localTotalCompletedTrips)
+                ? backendTotalCompleted.toInt()
+                : localTotalCompletedTrips;
+
+            // If driver completed trips today, show today's count; if wallet shows earnings with
+            // completed trips when timestamp parsing missed today's boundary, never show 0 trips.
+            if (resolvedTodayTrips > 0) {
+              _todayTripsCount = resolvedTodayTrips;
+            } else if (backendTodayTrips != null) {
+              _todayTripsCount = backendTodayTrips.toInt();
+            } else if (resolvedTotalCompleted > 0 && avail > 0) {
+              _todayTripsCount = resolvedTotalCompleted;
+            } else {
+              _todayTripsCount = 0;
+            }
+
+            if (backendTodayEarn != null) {
+              _todayEarnings = backendTodayEarn.toDouble();
+            } else if (localTodayEarnings > 0) {
+              _todayEarnings = localTodayEarnings;
+            } else if (_todayTripsCount > 0) {
+              _todayEarnings = avail.toDouble();
+            } else {
+              _todayEarnings = 0.0;
+            }
             _isWalletLoading = false;
-          } else if (!silent) {
-            _isWalletLoading = false;
+          } else {
+            if (localTodayTrips > 0) {
+              _todayTripsCount = localTodayTrips;
+              if (localTodayEarnings > 0) _todayEarnings = localTodayEarnings;
+            } else if (_todayTripsCount == 0 && localTotalCompletedTrips > 0 && _availablePayoutBalance > 0) {
+              _todayTripsCount = localTotalCompletedTrips;
+            }
+            if (!silent) {
+              _isWalletLoading = false;
+            }
           }
 
           // 1. Check if an active / in-progress / arrived trip exists
@@ -1247,7 +1305,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final reqObj = offer?['requirement'] as Map<String, dynamic>?;
     final vehicle = (offer?['vehicleType'] ?? reqObj?['vehicleType'] ?? 'Vehicle category unavailable').toString();
     final pickup = (offer?['pickupLocation']?['address'] ?? offer?['pickup'] ?? reqObj?['pickupAddress'] ?? 'Pickup Location').toString();
-    final drop = (offer?['dropLocation']?['address'] ?? offer?['drop'] ?? reqObj?['dropAddress'] ?? 'Drop Location').toString();
 
     final num rate = DriverService.resolveDriverPayout(offer);
     final rateStr = rate > 0 ? '₹ ${rate.toStringAsFixed(0)} Net' : '₹ Net';
@@ -1369,31 +1426,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               ),
               const SizedBox(height: 8),
               Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  const Icon(Icons.circle, size: 10, color: AppColors.error),
+                  Icon(Icons.lock_outline_rounded, size: 12, color: isDark ? AppColors.textMutedDark : AppColors.slate500),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Destination',
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: isDark ? AppColors.textMutedDark : AppColors.slate500,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        Text(
-                          drop,
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 13,
-                            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                          ),
-                        ),
-                      ],
+                    child: Text(
+                      'Drop location unlocks after pickup OTP verification',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontStyle: FontStyle.italic,
+                        color: isDark ? AppColors.textMutedDark : AppColors.slate500,
+                      ),
                     ),
                   ),
                 ],
@@ -1506,7 +1550,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final trip = _liveTrip;
     final tripId = trip?['id'] as String? ?? 'LIVE';
     final pickup = (trip?['pickupLocation']?['address'] ?? trip?['pickupAddress'] ?? 'Pickup Point').toString();
-    final drop = (trip?['dropLocation']?['address'] ?? trip?['dropAddress'] ?? 'Destination').toString();
     final vehicle = (trip?['vehicleType'] ?? 'Vehicle category unavailable').toString();
 
     return Column(
@@ -1577,17 +1620,19 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   ),
                 ],
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 6),
               Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  const Icon(Icons.circle, size: 8, color: AppColors.error),
+                  Icon(Icons.lock_outline_rounded, size: 13, color: isDark ? AppColors.textMutedDark : AppColors.slate500),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      drop,
+                      'Drop location unlocks after pickup OTP verification',
                       style: TextStyle(
-                        color: isDark ? AppColors.textSecondaryDark : AppColors.slate600,
+                        fontSize: 12,
+                        fontStyle: FontStyle.italic,
+                        color: isDark ? AppColors.textMutedDark : AppColors.slate500,
                       ),
                     ),
                   ),
@@ -1727,13 +1772,31 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 ),
               ),
               const SizedBox(height: 6),
-              Text(
-                'Drop: $drop',
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+              if (status == 'IN_PROGRESS' || status == 'STARTED' || status == 'COMPLETED')
+                Text(
+                  'Drop: $drop',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                  ),
+                )
+              else
+                Row(
+                  children: [
+                    Icon(Icons.lock_outline_rounded, size: 14, color: isDark ? AppColors.textMutedDark : AppColors.slate500),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'Drop location unlocks after pickup OTP verification',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontStyle: FontStyle.italic,
+                          color: isDark ? AppColors.textMutedDark : AppColors.slate500,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ),
               const SizedBox(height: 6),
               Text(
                 'Passenger: $passengerName',

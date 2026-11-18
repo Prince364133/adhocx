@@ -350,7 +350,6 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
         'Vehicle category unavailable';
 
     final pickup = req?['pickupAddress'] as String? ?? op['pickup'] as String? ?? op['pickupLocation']?['address'] as String? ?? 'Pickup location';
-    final drop = req?['dropAddress'] as String? ?? op['drop'] as String? ?? op['dropLocation']?['address'] as String? ?? 'Destination location';
     final earnings = DriverService.resolveDriverPayoutFormatted(op);
     final opColor = AppColors.primary;
 
@@ -444,16 +443,16 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
           ),
           const SizedBox(height: 6),
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              const Icon(Icons.circle, size: 8, color: AppColors.error),
-              const SizedBox(width: 10),
+              Icon(Icons.lock_outline_rounded, size: 12, color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
+              const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  drop,
+                  'Drop unlocks after pickup OTP',
                   style: AppTypography.caption(
-                    color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                  ),
+                    color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                  ).copyWith(fontStyle: FontStyle.italic),
                 ),
               ),
               Column(

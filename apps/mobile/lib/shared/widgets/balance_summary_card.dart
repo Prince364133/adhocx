@@ -115,14 +115,17 @@ class BalanceSummaryCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTypography.caption(
-                        fontSize: 11.5,
-                        color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
-                        fontWeight: FontWeight.w600,
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        label,
+                        maxLines: 1,
+                        style: AppTypography.caption(
+                          fontSize: 11.5,
+                          color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 2),

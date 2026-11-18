@@ -324,8 +324,12 @@ class _TripsScreenState extends State<TripsScreen> with WidgetsBindingObserver {
 
   Widget _buildTripCard(Map<String, dynamic> trip, bool isDark) {
     final requirement = _asMap(trip['requirement']);
+    final status = (trip['status'] ?? '').toString().toUpperCase();
+    final isOtpVerified = status == 'IN_PROGRESS' || status == 'STARTED' || status == 'COMPLETED';
     final pickup = _address(trip['pickupLocation']) ?? _address(requirement['pickupLocation']) ?? trip['pickupAddress']?.toString() ?? context.tr('Pickup Location');
-    final drop = _address(trip['dropLocation']) ?? _address(requirement['dropLocation']) ?? trip['dropAddress']?.toString() ?? context.tr('Drop Location');
+    final drop = isOtpVerified
+        ? (_address(trip['dropLocation']) ?? _address(requirement['dropLocation']) ?? trip['dropAddress']?.toString() ?? context.tr('Drop Location'))
+        : 'Drop location unlocks after pickup OTP verification';
     final vehicle = (trip['vehicleType'] ?? requirement['vehicleType'] ?? 'Vehicle').toString();
     final completedAt = trip['completedAt']?.toString() ?? trip['updatedAt']?.toString();
     final payout = DriverService.resolveDriverPayoutFormatted(trip);

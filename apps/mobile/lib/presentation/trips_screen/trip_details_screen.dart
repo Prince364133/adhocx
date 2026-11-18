@@ -371,14 +371,19 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
     final isArrived = status == 'ARRIVED';
     final isInProgress = status == 'IN_PROGRESS' || status == 'STARTED';
     final isCompleted = status == 'COMPLETED';
+    final isDropUnlocked = isInProgress || isCompleted;
 
     final pickup = trip['pickupLocation']?['address'] ?? req['pickupLocation']?['address'] ?? '—';
-    final drop = trip['dropLocation']?['address'] ?? req['dropLocation']?['address'] ?? '—';
+    final drop = isDropUnlocked
+        ? (trip['dropLocation']?['address'] ?? req['dropLocation']?['address'] ?? '—')
+        : 'Drop location unlocks after pickup OTP verification';
 
     final pLat = (trip['pickupLocation']?['latitude'] as num?)?.toDouble() ?? (req['pickupLat'] as num?)?.toDouble() ?? 0.0;
     final pLng = (trip['pickupLocation']?['longitude'] as num?)?.toDouble() ?? (req['pickupLng'] as num?)?.toDouble() ?? 0.0;
     final dLat = (trip['dropLocation']?['latitude'] as num?)?.toDouble() ?? (req['dropLat'] as num?)?.toDouble() ?? 0.0;
     final dLng = (trip['dropLocation']?['longitude'] as num?)?.toDouble() ?? (req['dropLng'] as num?)?.toDouble() ?? 0.0;
+    final visibleDropLat = isDropUnlocked ? dLat : 0.0;
+    final visibleDropLng = isDropUnlocked ? dLng : 0.0;
 
     final num? rawDist = trip['distanceKm'] ?? trip['tripDistanceKm'] ?? req['distanceKm'];
     double computedDistance = rawDist != null ? rawDist.toDouble() : 0.0;
@@ -655,43 +660,64 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                               ),
                               const SizedBox(height: AppSpacing.md),
 
-                              // Drop Row
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Container(
-                                    width: 10,
-                                    height: 10,
-                                    margin: const EdgeInsets.only(top: 4),
-                                    decoration: const BoxDecoration(
-                                      color: AppColors.error,
-                                      shape: BoxShape.circle,
+                              // Drop Row (Unlocked only after Start Trip OTP verification)
+                              if (isDropUnlocked)
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Container(
+                                      width: 10,
+                                      height: 10,
+                                      margin: const EdgeInsets.only(top: 4),
+                                      decoration: const BoxDecoration(
+                                        color: AppColors.error,
+                                        shape: BoxShape.circle,
+                                      ),
                                     ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'Drop',
-                                          style: AppTypography.body(
-                                            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                                            fontWeight: FontWeight.bold,
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Drop',
+                                            style: AppTypography.body(
+                                              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                              fontWeight: FontWeight.bold,
+                                            ),
                                           ),
-                                        ),
-                                        const SizedBox(height: 2),
-                                        Text(
-                                          drop,
-                                          style: AppTypography.caption(
-                                            color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            drop,
+                                            style: AppTypography.caption(
+                                              color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                                            ),
                                           ),
-                                        ),
-                                      ],
+                                        ],
+                                      ),
                                     ),
-                                  ),
-                                ],
-                              ),
+                                  ],
+                                )
+                              else
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.lock_outline_rounded,
+                                      size: 14,
+                                      color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Text(
+                                        'Drop location unlocks after pickup OTP verification',
+                                        style: AppTypography.caption(
+                                          color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                                        ).copyWith(fontStyle: FontStyle.italic),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                             ],
                           ),
                         ),
@@ -701,8 +727,8 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                         GoogleRouteMapWidget(
                           pickupLat: pLat,
                           pickupLng: pLng,
-                          dropLat: dLat,
-                          dropLng: dLng,
+                          dropLat: visibleDropLat,
+                          dropLng: visibleDropLng,
                           driverLat: _driverLocationIsLive ? _driverLat : null,
                           driverLng: _driverLocationIsLive ? _driverLng : null,
                           driverLocationIsLive: _driverLocationIsLive,
@@ -712,8 +738,8 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                           onExpand: () => _showExpandedMap(
                             pickupLat: pLat,
                             pickupLng: pLng,
-                            dropLat: dLat,
-                            dropLng: dLng,
+                            dropLat: visibleDropLat,
+                            dropLng: visibleDropLng,
                             pickupAddress: pickup.toString(),
                             dropAddress: drop.toString(),
                           ),

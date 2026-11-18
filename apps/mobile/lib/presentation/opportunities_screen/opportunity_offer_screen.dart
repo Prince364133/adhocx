@@ -495,14 +495,6 @@ class _OpportunityOfferScreenState extends State<OpportunityOfferScreen> {
                                 _activeOffer?['pickup'],
                               ]) ??
                               'Pickup address';
-                          final drop = _firstNonEmptyString([
-                                req?['dropAddress'],
-                                (req?['dropLocation'] as Map?)?['address'],
-                                _activeOffer?['dropAddress'],
-                                (_activeOffer?['dropLocation'] as Map?)?['address'],
-                                _activeOffer?['drop'],
-                              ]) ??
-                              'Drop address';
                           final distanceText = _formatDistance(req);
                           final durationText = _formatDuration(req);
                           final earnings = _formatEarnings();
@@ -605,30 +597,22 @@ class _OpportunityOfferScreenState extends State<OpportunityOfferScreen> {
                                 ),
                                 const SizedBox(height: AppSpacing.md),
 
-                                // Drop
+                                // Drop (locked until pickup OTP verification)
                                 Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  crossAxisAlignment: CrossAxisAlignment.center,
                                   children: [
-                                    const Icon(Icons.circle, size: 8, color: AppColors.error),
+                                    Icon(
+                                      Icons.lock_outline_rounded,
+                                      size: 14,
+                                      color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                                    ),
                                     const SizedBox(width: 10),
                                     Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            'Drop',
-                                            style: AppTypography.body(
-                                              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                          Text(
-                                            drop,
-                                            style: AppTypography.caption(
-                                              color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                                            ),
-                                          ),
-                                        ],
+                                      child: Text(
+                                        'Drop location unlocks after pickup OTP verification',
+                                        style: AppTypography.caption(
+                                          color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                                        ).copyWith(fontStyle: FontStyle.italic),
                                       ),
                                     ),
                                   ],

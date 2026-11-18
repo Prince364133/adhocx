@@ -432,7 +432,6 @@ class _IncomingRequirementBottomSheetState extends State<IncomingRequirementBott
     final num rate = DriverService.resolveDriverPayout(offer);
     final vehicle = (offer['vehicleType'] ?? req?['vehicleType'] ?? 'Vehicle category unavailable').toString();
     final pickup = (offer['pickupLocation']?['address'] ?? offer['pickup'] ?? offer['pickupAddress'] ?? req?['pickupAddress'] ?? 'Pickup Location').toString();
-    final drop = (offer['dropLocation']?['address'] ?? offer['drop'] ?? offer['dropAddress'] ?? req?['dropAddress'] ?? 'Dropoff Location').toString();
 
     final rawDistance = offer['tripDistanceKm'] ?? offer['distanceKm'] ?? req?['tripDistanceKm'] ?? req?['distanceKm'];
     final double? parsedDist = rawDistance != null ? ((rawDistance is num) ? rawDistance.toDouble() : double.tryParse(rawDistance.toString())) : null;
@@ -720,41 +719,26 @@ class _IncomingRequirementBottomSheetState extends State<IncomingRequirementBott
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 10),
 
-                  // Route: Dropoff
+                  // Dropoff locked until pickup OTP verification
                   Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      const Padding(
-                        padding: EdgeInsets.only(top: 2),
-                        child: Icon(Icons.location_on, size: 16, color: AppColors.error),
+                      Icon(
+                        Icons.lock_outline_rounded,
+                        size: 15,
+                        color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
                       ),
                       const SizedBox(width: 10),
                       Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'DROPOFF DESTINATION',
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 0.8,
-                                color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              drop,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: AppTypography.body(
-                                color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
+                        child: Text(
+                          'Drop location unlocks after pickup OTP verification',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontStyle: FontStyle.italic,
+                            color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                          ),
                         ),
                       ),
                     ],
