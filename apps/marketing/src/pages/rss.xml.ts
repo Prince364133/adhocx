@@ -1,4 +1,5 @@
 import type { APIRoute } from 'astro';
+import { ARTICLES_CONTENT } from '../data/blogArticles';
 
 interface BlogArticle {
   slug: string;
@@ -9,40 +10,14 @@ interface BlogArticle {
   category: string;
 }
 
-const SEED_ARTICLES: BlogArticle[] = [
-  {
-    slug: 'how-adhocx-reverse-auction-cuts-enterprise-cab-costs',
-    title: 'How Automated Algorithmic Dispatch Cuts Enterprise Corporate Cab Costs',
-    category: 'Corporate Mobility',
-    date: '2026-10-15T00:00:00.000Z',
-    author: 'AdhocX Fleet Operations Research',
-    summary: 'Discover how programmatic driver pairing and instant fulfillment eliminate middlemen broker markups for corporate logistics and spot employee transit in Hyderabad.'
-  },
-  {
-    slug: 'commercial-4-seater-and-7-seater-driver-economics',
-    title: 'Commercial Driver Economics: 4-Seater Sedans vs 7-Seater MUVs in Hyderabad',
-    category: 'Driver Welfare & Earnings',
-    date: '2026-10-10T00:00:00.000Z',
-    author: 'AdhocX Driver Community Desk',
-    summary: 'An operational breakdown of fuel efficiency, daily run tariffs, and how direct bank settlements and pre-scheduled corporate routes maximize monthly net driver earnings.'
-  },
-  {
-    slug: '1-hour-bank-refund-sla-in-corporate-mobility',
-    title: 'The 1-Hour Bank Refund SLA: Establishing Financial Recourse in B2B Fleet Transit',
-    category: 'Compliance & Financial SLAs',
-    date: '2026-09-28T00:00:00.000Z',
-    author: 'AdhocX Legal & Finance Desk',
-    summary: 'Why enterprise transport desks cannot afford locked balances in consumer cab wallets, and how instant IMPS/UPI refund rails transform corporate travel procurement.'
-  },
-  {
-    slug: 'hyderabad-tech-park-employee-transit-compliance',
-    title: 'Hyderabad Tech Park Transit Compliance: Yellow-Plate Regulations in HITEC City & Gachibowli',
-    category: 'Regulatory Compliance',
-    date: '2026-09-18T00:00:00.000Z',
-    author: 'AdhocX Regulatory Affairs',
-    summary: 'Key legal obligations under the Telangana Motor Vehicles Act regarding commercial fitness, passenger insurance, and police verification for corporate staff transport.'
-  }
-];
+const SEED_ARTICLES: BlogArticle[] = Object.values(ARTICLES_CONTENT).map((a) => ({
+  slug: a.slug,
+  title: a.title,
+  summary: a.summary,
+  date: a.date,
+  author: a.author,
+  category: a.category,
+}));
 
 export const GET: APIRoute = async () => {
   let articles = [...SEED_ARTICLES];
