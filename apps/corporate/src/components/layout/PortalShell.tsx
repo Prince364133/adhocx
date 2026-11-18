@@ -37,6 +37,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/employees', label: 'Employees', icon: <Users size={18} /> },
   { href: '/cancellations', label: 'Cancellation Requests', icon: <CalendarX size={18} /> },
   { href: '/support', label: 'Support', icon: <LifeBuoy size={18} /> },
+  { href: '/employee-support', label: 'Employee Support', icon: <Headphones size={18} /> },
   { href: '/billing', label: 'Billing & Invoices', icon: <Receipt size={18} /> },
   { href: '/dashboard/analytics', label: 'Transport Analytics', icon: <BarChart3 size={15} /> },
   { href: '/company-profile', label: 'Company Profile', icon: <Building size={18} /> },
