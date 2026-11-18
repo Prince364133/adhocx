@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ConflictException,
   Logger,
   Optional,
   ServiceUnavailableException,
@@ -10,6 +11,7 @@ import {
 import {
   AdminDriverQueryDto,
   AdminVendorQueryDto,
+  CreateVendorDto,
   VerifyDriverKycDto,
   RejectDriverKycDto,
   SuspendDriverDto,
@@ -17,13 +19,14 @@ import {
   VerifyVendorDto,
   RejectVendorDto,
   VerificationStatus,
+  UserRole,
   validateVerificationTransition,
 } from '@adhocx/contracts';
 import { UserStatus as PrismaUserStatus } from '@prisma/client';
 import { DatabaseService } from '../../database/database.service';
 import { AuditService } from '../audit/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
-import { assertPhoneAvailable, assertVehiclePlateAvailable, sanitizeRealName } from '../../common';
+import { assertPhoneAvailable, assertVehiclePlateAvailable, sanitizeRealName, normalizeIndianPhone } from '../../common';
 import { RedisService } from '../../redis/redis.service';
 import { DigioService } from '../digio/digio.service';
 
@@ -643,6 +646,80 @@ export class AdminService {
       hasNextPage: page * limit < total,
       hasPrevPage: page > 1,
     };
+  }
+
+  /**
+   * Manually onboard and create a new Vendor account from the Admin portal.
+   */
+  async createVendor(adminId: string, dto: CreateVendorDto) {
+    const rawPhone = dto.phone.trim();
+    const phoneNorm = normalizeIndianPhone(rawPhone);
+    if (!phoneNorm) {
+      throw new BadRequestException('A valid 10-digit Indian phone number is required.');
+    }
+    const phoneE164 = `+91${phoneNorm}`;
+    await assertPhoneAvailable(this.db, phoneE164);
+
+    let effectiveEmail: string | undefined = undefined;
+    if (dto.email && dto.email.trim()) {
+      const emailLower = dto.email.trim().toLowerCase();
+      const existingEmail = await this.db.user.findFirst({
+        where: { email: { equals: emailLower, mode: 'insensitive' } },
+      });
+      if (existingEmail) {
+        throw new ConflictException(`Email ${emailLower} is already registered under role ${existingEmail.role}.`);
+      }
+      effectiveEmail = emailLower;
+    }
+
+    const verificationStatus = dto.verificationStatus || VerificationStatus.VERIFIED;
+    const now = new Date();
+
+    const result = await this.db.$transaction(async (tx) => {
+      // 1. Create User with role VENDOR
+      const user = await tx.user.create({
+        data: {
+          phone: phoneE164,
+          email: effectiveEmail,
+          fullName: dto.fullName.trim(),
+          role: UserRole.VENDOR as any,
+          status: 'ACTIVE',
+        },
+      });
+
+      // 2. Create Vendor Profile
+      const vendor = await tx.vendor.create({
+        data: {
+          userId: user.id,
+          organizationName: dto.organizationName.trim(),
+          fullName: dto.fullName.trim(),
+          phone: phoneE164,
+          gstNumber: dto.gstNumber?.trim() || undefined,
+          address: dto.address?.trim() || (dto.city ? dto.city.trim() : undefined),
+          verificationStatus: verificationStatus as any,
+          approvedAt: verificationStatus === VerificationStatus.VERIFIED ? now : undefined,
+        },
+        include: { user: true },
+      });
+
+      return vendor;
+    });
+
+    await this.audit.log({
+      userId: adminId,
+      action: 'ADMIN_VENDOR_CREATED',
+      entityType: 'VENDOR',
+      entityId: result.id,
+      metadata: {
+        organizationName: dto.organizationName,
+        phone: phoneE164,
+        email: effectiveEmail,
+        verificationStatus,
+      },
+    });
+
+    this.logger.log(`Admin ${adminId} manually onboarded vendor ${result.organizationName} (${result.id})`);
+    return result;
   }
 
   /**

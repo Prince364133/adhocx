@@ -521,6 +521,21 @@ export const adminApi = {
     }),
 
   // Corporate Vendors & Platform Users
+  createVendor: (data: {
+    organizationName: string;
+    fullName: string;
+    phone: string;
+    email?: string;
+    gstNumber?: string;
+    address?: string;
+    city?: string;
+    verificationStatus?: string;
+  }) =>
+    apiClient<any>("/admin/vendors", {
+      method: "POST",
+      body: data,
+    }),
+
   getVendors: (status?: string, search?: string) => {
     const params = new URLSearchParams();
     if (status && status !== "ALL") params.append("verificationStatus", status);
