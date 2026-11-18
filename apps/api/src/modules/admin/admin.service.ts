@@ -26,7 +26,7 @@ import { UserStatus as PrismaUserStatus } from '@prisma/client';
 import { DatabaseService } from '../../database/database.service';
 import { AuditService } from '../audit/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
-import { assertPhoneAvailable, assertVehiclePlateAvailable, sanitizeRealName, normalizeIndianPhone } from '../../common';
+import { assertPhoneAvailable, assertVehiclePlateAvailable, sanitizeRealName } from '../../common';
 import { RedisService } from '../../redis/redis.service';
 import { DigioService } from '../digio/digio.service';
 
@@ -652,12 +652,21 @@ export class AdminService {
    * Manually onboard and create a new Vendor account from the Admin portal.
    */
   async createVendor(adminId: string, dto: CreateVendorDto) {
-    const rawPhone = dto.phone.trim();
-    const phoneNorm = normalizeIndianPhone(rawPhone);
-    if (!phoneNorm) {
+    const rawPhone = dto.phone ? dto.phone.trim() : '';
+    const digits = rawPhone.replace(/\D/g, '');
+    let clean10 = '';
+    if (digits.length === 10 && /^[6-9]\d{9}$/.test(digits)) {
+      clean10 = digits;
+    } else if (digits.length === 12 && digits.startsWith('91') && /^91[6-9]\d{9}$/.test(digits)) {
+      clean10 = digits.substring(2);
+    } else if (digits.length === 11 && digits.startsWith('0') && /^0[6-9]\d{9}$/.test(digits)) {
+      clean10 = digits.substring(1);
+    }
+
+    if (!clean10) {
       throw new BadRequestException('A valid 10-digit Indian phone number is required.');
     }
-    const phoneE164 = `+91${phoneNorm}`;
+    const phoneE164 = `+91${clean10}`;
     await assertPhoneAvailable(this.db, phoneE164);
 
     let effectiveEmail: string | undefined = undefined;
@@ -675,35 +684,38 @@ export class AdminService {
     const verificationStatus = dto.verificationStatus || VerificationStatus.VERIFIED;
     const now = new Date();
 
-    const result = await this.db.$transaction(async (tx) => {
-      // 1. Create User with role VENDOR
-      const user = await tx.user.create({
-        data: {
-          phone: phoneE164,
-          email: effectiveEmail,
-          fullName: dto.fullName.trim(),
-          role: UserRole.VENDOR as any,
-          status: 'ACTIVE',
-        },
-      });
+    const result = await this.db.$transaction(
+      async (tx) => {
+        // 1. Create User with role VENDOR
+        const user = await tx.user.create({
+          data: {
+            phone: phoneE164,
+            email: effectiveEmail,
+            fullName: dto.fullName.trim(),
+            role: UserRole.VENDOR as any,
+            status: 'ACTIVE',
+          },
+        });
 
-      // 2. Create Vendor Profile
-      const vendor = await tx.vendor.create({
-        data: {
-          userId: user.id,
-          organizationName: dto.organizationName.trim(),
-          fullName: dto.fullName.trim(),
-          phone: phoneE164,
-          gstNumber: dto.gstNumber?.trim() || undefined,
-          address: dto.address?.trim() || (dto.city ? dto.city.trim() : undefined),
-          verificationStatus: verificationStatus as any,
-          approvedAt: verificationStatus === VerificationStatus.VERIFIED ? now : undefined,
-        },
-        include: { user: true },
-      });
+        // 2. Create Vendor Profile
+        const vendor = await tx.vendor.create({
+          data: {
+            userId: user.id,
+            organizationName: dto.organizationName.trim(),
+            fullName: dto.fullName.trim(),
+            phone: phoneE164,
+            gstNumber: dto.gstNumber?.trim() || undefined,
+            address: dto.address?.trim() || (dto.city ? dto.city.trim() : undefined),
+            verificationStatus: verificationStatus as any,
+            approvedAt: verificationStatus === VerificationStatus.VERIFIED ? now : undefined,
+          },
+          include: { user: true },
+        });
 
-      return vendor;
-    });
+        return vendor;
+      },
+      { timeout: 30000, maxWait: 10000 },
+    );
 
     await this.audit.log({
       userId: adminId,
