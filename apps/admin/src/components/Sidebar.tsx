@@ -10,7 +10,6 @@ import {
   Car,
   Users,
   CreditCard,
-  Wallet,
   WalletCards,
   Tag,
   Ticket,
@@ -60,7 +59,6 @@ const navSections: NavSection[] = [
     title: "FINANCE & BILLING",
     items: [
       { href: "/settlements", label: "Settlements", icon: CreditCard },
-      { href: "/payments", label: "Payments & Escrow", icon: Wallet },
       { href: "/pricing", label: "Pricing & Tariffs", icon: Tag },
     ],
   },
