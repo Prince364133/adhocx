@@ -769,7 +769,7 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
                       AppTextField(
                         controller: _referralCodeController,
                         label: 'Referral Code or Referrer Mobile Number (Optional)',
-                        hintText: 'e.g. ADH8K92L or 9876543210',
+                        hintText: 'e.g. ADH8K9 or 9876543210',
                         prefixIcon: const Icon(Icons.card_giftcard_rounded, size: 20),
                         onChanged: _onReferralChanged,
                         suffixIcon: _isValidatingReferral

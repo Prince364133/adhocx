@@ -506,6 +506,7 @@ export class ValidateReferralResponseDto {
 
 export class DriverReferralItemDto {
   id!: string;
+  refereeDriverId?: string;
   refereeName!: string;
   refereePhoneMasked!: string;
   refereePhotoUrl?: string;
@@ -515,6 +516,11 @@ export class DriverReferralItemDto {
   createdAt!: string;
   refereeVerifiedAt?: string;
   claimedAt?: string;
+  refereeCompletedRides?: number;
+  milestoneRides?: number;
+  ridesRemaining?: number;
+  progressPercentage?: number;
+  isKycVerified?: boolean;
 }
 
 export class DriverReferralDashboardDto {
@@ -533,6 +539,8 @@ export class DriverReferralDashboardDto {
   currentRewardRupees!: number;
   nextTier?: 'SILVER' | 'GOLD';
   referralsToNextTier?: number;
+  activeRefereesCount?: number;
+  completedMilestonesCount?: number;
   referees!: DriverReferralItemDto[];
 }
 
