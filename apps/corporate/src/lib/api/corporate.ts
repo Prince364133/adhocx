@@ -5,7 +5,13 @@
  * forces it server side anyway and rejects any other value.
  */
 import { apiDownload, apiRequest, qs } from './client';
-import type { UpdateCorporateTenantProfileDto } from '@adhocx/contracts';
+import type {
+  CreateCorporateOfficeDto,
+  CreateCorporateTransportZoneDto,
+  UpdateCorporateOfficeDto,
+  UpdateCorporateTenantProfileDto,
+  UpdateCorporateTransportZoneDto,
+} from '@adhocx/contracts';
 import type {
   AttendancePage,
   AuthResponse,
@@ -45,6 +51,7 @@ import type {
   CorporateTicketActivity,
   Tenant,
   TenantIntegrations,
+  TransportZone,
 } from './types';
 
 export interface AnalyticsParams {
@@ -110,29 +117,70 @@ export const tenantApi = {
       method: 'PATCH',
       body,
     }),
-  offices: (tenantId: string) => apiRequest<Office[]>(`/corporate/tenants/${tenantId}/offices`),
-  createOffice: (
-    tenantId: string,
-    body: {
-      code: string;
-      name: string;
-      city?: string;
-      addressText: string;
-      latitude: number;
-      longitude: number;
-    },
-  ) =>
+  offices: (tenantId: string, includeInactive?: boolean) =>
+    apiRequest<Office[]>(
+      `/corporate/tenants/${tenantId}/offices${qs({ includeInactive: includeInactive ? 'true' : undefined })}`,
+    ),
+  createOffice: (tenantId: string, body: CreateCorporateOfficeDto) =>
     apiRequest<Office>(`/corporate/tenants/${tenantId}/offices`, {
       method: 'POST',
+      body,
+    }),
+  updateOffice: (tenantId: string, officeId: string, body: UpdateCorporateOfficeDto) =>
+    apiRequest<Office>(`/corporate/tenants/${tenantId}/offices/${officeId}`, {
+      method: 'PATCH',
       body,
     }),
   geofences: (tenantId: string, officeId: string) => apiRequest<OfficeGeofenceDetails>(`/corporate/tenants/${tenantId}/offices/${officeId}/geofences`),
   integrations: (tenantId: string) => apiRequest<TenantIntegrations>(`/corporate/tenants/${tenantId}/integrations`),
   costCenters: (tenantId: string) => apiRequest<any[]>(`/corporate/tenants/${tenantId}/cost-centers`),
-  departments: (tenantId: string) => apiRequest<Department[]>(`/corporate/tenants/${tenantId}/departments`),
-  createDepartment: (tenantId: string, body: { code: string; name: string }) =>
+  departments: (tenantId: string, includeInactive?: boolean) =>
+    apiRequest<Department[]>(
+      `/corporate/tenants/${tenantId}/departments${qs({ includeInactive: includeInactive ? 'true' : undefined })}`,
+    ),
+  createDepartment: (
+    tenantId: string,
+    body: {
+      code: string;
+      name: string;
+      departmentHead?: string;
+      officeId?: string;
+      description?: string;
+      isActive?: boolean;
+    },
+  ) =>
     apiRequest<Department>(`/corporate/tenants/${tenantId}/departments`, {
       method: 'POST',
+      body,
+    }),
+  updateDepartment: (
+    tenantId: string,
+    departmentId: string,
+    body: Partial<{
+      code: string;
+      name: string;
+      departmentHead?: string;
+      officeId?: string;
+      description?: string;
+      isActive?: boolean;
+    }>,
+  ) =>
+    apiRequest<Department>(`/corporate/tenants/${tenantId}/departments/${departmentId}`, {
+      method: 'PATCH',
+      body,
+    }),
+  transportZones: (tenantId: string, includeInactive?: boolean) =>
+    apiRequest<TransportZone[]>(
+      `/corporate/tenants/${tenantId}/transport-zones${qs({ includeInactive: includeInactive ? 'true' : undefined })}`,
+    ),
+  createTransportZone: (tenantId: string, body: CreateCorporateTransportZoneDto) =>
+    apiRequest<TransportZone>(`/corporate/tenants/${tenantId}/transport-zones`, {
+      method: 'POST',
+      body,
+    }),
+  updateTransportZone: (tenantId: string, zoneId: string, body: UpdateCorporateTransportZoneDto) =>
+    apiRequest<TransportZone>(`/corporate/tenants/${tenantId}/transport-zones/${zoneId}`, {
+      method: 'PATCH',
       body,
     }),
 };
@@ -193,8 +241,17 @@ export type EmployeeUpdate = Partial<
   Pick<Employee, 'fullName' | 'email' | 'phoneNumber' | 'gender' | 'officeId' | 'isActive'> & {
     department: string;
     costCenter: string;
+    homeAddress: string;
+    landmark?: string;
   }
 >;
+
+export interface DeleteEmployeeResult {
+  id: string;
+  deleted: boolean;
+  deactivated: boolean;
+  message: string;
+}
 
 export const employeeApi = {
   list: (
@@ -216,6 +273,10 @@ export const employeeApi = {
       body,
     }),
   update: (tenantId: string, employeeId: string, body: EmployeeUpdate) => apiRequest<Employee>(`/corporate/tenants/${tenantId}/employees/${employeeId}`, { method: 'PATCH', body }),
+  delete: (tenantId: string, employeeId: string) =>
+    apiRequest<DeleteEmployeeResult>(`/corporate/tenants/${tenantId}/employees/${employeeId}`, {
+      method: 'DELETE',
+    }),
   addLocation: (
     tenantId: string,
     employeeId: string,
@@ -497,6 +558,11 @@ export const supportApi = {
     apiRequest<SupportTicket>(`/corporate/support/tickets/${ticketId}/reopen`, {
       method: 'POST',
       body: body || {},
+    }),
+  updateStatus: (ticketId: string, status: string, notes?: string) =>
+    apiRequest<SupportTicket>(`/corporate/support/tickets/${ticketId}/status`, {
+      method: 'PATCH',
+      body: notes ? { status, notes } : { status },
     }),
   activity: (ticketId: string) =>
     apiRequest<CorporateTicketActivity[]>(`/corporate/support/tickets/${ticketId}/activity`),

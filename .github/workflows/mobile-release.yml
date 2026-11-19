@@ -6,9 +6,6 @@ on:
       - 'v*'
     branches:
       - production
-    paths:
-      - 'apps/mobile/**'
-      - '.github/workflows/mobile-release.yml'
   workflow_dispatch:
     inputs:
       version_tag:
@@ -18,6 +15,10 @@ on:
 
 permissions:
   contents: write
+
+concurrency:
+  group: mobile-release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   # ============================================================================

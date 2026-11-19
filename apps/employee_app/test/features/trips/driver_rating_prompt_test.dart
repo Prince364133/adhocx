@@ -6,7 +6,6 @@ import 'package:adhocx_employee/features/trips/summary/driver_rating_trip.dart';
 import 'package:adhocx_employee/features/trips/summary/trip_completed_screen.dart';
 import 'package:adhocx_employee/repositories/http_employee_rider_repository.dart';
 import 'package:adhocx_employee/services/employee_api_client.dart';
-import 'package:adhocx_employee/services/mock_data_service.dart';
 import 'package:adhocx_employee/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -76,7 +75,6 @@ void main() {
 
   testWidgets('auto-prompts only on backend completion and persists dismissal',
       (tester) async {
-    await tester.runAsync(MockDataService.loadData);
     var historyReads = 0;
     final repository = _repository(
       routeStatus: 'COMPLETED',
@@ -109,7 +107,6 @@ void main() {
 
   testWidgets('does not auto-prompt while backend trip is ongoing',
       (tester) async {
-    await tester.runAsync(MockDataService.loadData);
     final repository = _repository(
       routeStatus: 'IN_TRANSIT',
       hasFeedback: false,
@@ -125,7 +122,6 @@ void main() {
 
   testWidgets('also prompts automatically on the completed-trip screen',
       (tester) async {
-    await tester.runAsync(MockDataService.loadData);
     final repository = _repository(
       routeStatus: 'COMPLETED',
       hasFeedback: false,

@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
 import 'package:adhocx_employee/shared/components/components.dart';
 import 'package:adhocx_employee/state/employee_auth_provider.dart';
+import 'package:adhocx_employee/state/employee_data_provider.dart';
 import 'package:adhocx_employee/theme/app_colors.dart';
 import 'package:adhocx_employee/theme/app_radius.dart';
 import 'package:adhocx_employee/theme/app_spacing.dart';
@@ -13,13 +14,69 @@ import 'package:adhocx_employee/widgets/employee_brand_logo.dart';
 
 /// Main home dashboard (`/home`): welcome banner, next trip, assigned driver,
 /// quick actions, quick services and the 24/7 transport desk banner.
-class HomeScreenPlaceholder extends StatelessWidget {
+class HomeScreenPlaceholder extends StatefulWidget {
   const HomeScreenPlaceholder({super.key});
+
+  @override
+  State<HomeScreenPlaceholder> createState() => _HomeScreenPlaceholderState();
+}
+
+class _HomeScreenPlaceholderState extends State<HomeScreenPlaceholder> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      try {
+        context.read<EmployeeDataProvider>().refreshHome();
+      } catch (_) {}
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final p = EmployeePalette.of(context);
-    final user = context.watch<EmployeeAuthProvider>().currentUser;
+    EmployeeAuthProvider? authProvider;
+    EmployeeDataProvider? dataProvider;
+    try {
+      authProvider = context.watch<EmployeeAuthProvider>();
+    } catch (_) {}
+    try {
+      dataProvider = context.watch<EmployeeDataProvider>();
+    } catch (_) {}
+
+    final user = authProvider?.currentUser;
+    final profile = dataProvider?.profile;
+    final nextTrip = dataProvider?.nextTrip;
+    final hasActiveTrip = nextTrip?['hasActiveTrip'] == true;
+    final unreadCount = dataProvider?.unreadNotificationsCount ?? 0;
+
+    final employeeId = profile?['employeeCode']?.toString() ??
+        user?.employeeId ??
+        '';
+    final name = profile?['fullName']?.toString() ??
+        user?.fullName ??
+        'Commuter';
+    final orgName = (profile?['tenant'] is Map
+            ? (profile!['tenant'] as Map)['name']?.toString()
+            : null) ??
+        user?.organization ??
+        '';
+    final officeName = (profile?['office'] is Map
+            ? (profile!['office'] as Map)['name']?.toString()
+            : null) ??
+        user?.office ??
+        '';
+    final subtitleParts = [
+      if (orgName.isNotEmpty) orgName,
+      if (officeName.isNotEmpty) officeName,
+    ];
+
+    final driver = (hasActiveTrip && nextTrip?['driver'] is Map)
+        ? Map<String, dynamic>.from(nextTrip!['driver'] as Map)
+        : null;
+    final vehicle = (hasActiveTrip && nextTrip?['vehicle'] is Map)
+        ? Map<String, dynamic>.from(nextTrip!['vehicle'] as Map)
+        : null;
 
     return Scaffold(
       backgroundColor: p.background,
@@ -34,81 +91,106 @@ class HomeScreenPlaceholder extends StatelessWidget {
           ),
           const SizedBox(width: AppSpacing.xs),
           EmployeeNotificationBell(
-            unreadCount: 1,
+            unreadCount: unreadCount,
             onPressed: () => context.push(AppRoutes.notificationsCenter),
           ),
           const SizedBox(width: AppSpacing.lg),
         ],
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.pageHorizontal,
-            vertical: AppSpacing.lg,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              EmployeeEntrance(
-                child: _WelcomeBanner(
-                  employeeId: user?.employeeId ?? 'EMP10294',
-                  name: user?.fullName ?? 'Ravi Kumar',
-                  subtitle:
-                      '${user?.organization ?? "Estemporaneo Tech Pvt. Ltd."} • ${user?.office ?? "HITEC City Office, Hyderabad"}',
-                ),
-              ),
-              const SizedBox(height: AppSpacing.xl),
-              const EmployeeEntrance(
-                delay: Duration(milliseconds: 90),
-                child: _NextTripCard(),
-              ),
-              const SizedBox(height: AppSpacing.lg),
-              EmployeeDriverCard(
-                name: 'Suresh R',
-                vehicleNumber: 'TS09UB7845',
-                vehicleModel: 'Maruti Ertiga (White)',
-                rating: 4.8,
-                experience: '6+ yrs',
-                onCall: () => context.push(AppRoutes.contactDriverSheet),
-                onChat: () => context.push(AppRoutes.contactDriverSheet),
-                onViewDetails: () => context.push(AppRoutes.driverDetails),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              Row(
-                children: [
-                  Expanded(
-                    child: EmployeeSecondaryButton(
-                      label: 'Request Change',
-                      icon: Icons.edit_calendar_rounded,
-                      onPressed: () =>
-                          context.push(AppRoutes.requestChangeOptions),
-                    ),
+        child: RefreshIndicator(
+          onRefresh: () async {
+            try {
+              await context.read<EmployeeDataProvider>().refreshHome();
+            } catch (_) {}
+          },
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.pageHorizontal,
+              vertical: AppSpacing.lg,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                EmployeeEntrance(
+                  child: _WelcomeBanner(
+                    employeeId: employeeId,
+                    name: name.isNotEmpty ? name : 'Commuter',
+                    subtitle: subtitleParts.join(' • '),
                   ),
-                  const SizedBox(width: AppSpacing.md),
-                  Expanded(
-                    child: EmployeeSecondaryButton(
-                      label: 'Cancel Trip',
-                      icon: Icons.cancel_outlined,
-                      textColor: AppColors.error,
-                      borderColor: AppColors.error.withAlpha(110),
-                      onPressed: () => context.push(AppRoutes.cancelTrip),
-                    ),
+                ),
+                const SizedBox(height: AppSpacing.xl),
+                EmployeeEntrance(
+                  delay: const Duration(milliseconds: 90),
+                  child: hasActiveTrip
+                      ? _NextTripCard(trip: nextTrip!)
+                      : _EmptyTripBanner(
+                          message: nextTrip?['message']?.toString() ??
+                              'No upcoming trips assigned yet.',
+                        ),
+                ),
+                if (hasActiveTrip) ...[
+                  const SizedBox(height: AppSpacing.lg),
+                  EmployeeDriverCard(
+                    name: driver?['name']?.toString() ??
+                        driver?['fullName']?.toString() ??
+                        'Not yet assigned',
+                    vehicleNumber: vehicle?['registrationNumber']?.toString() ??
+                        vehicle?['plateNumber']?.toString() ??
+                        'Pending assignment',
+                    vehicleModel: vehicle?['model']?.toString() ??
+                        vehicle?['vehicleType']?.toString() ??
+                        'Corporate Cab',
+                    rating: (driver?['rating'] is num)
+                        ? (driver!['rating'] as num).toDouble()
+                        : 5.0,
+                    onCall: driver != null
+                        ? () => context.push(AppRoutes.contactDriverSheet)
+                        : null,
+                    onChat: driver != null
+                        ? () => context.push(AppRoutes.contactDriverSheet)
+                        : null,
+                    onViewDetails: () => context.push(AppRoutes.driverDetails),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: EmployeeSecondaryButton(
+                          label: 'Request Change',
+                          icon: Icons.edit_calendar_rounded,
+                          onPressed: () =>
+                              context.push(AppRoutes.requestChangeOptions),
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.md),
+                      Expanded(
+                        child: EmployeeSecondaryButton(
+                          label: 'Cancel Trip',
+                          icon: Icons.cancel_outlined,
+                          textColor: AppColors.error,
+                          borderColor: AppColors.error.withAlpha(110),
+                          onPressed: () => context.push(AppRoutes.cancelTrip),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
-              ),
-              const SizedBox(height: AppSpacing.xxl),
-              const EmployeeSectionHeader(
-                title: 'Quick Services',
-                padding: EdgeInsets.zero,
-              ),
-              const SizedBox(height: AppSpacing.md),
-              const _ServicesGrid(),
-              const SizedBox(height: AppSpacing.xl),
-              _HelplineBanner(
-                onTap: () => context.push(AppRoutes.safetyOverview),
-              ),
-              const SizedBox(height: AppSpacing.xxl),
-            ],
+                const SizedBox(height: AppSpacing.xxl),
+                const EmployeeSectionHeader(
+                  title: 'Quick Services',
+                  padding: EdgeInsets.zero,
+                ),
+                const SizedBox(height: AppSpacing.md),
+                const _ServicesGrid(),
+                const SizedBox(height: AppSpacing.xl),
+                _HelplineBanner(
+                  onTap: () => context.push(AppRoutes.safetyOverview),
+                ),
+                const SizedBox(height: AppSpacing.xxl),
+              ],
+            ),
           ),
         ),
       ),
@@ -117,7 +199,6 @@ class HomeScreenPlaceholder extends StatelessWidget {
   }
 }
 
-/// Brand gradient banner with the employee's name, id and office.
 class _WelcomeBanner extends StatelessWidget {
   final String employeeId;
   final String name;
@@ -157,34 +238,82 @@ class _WelcomeBanner extends StatelessWidget {
                       AppTypography.small(color: Colors.white.withAlpha(217)),
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.sm + 2,
-                  vertical: AppSpacing.xs,
+              if (employeeId.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.sm + 2,
+                    vertical: AppSpacing.xs,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withAlpha(51),
+                    borderRadius: AppRadius.borderPill,
+                  ),
+                  child: Text(
+                    employeeId,
+                    style: AppTypography.micro(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ),
-                decoration: BoxDecoration(
-                  color: Colors.white.withAlpha(51),
-                  borderRadius: AppRadius.borderPill,
-                ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(name, style: AppTypography.h2(color: Colors.white)),
+          if (subtitle.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.xs + 2),
+            Text(
+              subtitle,
+              style: AppTypography.caption(
+                color: AppColors.primarySubtle,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _EmptyTripBanner extends StatelessWidget {
+  final String message;
+
+  const _EmptyTripBanner({required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    final p = EmployeePalette.of(context);
+    return AppCard(
+      width: double.infinity,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.event_available_rounded, size: 20, color: p.accent),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
                 child: Text(
-                  employeeId,
-                  style: AppTypography.micro(
-                    color: Colors.white,
+                  'No Upcoming Trips',
+                  style: AppTypography.h4(
+                    color: p.textPrimary,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(name, style: AppTypography.h2(color: Colors.white)),
-          const SizedBox(height: AppSpacing.xs + 2),
+          const SizedBox(height: AppSpacing.sm),
           Text(
-            subtitle,
-            style: AppTypography.caption(
-              color: AppColors.primarySubtle,
-              fontWeight: FontWeight.w500,
-            ),
+            message,
+            style: AppTypography.small(color: p.textSecondary),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          EmployeeSecondaryButton(
+            label: 'View Schedule',
+            icon: Icons.calendar_month_outlined,
+            onPressed: () => context.go(AppRoutes.scheduleToday),
           ),
         ],
       ),
@@ -192,13 +321,41 @@ class _WelcomeBanner extends StatelessWidget {
   }
 }
 
-/// Next trip summary: type + status, time / ETA, route and actions.
 class _NextTripCard extends StatelessWidget {
-  const _NextTripCard();
+  final Map<String, dynamic> trip;
+
+  const _NextTripCard({required this.trip});
 
   @override
   Widget build(BuildContext context) {
     final p = EmployeePalette.of(context);
+    final direction = (trip['direction'] ?? '').toString().toUpperCase();
+    final isDrop = direction == 'LOGOUT' || direction == 'DROP';
+    final title =
+        isDrop ? 'Office Drop (Logout)' : 'Office Pickup (Login)';
+    final date =
+        EmployeeDataProvider.formatDisplayDate(trip['shiftDate']?.toString());
+    final time = EmployeeDataProvider.formatDisplayTime(
+      trip['plannedEta']?.toString() ?? trip['shiftTime']?.toString(),
+    );
+    final status =
+        (trip['stopStatus'] ?? trip['routeStatus'] ?? 'PLANNED').toString();
+    final pickupLoc = trip['pickupLocation'] is Map
+        ? Map<String, dynamic>.from(trip['pickupLocation'] as Map)
+        : null;
+    final officeDest = trip['officeDestination'] is Map
+        ? Map<String, dynamic>.from(trip['officeDestination'] as Map)
+        : null;
+    final pickupAddress = pickupLoc?['addressText']?.toString() ?? 'Pickup point';
+    final officeAddress = officeDest?['name']?.toString() ??
+        officeDest?['addressText']?.toString() ??
+        'Corporate Office';
+    final boardingOtp = trip['boardingOtp']?.toString() ?? '';
+
+    final upperStatus = status.toUpperCase();
+    final activeStep = upperStatus == 'ARRIVED' || upperStatus == 'BOARDED'
+        ? 2
+        : (upperStatus == 'IN_TRANSIT' || upperStatus == 'DISPATCHING' ? 1 : 0);
 
     return AppCard(
       width: double.infinity,
@@ -222,7 +379,7 @@ class _NextTripCard extends StatelessWidget {
               const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Text(
-                  'Office Pickup (Login)',
+                  title,
                   maxLines: 1,
                   style: AppTypography.h4(
                     color: p.textPrimary,
@@ -232,15 +389,13 @@ class _NextTripCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: AppSpacing.sm),
-              const EmployeeStatusBadge(
-                label: 'Confirmed',
+              EmployeeStatusBadge(
+                label: status,
                 variant: BadgeVariant.approved,
               ),
             ],
           ),
           const SizedBox(height: AppSpacing.md),
-
-          // Time & ETA
           Container(
             padding: const EdgeInsets.symmetric(
               horizontal: AppSpacing.md,
@@ -257,36 +412,36 @@ class _NextTripCard extends StatelessWidget {
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: Text(
-                    'Today • 08:15 AM',
+                    [if (date.isNotEmpty) date, if (time.isNotEmpty) time]
+                        .join(' • '),
                     style: AppTypography.bodyMedium(
                       color: p.textPrimary,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.sm,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: p.accentTint,
-                    borderRadius: AppRadius.borderSm,
-                  ),
-                  child: Text(
-                    'ETA ~6 mins',
-                    style: AppTypography.caption(
-                      color: p.accent,
-                      fontWeight: FontWeight.w700,
+                if (boardingOtp.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.sm,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: p.accentTint,
+                      borderRadius: AppRadius.borderSm,
+                    ),
+                    child: Text(
+                      'OTP $boardingOtp',
+                      style: AppTypography.caption(
+                        color: p.accent,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
-                ),
               ],
             ),
           ),
           const SizedBox(height: AppSpacing.lg),
-
-          // Route
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -304,7 +459,7 @@ class _NextTripCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Pickup: Flat 402, Green Glen Layout',
+                      'Pickup: $pickupAddress',
                       style: AppTypography.small(
                         color: p.textPrimary,
                         fontWeight: FontWeight.w600,
@@ -312,7 +467,7 @@ class _NextTripCard extends StatelessWidget {
                     ),
                     const SizedBox(height: AppSpacing.lg),
                     Text(
-                      'Drop: HITEC City Office, Tower B',
+                      'Drop: $officeAddress',
                       style: AppTypography.small(
                         color: p.textPrimary,
                         fontWeight: FontWeight.w600,
@@ -324,14 +479,11 @@ class _NextTripCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: AppSpacing.lg),
-
-          const EmployeeStepTracker(
-            currentStep: 0,
-            labels: ['Assigned', 'Approaching', 'Arrived'],
+          EmployeeStepTracker(
+            currentStep: activeStep,
+            labels: const ['Assigned', 'Approaching', 'Arrived'],
           ),
           const SizedBox(height: AppSpacing.lg),
-
-          // Actions
           Row(
             children: [
               Expanded(
@@ -357,7 +509,6 @@ class _NextTripCard extends StatelessWidget {
   }
 }
 
-/// 2×2 grid of quick service shortcuts.
 class _ServicesGrid extends StatelessWidget {
   const _ServicesGrid();
 
@@ -459,7 +610,6 @@ class _ServicesGrid extends StatelessWidget {
   }
 }
 
-/// Amber notice linking to the Safety Center / 24×7 transport desk.
 class _HelplineBanner extends StatelessWidget {
   final VoidCallback onTap;
 
@@ -507,7 +657,7 @@ class _HelplineBanner extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Emergency Hotline: 1800-419-7000',
+                      'Tap for Safety Center & Support',
                       style: AppTypography.micro(color: AppColors.warningText),
                     ),
                   ],

@@ -1,5 +1,5 @@
-import { Injectable, Logger, BadRequestException, ConflictException, InternalServerErrorException } from '@nestjs/common';
-import { randomBytes, randomInt } from 'crypto';
+import { Injectable, Logger, BadRequestException, ConflictException, InternalServerErrorException, NotFoundException } from '@nestjs/common';
+import { createHash, randomBytes, randomInt } from 'crypto';
 import * as ExcelJS from 'exceljs';
 import * as XLSX from '@e965/xlsx';
 import * as h3 from 'h3-js';
@@ -847,12 +847,10 @@ export class CorporateRoutePlannerService {
     return fallbackEta;
   }
 
-  private normalizeCorporateGender(raw?: string): 'MALE' | 'FEMALE' | 'OTHER' | 'PREFER_NOT_TO_SAY' {
+  private normalizeCorporateGender(raw?: string): 'MALE' | 'FEMALE' | 'OTHER' {
     const val = (raw || '').trim().toUpperCase();
     if (val === 'F' || val === 'FEMALE') return 'FEMALE';
     if (val === 'M' || val === 'MALE') return 'MALE';
-    if (val === 'OTHER') return 'OTHER';
-    if (val === 'PREFER_NOT_TO_SAY') return 'PREFER_NOT_TO_SAY';
     return 'OTHER';
   }
 
@@ -1001,6 +999,13 @@ export class CorporateRoutePlannerService {
     let stopsCreated = 0;
     let employeesLinked = 0;
     const routeIds: string[] = [];
+    const employeesToProvision: Array<{
+      id: string;
+      userId?: string | null;
+      fullName?: string | null;
+      phoneNumber?: string | null;
+      email?: string | null;
+    }> = [];
 
     await this.db.$transaction(
       async (tx: any) => {
@@ -1105,15 +1110,47 @@ export class CorporateRoutePlannerService {
               stopPlannedEta.getTime() + dwellSeconds * 1000 + Math.round((stop.travelToNextMinutes || 5) * 60_000),
             );
 
-            const linkedEmployeeId = await this.resolveEmployeeForStop(tx, tenantId, officeId, stop);
-            if (linkedEmployeeId) {
+            const resolvedEmp = await this.resolveEmployeeForStop(tx, tenantId, officeId, stop);
+            const linkedEmployeeId = resolvedEmp?.id;
+            if (resolvedEmp) {
               employeesLinked++;
-              await this.assertEmployeeNotOnLiveRoute(tx, tenantId, linkedEmployeeId, routeShiftDate, direction, stop.name);
+              employeesToProvision.push(resolvedEmp);
+              await this.assertEmployeeNotOnLiveRoute(tx, tenantId, resolvedEmp.id, routeShiftDate, direction, stop.name);
+            }
+
+            let transportRequestId: string | null = null;
+            if (linkedEmployeeId && typeof tx.corporateTransportRequest?.create === 'function') {
+              const pickupLat = isLogout ? Number(officeStopData.latitude) : Number(stop.lat);
+              const pickupLng = isLogout ? Number(officeStopData.longitude) : Number(stop.lng);
+              const dropoffLat = isLogout ? Number(stop.lat) : Number(officeStopData.latitude);
+              const dropoffLng = isLogout ? Number(stop.lng) : Number(officeStopData.longitude);
+              const idempotencyHash = createHash('sha256')
+                .update(`${tenantId}:${linkedEmployeeId}:${routeShiftDate}:${routeShiftTime}:${direction}:${createdRoute.id}:${idx}`)
+                .digest('hex');
+              const reqRow = await tx.corporateTransportRequest.create({
+                data: {
+                  tenantId,
+                  employeeId: linkedEmployeeId,
+                  scheduledDate: new Date(`${routeShiftDate}T00:00:00.000Z`),
+                  shiftTime: routeShiftTime,
+                  direction,
+                  pickupLat,
+                  pickupLng,
+                  dropoffLat,
+                  dropoffLng,
+                  h3PickupIndex: h3.latLngToCell(pickupLat, pickupLng, 8),
+                  status: 'PLANNED',
+                  idempotencyHash,
+                },
+                select: { id: true },
+              });
+              transportRequestId = reqRow.id;
             }
 
             await tx.corporateRouteStop.create({
               data: {
                 routeId: createdRoute.id,
+                transportRequestId,
                 employeeId: linkedEmployeeId || null,
                 stopSequence: isLogout ? idx + 2 : idx + 1,
                 stopType: isLogout ? 'DROPOFF' : 'PICKUP',
@@ -1141,6 +1178,12 @@ export class CorporateRoutePlannerService {
       { maxWait: 10_000, timeout: COMMIT_TX_TIMEOUT_MS },
     );
 
+    // Provision/link EMPLOYEE login accounts outside the route transaction so a phone/email
+    // collision on one row never aborts the PostgreSQL transaction (25P02).
+    for (const emp of employeesToProvision) {
+      await this.ensureEmployeeLoginUser(this.db, tenantId, emp);
+    }
+
     if (dto.includeMetadata) {
       return {
         routesCreated: plan.routes.length,
@@ -1157,28 +1200,62 @@ export class CorporateRoutePlannerService {
   }
 
   /** Employee code -> phone (any Indian format) -> new employee. Never by name. */
-  private async resolveEmployeeForStop(tx: any, tenantId: string, officeId: string, stop: any): Promise<string | undefined> {
+  private async resolveEmployeeForStop(
+    tx: any,
+    tenantId: string,
+    officeId: string,
+    stop: any,
+  ): Promise<{ id: string; userId?: string | null; fullName?: string | null; phoneNumber?: string | null; email?: string | null } | undefined> {
     if (stop.employeeId) {
       if (typeof tx.corporateEmployee?.findFirst === 'function') {
-        const own = await tx.corporateEmployee.findFirst({ where: { id: stop.employeeId, tenantId }, select: { id: true } });
+        const own = await tx.corporateEmployee.findFirst({
+          where: { id: stop.employeeId, tenantId },
+          select: { id: true, userId: true, fullName: true, phoneNumber: true, email: true },
+        });
         if (!own) throw new BadRequestException(`Employee ${stop.employeeId} does not belong to this company`);
+        return own;
       }
-      return stop.employeeId;
+      return { id: stop.employeeId };
     }
     if (typeof tx.corporateEmployee?.findFirst !== 'function') return undefined;
 
     const code = String(stop.employeeCode ?? '').trim();
     const phone = normalizeIndianPhone(stop.phoneNumber);
     if (code) {
-      const byCode = await tx.corporateEmployee.findFirst({ where: { tenantId, employeeCode: code }, select: { id: true } });
-      if (byCode) return byCode.id;
+      const byCode = await tx.corporateEmployee.findFirst({
+        where: { tenantId, employeeCode: code },
+        select: { id: true, userId: true, fullName: true, phoneNumber: true, email: true },
+      });
+      if (byCode) {
+        const updatedPhone = phone || byCode.phoneNumber;
+        if ((phone && byCode.phoneNumber !== phone) || (stop.name && stop.name.trim() && byCode.fullName !== stop.name.trim())) {
+          if (typeof tx.corporateEmployee?.update === 'function') {
+            await tx.corporateEmployee.update({
+              where: { id: byCode.id },
+              data: {
+                ...(phone ? { phoneNumber: phone } : {}),
+                ...(stop.name?.trim() ? { fullName: stop.name.trim() } : {}),
+              },
+            });
+          }
+        }
+        return { ...byCode, phoneNumber: updatedPhone, fullName: stop.name?.trim() || byCode.fullName };
+      }
     }
     if (phone) {
       const byPhone = await tx.corporateEmployee.findFirst({
         where: { tenantId, phoneNumber: { in: getPhoneVariants(phone) } },
-        select: { id: true },
+        select: { id: true, userId: true, fullName: true, phoneNumber: true, email: true },
       });
-      if (byPhone) return byPhone.id;
+      if (byPhone) {
+        if (stop.name?.trim() && byPhone.fullName !== stop.name.trim() && typeof tx.corporateEmployee?.update === 'function') {
+          await tx.corporateEmployee.update({
+            where: { id: byPhone.id },
+            data: { fullName: stop.name.trim(), isActive: true },
+          });
+        }
+        return { ...byPhone, fullName: stop.name?.trim() || byPhone.fullName };
+      }
     }
     if (typeof tx.corporateEmployee?.create !== 'function') return undefined;
 
@@ -1194,7 +1271,7 @@ export class CorporateRoutePlannerService {
         gender: this.normalizeCorporateGender(stop.gender),
         department: stop.department || null,
       },
-      select: { id: true },
+      select: { id: true, userId: true, fullName: true, phoneNumber: true, email: true },
     });
     if (typeof tx.corporateEmployeeLocation?.create === 'function') {
       await tx.corporateEmployeeLocation.create({
@@ -1208,7 +1285,105 @@ export class CorporateRoutePlannerService {
         },
       });
     }
-    return created.id;
+    return created;
+  }
+
+  /**
+   * Provisions or links an EMPLOYEE login account (`users` row) for a corporate employee
+   * so they can sign in to the Employee App / Portal via OTP immediately after CSV commit.
+   * Respects the 1-account-1-role policy and never alters non-EMPLOYEE accounts.
+   */
+  private async ensureEmployeeLoginUser(
+    tx: any,
+    tenantId: string,
+    employee: {
+      id: string;
+      userId?: string | null;
+      fullName?: string | null;
+      phoneNumber?: string | null;
+      email?: string | null;
+    },
+  ): Promise<void> {
+    if (employee.userId) return;
+    if (
+      typeof tx.user?.findFirst !== 'function' ||
+      typeof tx.user?.create !== 'function' ||
+      typeof tx.corporateEmployee?.update !== 'function'
+    ) {
+      return;
+    }
+
+    const normalizedPhone = normalizeIndianPhone(employee.phoneNumber);
+    if (!normalizedPhone || /^(\+91)?0+$/.test(normalizedPhone)) {
+      return;
+    }
+
+    try {
+      const existingUser = await tx.user.findFirst({
+        where: { phone: { in: getPhoneVariants(normalizedPhone) } },
+        select: { id: true, role: true, corporateTenantId: true },
+      });
+
+      if (existingUser) {
+        const canLinkExisting =
+          existingUser.role === 'EMPLOYEE' &&
+          (!existingUser.corporateTenantId || existingUser.corporateTenantId === tenantId);
+        if (!canLinkExisting) {
+          this.logger.warn(
+            `Employee phone ${normalizedPhone} already belongs to ${existingUser.role} user ${existingUser.id}; skipping automatic EMPLOYEE login link.`,
+          );
+          return;
+        }
+        const alreadyLinked = await tx.corporateEmployee.findFirst({
+          where: { userId: existingUser.id },
+          select: { id: true },
+        });
+        if (alreadyLinked) return;
+
+        if (!existingUser.corporateTenantId && typeof tx.user.update === 'function') {
+          await tx.user.update({
+            where: { id: existingUser.id },
+            data: { corporateTenantId: tenantId },
+          });
+        }
+        await tx.corporateEmployee.update({
+          where: { id: employee.id },
+          data: { userId: existingUser.id },
+        });
+        return;
+      }
+
+      const rawEmail = String(employee.email ?? '').trim().toLowerCase();
+      let safeEmail: string | undefined;
+      if (rawEmail && rawEmail.includes('@') && !rawEmail.endsWith('@roster.corporate.local')) {
+        const emailOwner = await tx.user.findFirst({
+          where: { email: { equals: rawEmail, mode: 'insensitive' } },
+          select: { id: true },
+        });
+        if (!emailOwner) safeEmail = rawEmail;
+      }
+
+      const createdUser = await tx.user.create({
+        data: {
+          phone: normalizedPhone,
+          ...(safeEmail ? { email: safeEmail } : {}),
+          fullName: employee.fullName?.trim() || undefined,
+          role: 'EMPLOYEE',
+          corporateTenantId: tenantId,
+          status: 'ACTIVE',
+        },
+        select: { id: true },
+      });
+
+      await tx.corporateEmployee.update({
+        where: { id: employee.id },
+        data: { userId: createdUser.id },
+      });
+    } catch (err: any) {
+      this.logger.warn(
+        `Could not auto-provision EMPLOYEE login for corporateEmployee ${employee.id} (${normalizedPhone}): ${err?.message ?? err}`,
+      );
+    }
   }
 
   private async assertEmployeeNotOnLiveRoute(
@@ -1828,5 +2003,715 @@ export class CorporateRoutePlannerService {
     }
     result.push(cur.trim());
     return result;
+  }
+
+  // ---------------------------------------------------------------------------
+  // MANUAL ROUTE & STOP CRUD (Ops / Admin)
+  // ---------------------------------------------------------------------------
+
+  async createManualRoute(dto: {
+    tenantId: string;
+    officeId: string;
+    shiftDate: string;
+    shiftTime: string;
+    direction?: 'LOGIN' | 'LOGOUT';
+    vehicleCategory?: string;
+    maxCapacity?: number;
+    stops: Array<{
+      employeeId?: string;
+      employeeCode?: string;
+      name: string;
+      phoneNumber: string;
+      email?: string;
+      gender?: string;
+      department?: string;
+      address: string;
+      lat?: number;
+      lng?: number;
+      plannedEta?: string;
+    }>;
+  }) {
+    if (!dto.tenantId || !dto.officeId) {
+      throw new BadRequestException('Company (tenantId) and office (officeId) are required');
+    }
+    if (!dto.shiftDate || !/^\d{4}-\d{2}-\d{2}$/.test(dto.shiftDate)) {
+      throw new BadRequestException('shiftDate must be in YYYY-MM-DD format');
+    }
+    if (!dto.shiftTime || !/^\d{2}:\d{2}$/.test(dto.shiftTime)) {
+      throw new BadRequestException('shiftTime must be in HH:mm format');
+    }
+    if (dto.direction && dto.direction !== 'LOGIN' && dto.direction !== 'LOGOUT') {
+      throw new BadRequestException('direction must be LOGIN or LOGOUT');
+    }
+    if (dto.maxCapacity !== undefined && (!Number.isFinite(Number(dto.maxCapacity)) || Number(dto.maxCapacity) < 1)) {
+      throw new BadRequestException('maxCapacity must be a positive number');
+    }
+    if (!Array.isArray(dto.stops) || dto.stops.length === 0) {
+      throw new BadRequestException('At least one employee stop is required to create a route');
+    }
+
+    const office = await this.db.corporateOffice.findFirst({
+      where: { id: dto.officeId, tenantId: dto.tenantId, isActive: true },
+    });
+    if (!office) {
+      throw new BadRequestException('Selected office does not exist or is inactive for this company');
+    }
+
+    const direction: 'LOGIN' | 'LOGOUT' = dto.direction === 'LOGOUT' ? 'LOGOUT' : 'LOGIN';
+    const isLogout = direction === 'LOGOUT';
+    const vehicleCategory = (dto.vehicleCategory || 'SEDAN').trim().toUpperCase();
+    const maxCapacity = Math.max(dto.stops.length, Number(dto.maxCapacity) || 4);
+
+    // Resolve coordinates for stops lacking valid lat/lng in parallel via batchGeocode
+    const addressesToGeocode: string[] = [];
+    for (const stop of dto.stops) {
+      if (!stop.name?.trim()) {
+        throw new BadRequestException('Every stop must include an employee name');
+      }
+      const lat = stop.lat !== undefined ? Number(stop.lat) : NaN;
+      const lng = stop.lng !== undefined ? Number(stop.lng) : NaN;
+      const addr = stop.address?.trim() || '';
+      if ((!Number.isFinite(lat) || !Number.isFinite(lng) || (lat === 0 && lng === 0)) && addr) {
+        addressesToGeocode.push(addr);
+      }
+    }
+
+    const geocodedMap = new Map<string, { lat: number; lng: number; matchedAddress?: string }>();
+    if (addressesToGeocode.length > 0) {
+      if (typeof this.geocodingAdapter?.batchGeocode === 'function') {
+        const batchRes = await this.geocodingAdapter.batchGeocode(addressesToGeocode, 6).catch(() => new Map());
+        for (const [k, v] of batchRes.entries()) {
+          geocodedMap.set(k.toLowerCase(), v);
+        }
+      } else if (typeof this.geocodingAdapter?.geocode === 'function') {
+        for (const addr of Array.from(new Set(addressesToGeocode))) {
+          const geo = await this.geocodingAdapter.geocode(addr).catch(() => null);
+          if (geo) geocodedMap.set(addr.toLowerCase(), geo);
+        }
+      }
+    }
+
+    const resolvedStops: Array<typeof dto.stops[number] & { matchedAddress: string; lat: number; lng: number }> = [];
+    for (const stop of dto.stops) {
+      let lat = stop.lat !== undefined ? Number(stop.lat) : NaN;
+      let lng = stop.lng !== undefined ? Number(stop.lng) : NaN;
+      let matchedAddress = stop.address?.trim() || '';
+      if (!Number.isFinite(lat) || !Number.isFinite(lng) || (lat === 0 && lng === 0)) {
+        if (matchedAddress) {
+          const geo = geocodedMap.get(matchedAddress.toLowerCase());
+          if (geo && Number.isFinite(geo.lat) && Number.isFinite(geo.lng)) {
+            lat = geo.lat;
+            lng = geo.lng;
+            matchedAddress = geo.matchedAddress || matchedAddress;
+          }
+        }
+        if (!Number.isFinite(lat) || !Number.isFinite(lng) || (lat === 0 && lng === 0)) {
+          lat = Number(office.latitude);
+          lng = Number(office.longitude);
+        }
+      }
+      resolvedStops.push({
+        ...stop,
+        name: stop.name.trim(),
+        address: stop.address?.trim() || matchedAddress || (isLogout ? 'Drop location' : 'Pickup location'),
+        matchedAddress,
+        lat,
+        lng,
+      });
+    }
+
+    const anchorTime = istWallClock(dto.shiftDate, dto.shiftTime);
+    const estDurationSeconds = Math.max(1800, resolvedStops.length * 10 * 60);
+    const targetPickup1Time = isLogout ? anchorTime : new Date(anchorTime.getTime() - estDurationSeconds * 1000);
+    const targetOfficeArrivalTime = isLogout ? new Date(anchorTime.getTime() + estDurationSeconds * 1000) : anchorTime;
+
+    let estDistanceMeters = 0;
+    let prevLat = isLogout ? Number(office.latitude) : resolvedStops[0].lat;
+    let prevLng = isLogout ? Number(office.longitude) : resolvedStops[0].lng;
+    for (const s of resolvedStops) {
+      estDistanceMeters += Math.round(haversineKm({ lat: prevLat, lng: prevLng }, { lat: s.lat, lng: s.lng }) * 1000);
+      prevLat = s.lat;
+      prevLng = s.lng;
+    }
+    if (!isLogout) {
+      estDistanceMeters += Math.round(
+        haversineKm({ lat: prevLat, lng: prevLng }, { lat: Number(office.latitude), lng: Number(office.longitude) }) * 1000,
+      );
+    }
+
+    const employeesToProvision: Array<{
+      id: string;
+      userId?: string | null;
+      fullName?: string | null;
+      phoneNumber?: string | null;
+      email?: string | null;
+    }> = [];
+
+    const createdRoute = await this.db.$transaction(async (tx: any) => {
+      const route = await tx.corporateRoute.create({
+        data: {
+          tenantId: dto.tenantId,
+          officeId: dto.officeId,
+          shiftDate: new Date(`${dto.shiftDate}T00:00:00.000Z`),
+          shiftTime: dto.shiftTime,
+          direction,
+          vehicleCategory,
+          maxCapacity,
+          assignedPassengerCount: resolvedStops.length,
+          status: 'PLANNED',
+          dispatchStatus: 'PENDING',
+          targetPickup1Time,
+          targetOfficeArrivalTime,
+          estDistanceMeters: Math.max(1000, estDistanceMeters),
+          estDurationSeconds,
+        },
+      });
+
+      const officeStopData = {
+        routeId: route.id,
+        stopSequence: isLogout ? 1 : resolvedStops.length + 1,
+        stopType: isLogout ? 'PICKUP' : 'DROPOFF',
+        addressText: office.addressText || office.name,
+        latitude: Number(office.latitude),
+        longitude: Number(office.longitude),
+        plannedEta: isLogout ? targetPickup1Time : targetOfficeArrivalTime,
+        dwellBufferSeconds: 0,
+        boardingOtp: '------',
+        status: 'PENDING',
+      };
+
+      if (isLogout) {
+        await tx.corporateRouteStop.create({ data: officeStopData });
+      }
+
+      for (let idx = 0; idx < resolvedStops.length; idx++) {
+        const stop = resolvedStops[idx];
+        const resolvedEmp = await this.resolveEmployeeForStop(tx, dto.tenantId, dto.officeId, stop);
+        if (resolvedEmp) {
+          employeesToProvision.push(resolvedEmp);
+          await this.assertEmployeeNotOnLiveRoute(tx, dto.tenantId, resolvedEmp.id, dto.shiftDate, direction, stop.name);
+        }
+
+        const plannedEta = stop.plannedEta
+          ? this.resolvePlannedStopEta({ eta: stop.plannedEta }, dto.shiftDate, targetPickup1Time, new Date(targetPickup1Time.getTime() + idx * 10 * 60_000))
+          : new Date(targetPickup1Time.getTime() + idx * 10 * 60_000);
+
+        let transportRequestId: string | null = null;
+        if (resolvedEmp) {
+          const pickupLat = isLogout ? Number(office.latitude) : stop.lat;
+          const pickupLng = isLogout ? Number(office.longitude) : stop.lng;
+          const dropoffLat = isLogout ? stop.lat : Number(office.latitude);
+          const dropoffLng = isLogout ? stop.lng : Number(office.longitude);
+          const idempotencyHash = createHash('sha256')
+            .update(`${dto.tenantId}:${resolvedEmp.id}:${dto.shiftDate}:${dto.shiftTime}:${direction}:${route.id}:${idx}`)
+            .digest('hex');
+          const reqRow = await tx.corporateTransportRequest.create({
+            data: {
+              tenantId: dto.tenantId,
+              employeeId: resolvedEmp.id,
+              scheduledDate: new Date(`${dto.shiftDate}T00:00:00.000Z`),
+              shiftTime: dto.shiftTime,
+              direction,
+              pickupLat,
+              pickupLng,
+              dropoffLat,
+              dropoffLng,
+              h3PickupIndex: h3.latLngToCell(pickupLat, pickupLng, 8),
+              status: 'PLANNED',
+              idempotencyHash,
+            },
+            select: { id: true },
+          });
+          transportRequestId = reqRow.id;
+        }
+
+        await tx.corporateRouteStop.create({
+          data: {
+            routeId: route.id,
+            transportRequestId,
+            employeeId: resolvedEmp?.id || null,
+            stopSequence: isLogout ? idx + 2 : idx + 1,
+            stopType: isLogout ? 'DROPOFF' : 'PICKUP',
+            addressText: stop.address,
+            employeeName: stop.name,
+            employeePhone: normalizeIndianPhone(stop.phoneNumber) || stop.phoneNumber?.trim() || null,
+            latitude: stop.lat,
+            longitude: stop.lng,
+            plannedEta,
+            dwellBufferSeconds: 180,
+            boardingOtp: generateBoardingOtp(),
+            status: 'PENDING',
+          },
+        });
+      }
+
+      if (!isLogout) {
+        await tx.corporateRouteStop.create({ data: officeStopData });
+      }
+
+      return route;
+    });
+
+    for (const emp of employeesToProvision) {
+      await this.ensureEmployeeLoginUser(this.db, dto.tenantId, emp);
+    }
+
+    return this.db.corporateRoute.findUnique({
+      where: { id: createdRoute.id },
+      include: { office: true, stops: { orderBy: { stopSequence: 'asc' }, include: { employee: true } } },
+    });
+  }
+
+  async updateRoute(
+    routeId: string,
+    dto: {
+      shiftDate?: string;
+      shiftTime?: string;
+      direction?: 'LOGIN' | 'LOGOUT';
+      vehicleCategory?: string;
+      maxCapacity?: number;
+      officeId?: string;
+    },
+  ) {
+    const existing = await this.db.corporateRoute.findUnique({
+      where: { id: routeId },
+      include: { stops: true },
+    });
+    if (!existing) throw new NotFoundException(`Route ${routeId} not found`);
+    if (existing.status === 'COMPLETED' || existing.status === 'IN_TRANSIT' || existing.status === 'CANCELLED') {
+      throw new ConflictException(`Cannot edit route in ${existing.status} status`);
+    }
+    if (dto.shiftDate && !/^\d{4}-\d{2}-\d{2}$/.test(dto.shiftDate)) {
+      throw new BadRequestException('shiftDate must be in YYYY-MM-DD format');
+    }
+    if (dto.shiftTime && !/^\d{2}:\d{2}$/.test(dto.shiftTime)) {
+      throw new BadRequestException('shiftTime must be in HH:mm format');
+    }
+    if (dto.maxCapacity !== undefined && (!Number.isFinite(Number(dto.maxCapacity)) || Number(dto.maxCapacity) < 1)) {
+      throw new BadRequestException('maxCapacity must be a positive number');
+    }
+
+    const shiftDateStr = dto.shiftDate || existing.shiftDate.toISOString().slice(0, 10);
+    const shiftTimeStr = dto.shiftTime || existing.shiftTime;
+    const direction = dto.direction || (existing.direction as 'LOGIN' | 'LOGOUT');
+    const isLogout = direction === 'LOGOUT';
+
+    const data: any = {};
+    if (dto.shiftDate) data.shiftDate = new Date(`${dto.shiftDate}T00:00:00.000Z`);
+    if (dto.shiftTime) data.shiftTime = dto.shiftTime;
+    if (dto.direction) data.direction = dto.direction;
+    if (dto.vehicleCategory) data.vehicleCategory = dto.vehicleCategory.trim().toUpperCase();
+    if (dto.maxCapacity !== undefined) data.maxCapacity = Math.max(existing.assignedPassengerCount, Number(dto.maxCapacity));
+    let nextOffice: any = null;
+    if (dto.officeId) {
+      nextOffice = await this.db.corporateOffice.findFirst({
+        where: { id: dto.officeId, tenantId: existing.tenantId, isActive: true },
+      });
+      if (!nextOffice) throw new BadRequestException('Selected office does not exist for this company');
+      data.officeId = dto.officeId;
+    }
+
+    if (dto.shiftDate || dto.shiftTime || dto.direction) {
+      const anchor = istWallClock(shiftDateStr, shiftTimeStr);
+      const dur = existing.estDurationSeconds || 1800;
+      data.targetPickup1Time = isLogout ? anchor : new Date(anchor.getTime() - dur * 1000);
+      data.targetOfficeArrivalTime = isLogout ? new Date(anchor.getTime() + dur * 1000) : anchor;
+    }
+
+    const updated = await this.db.$transaction(async (tx) => {
+      const r = await tx.corporateRoute.update({
+        where: { id: routeId },
+        data,
+        include: { office: true, stops: { orderBy: { stopSequence: 'asc' }, include: { employee: true } } },
+      });
+
+      if (dto.shiftDate || dto.shiftTime || dto.direction) {
+        const reqIds = existing.stops.map((s) => s.transportRequestId).filter((id): id is string => Boolean(id));
+        if (reqIds.length > 0) {
+          await tx.corporateTransportRequest.updateMany({
+            where: { id: { in: reqIds } },
+            data: {
+              ...(dto.shiftDate ? { scheduledDate: new Date(`${dto.shiftDate}T00:00:00.000Z`) } : {}),
+              ...(dto.shiftTime ? { shiftTime: dto.shiftTime } : {}),
+              ...(dto.direction ? { direction: dto.direction } : {}),
+            },
+          });
+        }
+      }
+
+      const directionChanged = Boolean(dto.direction && dto.direction !== existing.direction);
+
+      if (dto.direction || nextOffice) {
+        for (const s of existing.stops) {
+          if (!s.employeeId) {
+            await tx.corporateRouteStop.update({
+              where: { id: s.id },
+              data: {
+                ...(dto.direction ? { stopType: isLogout ? 'PICKUP' : 'DROPOFF' } : {}),
+                ...(nextOffice
+                  ? {
+                      addressText: nextOffice.addressText || nextOffice.name,
+                      latitude: Number(nextOffice.latitude),
+                      longitude: Number(nextOffice.longitude),
+                    }
+                  : {}),
+              },
+            });
+          } else if (dto.direction) {
+            await tx.corporateRouteStop.update({
+              where: { id: s.id },
+              data: { stopType: isLogout ? 'DROPOFF' : 'PICKUP' },
+            });
+          }
+        }
+      }
+
+      // When direction flips (LOGIN <-> LOGOUT), move the office anchor stop to sequence 1 (LOGOUT)
+      // or last (LOGIN) using two-pass negative offsets so unique (routeId, stopSequence) never collides.
+      if (directionChanged && existing.stops.length > 1) {
+        const sortedStops = [...existing.stops].sort((a, b) => a.stopSequence - b.stopSequence);
+        const officeStops = sortedStops.filter((s) => !s.employeeId);
+        const empStops = sortedStops.filter((s) => Boolean(s.employeeId));
+        const reordered = isLogout ? [...officeStops, ...empStops] : [...empStops, ...officeStops];
+
+        for (let i = 0; i < reordered.length; i++) {
+          await tx.corporateRouteStop.update({
+            where: { id: reordered[i].id },
+            data: { stopSequence: -(i + 1) },
+          });
+        }
+        for (let i = 0; i < reordered.length; i++) {
+          await tx.corporateRouteStop.update({
+            where: { id: reordered[i].id },
+            data: { stopSequence: i + 1 },
+          });
+        }
+      }
+
+      if (dto.direction || nextOffice) {
+        const refreshed = await tx.corporateRoute.findUnique({
+          where: { id: routeId },
+          include: { office: true, stops: { orderBy: { stopSequence: 'asc' }, include: { employee: true } } },
+        });
+        if (refreshed) return refreshed;
+      }
+
+      return r;
+    });
+    return updated;
+  }
+
+  async deleteRoute(routeId: string) {
+    const existing = await this.db.corporateRoute.findUnique({
+      where: { id: routeId },
+      include: { stops: { select: { id: true, transportRequestId: true } } },
+    });
+    if (!existing) throw new NotFoundException(`Route ${routeId} not found`);
+    if (existing.status === 'IN_TRANSIT' || existing.status === 'COMPLETED') {
+      throw new ConflictException(`Cannot delete a route in ${existing.status} status`);
+    }
+    if (existing.status === 'ASSIGNED' || existing.driverId) {
+      throw new ConflictException('Assigned routes cannot be hard-deleted; use Cancel Route so the driver and employees are notified.');
+    }
+    const earningsCount = typeof (this.db as any).corporateDriverEarning?.count === 'function'
+      ? await this.db.corporateDriverEarning.count({ where: { routeId } })
+      : 0;
+    if (earningsCount > 0) {
+      throw new ConflictException('Cannot delete a route with driver earning records; cancel it instead.');
+    }
+
+    const requestIds = existing.stops.map((s) => s.transportRequestId).filter((id): id is string => Boolean(id));
+
+    await this.db.$transaction(async (tx) => {
+      await tx.corporateDriverOffer.deleteMany({ where: { routeId } });
+      await tx.corporateRouteStop.deleteMany({ where: { routeId } });
+      if (requestIds.length > 0) {
+        await tx.corporateTransportRequest.deleteMany({ where: { id: { in: requestIds } } });
+      }
+      await tx.corporateRoute.delete({ where: { id: routeId } });
+    });
+
+    return { id: routeId, deleted: true };
+  }
+
+  async addRouteStop(
+    routeId: string,
+    dto: {
+      employeeId?: string;
+      employeeCode?: string;
+      name: string;
+      phoneNumber: string;
+      email?: string;
+      gender?: string;
+      department?: string;
+      address: string;
+      lat?: number;
+      lng?: number;
+      plannedEta?: string;
+    },
+  ) {
+    const route = await this.db.corporateRoute.findUnique({
+      where: { id: routeId },
+      include: { office: true, stops: { orderBy: { stopSequence: 'asc' } } },
+    });
+    if (!route) throw new NotFoundException(`Route ${routeId} not found`);
+    if (route.status === 'COMPLETED' || route.status === 'CANCELLED' || route.status === 'IN_TRANSIT') {
+      throw new ConflictException(`Cannot add stops to a ${route.status} route`);
+    }
+    if (!dto.name?.trim()) throw new BadRequestException('Employee name is required');
+    const existingEmpCount = route.stops.filter((s) => Boolean(s.employeeId)).length;
+    if (existingEmpCount >= route.maxCapacity) {
+      throw new ConflictException(`Route is already at max capacity (${route.maxCapacity} seats)`);
+    }
+
+    let lat = dto.lat !== undefined ? Number(dto.lat) : NaN;
+    let lng = dto.lng !== undefined ? Number(dto.lng) : NaN;
+    if (!Number.isFinite(lat) || !Number.isFinite(lng) || (lat === 0 && lng === 0)) {
+      if (dto.address?.trim()) {
+        const geo = await this.geocodingAdapter.geocode(dto.address.trim()).catch(() => null);
+        if (geo && Number.isFinite(geo.lat) && Number.isFinite(geo.lng)) {
+          lat = geo.lat;
+          lng = geo.lng;
+        }
+      }
+      if (!Number.isFinite(lat) || !Number.isFinite(lng) || (lat === 0 && lng === 0)) {
+        lat = Number(route.office.latitude);
+        lng = Number(route.office.longitude);
+      }
+    }
+
+    const shiftDateStr = route.shiftDate.toISOString().slice(0, 10);
+    const isLogout = route.direction === 'LOGOUT';
+    const employeeStopsCount = route.stops.filter((s) => Boolean(s.employeeId)).length;
+    const nextSeq = isLogout ? route.stops.length + 1 : employeeStopsCount + 1;
+
+    let resolvedEmp: any;
+    const createdStop = await this.db.$transaction(async (tx: any) => {
+      resolvedEmp = await this.resolveEmployeeForStop(tx, route.tenantId, route.officeId, {
+        ...dto,
+        name: dto.name.trim(),
+        lat,
+        lng,
+      });
+      if (resolvedEmp) {
+        await this.assertEmployeeNotOnLiveRoute(
+          tx,
+          route.tenantId,
+          resolvedEmp.id,
+          shiftDateStr,
+          route.direction as 'LOGIN' | 'LOGOUT',
+          dto.name.trim(),
+        );
+      }
+
+      if (!isLogout) {
+        // Shift trailing office dropoff stop down by 1 sequence
+        const officeStop = route.stops.find((s) => !s.employeeId && s.stopType === 'DROPOFF');
+        if (officeStop) {
+          await tx.corporateRouteStop.update({
+            where: { id: officeStop.id },
+            data: { stopSequence: nextSeq + 1 },
+          });
+        }
+      }
+
+      let transportRequestId: string | null = null;
+      if (resolvedEmp) {
+        const pickupLat = isLogout ? Number(route.office.latitude) : lat;
+        const pickupLng = isLogout ? Number(route.office.longitude) : lng;
+        const dropoffLat = isLogout ? lat : Number(route.office.latitude);
+        const dropoffLng = isLogout ? lng : Number(route.office.longitude);
+        const idempotencyHash = createHash('sha256')
+          .update(`${route.tenantId}:${resolvedEmp.id}:${shiftDateStr}:${route.shiftTime}:${route.direction}:${route.id}:add:${Date.now()}`)
+          .digest('hex');
+        const reqRow = await tx.corporateTransportRequest.create({
+          data: {
+            tenantId: route.tenantId,
+            employeeId: resolvedEmp.id,
+            scheduledDate: route.shiftDate,
+            shiftTime: route.shiftTime,
+            direction: route.direction,
+            pickupLat,
+            pickupLng,
+            dropoffLat,
+            dropoffLng,
+            h3PickupIndex: h3.latLngToCell(pickupLat, pickupLng, 8),
+            status: 'PLANNED',
+            idempotencyHash,
+          },
+          select: { id: true },
+        });
+        transportRequestId = reqRow.id;
+      }
+
+      const stop = await tx.corporateRouteStop.create({
+        data: {
+          routeId: route.id,
+          transportRequestId,
+          employeeId: resolvedEmp?.id || null,
+          stopSequence: nextSeq,
+          stopType: isLogout ? 'DROPOFF' : 'PICKUP',
+          addressText: dto.address?.trim() || (isLogout ? 'Drop location' : 'Pickup location'),
+          employeeName: dto.name.trim(),
+          employeePhone: normalizeIndianPhone(dto.phoneNumber) || dto.phoneNumber?.trim() || null,
+          latitude: lat,
+          longitude: lng,
+          plannedEta: dto.plannedEta
+            ? this.resolvePlannedStopEta({ eta: dto.plannedEta }, shiftDateStr, route.targetPickup1Time, route.targetPickup1Time)
+            : route.targetPickup1Time,
+          dwellBufferSeconds: 180,
+          boardingOtp: generateBoardingOtp(),
+          status: 'PENDING',
+        },
+        include: { employee: true },
+      });
+
+      await tx.corporateRoute.update({
+        where: { id: route.id },
+        data: {
+          assignedPassengerCount: employeeStopsCount + 1,
+          maxCapacity: Math.max(route.maxCapacity, employeeStopsCount + 1),
+        },
+      });
+
+      return stop;
+    });
+
+    if (resolvedEmp) {
+      await this.ensureEmployeeLoginUser(this.db, route.tenantId, resolvedEmp);
+    }
+
+    return createdStop;
+  }
+
+  async updateRouteStop(
+    routeId: string,
+    stopId: string,
+    dto: {
+      name?: string;
+      phoneNumber?: string;
+      address?: string;
+      lat?: number;
+      lng?: number;
+      plannedEta?: string;
+    },
+  ) {
+    const stop = await this.db.corporateRouteStop.findFirst({
+      where: { id: stopId, routeId },
+      include: { employee: true, route: true },
+    });
+    if (!stop) throw new NotFoundException(`Stop ${stopId} not found on route ${routeId}`);
+    if (stop.status === 'BOARDED' || ['COMPLETED', 'CANCELLED', 'IN_TRANSIT'].includes(String(stop.route.status))) {
+      throw new ConflictException(`Cannot edit stop in ${stop.status} / route ${stop.route.status} status`);
+    }
+
+    const normalizedPhone = dto.phoneNumber !== undefined
+      ? normalizeIndianPhone(dto.phoneNumber) || dto.phoneNumber.trim()
+      : undefined;
+
+    let nextLat = dto.lat !== undefined ? Number(dto.lat) : undefined;
+    let nextLng = dto.lng !== undefined ? Number(dto.lng) : undefined;
+    if (dto.address?.trim() && nextLat === undefined && nextLng === undefined) {
+      const geo = await this.geocodingAdapter.geocode(dto.address.trim()).catch(() => null);
+      if (geo && Number.isFinite(geo.lat) && Number.isFinite(geo.lng)) {
+        nextLat = geo.lat;
+        nextLng = geo.lng;
+      }
+    }
+
+    const shiftDateStr = stop.route.shiftDate.toISOString().slice(0, 10);
+    const parsedEta = dto.plannedEta !== undefined
+      ? this.resolvePlannedStopEta({ eta: dto.plannedEta }, shiftDateStr, stop.route.targetPickup1Time, stop.plannedEta)
+      : undefined;
+
+    const updated = await this.db.corporateRouteStop.update({
+      where: { id: stopId },
+      data: {
+        employeeName: dto.name !== undefined ? dto.name.trim() : undefined,
+        employeePhone: normalizedPhone,
+        addressText: dto.address !== undefined ? dto.address.trim() : undefined,
+        latitude: nextLat,
+        longitude: nextLng,
+        plannedEta: parsedEta,
+      },
+      include: { employee: true },
+    });
+
+    if (stop.employeeId && (dto.name !== undefined || normalizedPhone !== undefined)) {
+      await this.db.corporateEmployee.update({
+        where: { id: stop.employeeId },
+        data: {
+          ...(dto.name !== undefined ? { fullName: dto.name.trim() } : {}),
+          ...(normalizedPhone !== undefined ? { phoneNumber: normalizedPhone } : {}),
+        },
+      });
+      if (stop.employee?.userId) {
+        const userPatch: Record<string, any> = {};
+        if (dto.name !== undefined) userPatch.fullName = dto.name.trim();
+        if (normalizedPhone !== undefined) {
+          const clash = await this.db.user.findFirst({
+            where: { phone: { in: getPhoneVariants(normalizedPhone) }, id: { not: stop.employee.userId } },
+            select: { id: true },
+          });
+          if (!clash) userPatch.phone = normalizedPhone;
+        }
+        if (Object.keys(userPatch).length > 0) {
+          await this.db.user.update({ where: { id: stop.employee.userId }, data: userPatch });
+        }
+      } else if (normalizedPhone) {
+        await this.ensureEmployeeLoginUser(this.db, stop.route.tenantId, {
+          id: stop.employeeId,
+          fullName: dto.name?.trim() || stop.employee?.fullName,
+          phoneNumber: normalizedPhone,
+          email: stop.employee?.email,
+        });
+      }
+    }
+
+    return updated;
+  }
+
+  async deleteRouteStop(routeId: string, stopId: string) {
+    const stop = await this.db.corporateRouteStop.findFirst({
+      where: { id: stopId, routeId },
+      include: { route: { include: { stops: { select: { id: true, employeeId: true } } } } },
+    });
+    if (!stop) throw new NotFoundException(`Stop ${stopId} not found on route ${routeId}`);
+    if (!stop.employeeId) {
+      throw new BadRequestException('Cannot delete the office hub stop from a route');
+    }
+    if (stop.status === 'BOARDED' || ['COMPLETED', 'CANCELLED', 'IN_TRANSIT'].includes(String(stop.route.status))) {
+      throw new ConflictException(`Cannot delete stop in ${stop.status} / route ${stop.route.status} status`);
+    }
+    const totalEmployeeStops = stop.route.stops.filter((s) => Boolean(s.employeeId)).length;
+    if (totalEmployeeStops <= 1) {
+      throw new ConflictException('Cannot remove the last passenger stop from a route; delete or cancel the route instead.');
+    }
+
+    await this.db.$transaction(async (tx) => {
+      await tx.corporateRouteStop.delete({ where: { id: stopId } });
+      if (stop.transportRequestId) {
+        await tx.corporateTransportRequest.deleteMany({ where: { id: stop.transportRequestId } });
+      }
+      const remaining = await tx.corporateRouteStop.findMany({
+        where: { routeId },
+        orderBy: { stopSequence: 'asc' },
+      });
+      for (let i = 0; i < remaining.length; i++) {
+        if (remaining[i].stopSequence !== i + 1) {
+          await tx.corporateRouteStop.update({
+            where: { id: remaining[i].id },
+            data: { stopSequence: i + 1 },
+          });
+        }
+      }
+      const employeeCount = remaining.filter((s) => Boolean(s.employeeId)).length;
+      await tx.corporateRoute.update({
+        where: { id: routeId },
+        data: { assignedPassengerCount: employeeCount },
+      });
+    });
+
+    return { id: stopId, deleted: true };
   }
 }

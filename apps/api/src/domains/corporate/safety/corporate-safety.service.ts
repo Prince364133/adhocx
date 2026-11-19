@@ -130,17 +130,26 @@ export class CorporateSafetyService {
     status?: CorporateSosStatus;
     routeId?: string;
     tenantId?: string;
+    activeOnly?: boolean;
+    limit?: number;
   }) {
     const where: any = {};
-    if (query?.status) where.status = query.status;
+    if (query?.status) {
+      where.status = query.status;
+    } else if (query?.activeOnly) {
+      where.status = { in: ['NEW', 'ACTIVE', 'ACKNOWLEDGED', 'INVESTIGATING', 'ESCALATED', 'RESPONDED'] };
+    }
     if (query?.routeId) where.routeId = query.routeId;
     if (query?.tenantId) {
-      where.route = { tenantId: query.tenantId };
+      where.tenantId = query.tenantId;
     }
+
+    const take = Math.min(200, Math.max(1, Number.isFinite(query?.limit) ? Number(query?.limit) : 100));
 
     return this.db.corporateSosAlert.findMany({
       where,
       orderBy: { createdAt: 'desc' },
+      take,
       include: {
         route: {
           select: {
@@ -871,26 +880,28 @@ export class CorporateSafetyService {
     }
 
     const ticketNumber = `SEC-${Date.now().toString(36).toUpperCase()}-${Math.floor(Math.random() * 900 + 100)}`;
-    try {
-      await this.db.corporateSupportTicket.create({
-        data: {
-          ticketNumber,
-          tenantId: stop.route.tenantId,
-          employeeId: stop.employeeId || '00000000-0000-0000-0000-000000000000',
-          routeId,
-          stopId,
-          category: 'SAFETY_CONCERN',
-          priority: 'MEDIUM',
-          status: 'RESOLVED',
-          subject: `Boarding OTP Fallback: ${dto.reason}`,
-          description: `Emergency boarding manual override authorized by commander ${adminUserId}. Reason: ${dto.reason}. Notes: ${dto.notes || 'None'}`,
-          adminNotes: `Authorized by ${adminUserId} (${dto.supervisorUserId})`,
-          resolvedAt: departureTime,
-          resolvedByUserId: adminUserId,
-        },
-      });
-    } catch (e: any) {
-      this.logger.warn(`Could not persist fallback ticket: ${e?.message}`);
+    if (stop.employeeId) {
+      try {
+        await this.db.corporateSupportTicket.create({
+          data: {
+            ticketNumber,
+            tenantId: stop.route.tenantId,
+            employeeId: stop.employeeId,
+            routeId,
+            stopId,
+            category: 'SAFETY_CONCERN',
+            priority: 'MEDIUM',
+            status: 'RESOLVED',
+            subject: `Boarding OTP Fallback: ${dto.reason}`,
+            description: `Emergency boarding manual override authorized by commander ${adminUserId}. Reason: ${dto.reason}. Notes: ${dto.notes || 'None'}`,
+            adminNotes: `Authorized by ${adminUserId} (${dto.supervisorUserId})`,
+            resolvedAt: departureTime,
+            resolvedByUserId: adminUserId,
+          },
+        });
+      } catch (e: any) {
+        this.logger.warn(`Could not persist fallback ticket: ${e?.message}`);
+      }
     }
 
     this.logger.warn(

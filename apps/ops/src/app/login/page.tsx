@@ -243,7 +243,7 @@ function LoginContent() {
                 Flight Control Console
               </div>
               <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '1px' }}>
-                Multi-Tenant Commute Dispatch Desk · Port 7004
+                Multi-Tenant Commute Dispatch Desk
               </div>
             </div>
           </div>

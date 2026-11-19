@@ -11,6 +11,7 @@ import '../../shared/theme/app_radius.dart';
 import '../../shared/theme/app_spacing.dart';
 import '../../shared/theme/app_typography.dart';
 import '../../shared/widgets/app_primary_button.dart';
+import '../../shared/widgets/multi_route_selector_map.dart';
 import 'requirement_draft_provider.dart';
 import 'widgets/security_escort_toggle_card.dart';
 
@@ -41,6 +42,8 @@ class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirement
   bool _initialized = false;
   bool _isCalculatingRoute = false;
   RoadRouteResult? _routeResult;
+  List<RouteOption> _routeOptions = const [];
+  int _selectedRouteIndex = 0;
 
   bool _loadingQuote = false;
   String? _quoteError;
@@ -141,41 +144,61 @@ class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirement
     });
 
     try {
-      // 1. Calculate road routing via Google Maps
-      final res = await LocationService.instance.calculateRoadRoute(
+      // 1. Fetch 2–3 toll-free alternative road routes via Google Maps (shortest auto-selected)
+      final alternatives = await LocationService.instance.fetchAlternativeRoutes(
         startLat: _pickupLat,
         startLng: _pickupLng,
         endLat: _dropLat,
         endLng: _dropLng,
+        avoidTolls: true,
       );
 
-      final distanceKm = res.distanceKm;
-      final minutesAt40Kmh = distanceKm > 0 ? ((distanceKm / 40.0) * 60.0).round().clamp(1, 1440) : 0;
-      final formattedEta = minutesAt40Kmh < 60
-          ? '$minutesAt40Kmh mins'
-          : '${minutesAt40Kmh ~/ 60}h ${minutesAt40Kmh % 60}m';
-      final formattedDistance = distanceKm < 1
-          ? '${(distanceKm * 1000).round()} m'
-          : '${distanceKm.toStringAsFixed(1)} km';
-
-      final routeResult = RoadRouteResult(
-        distanceKm: distanceKm,
-        durationMinutes: minutesAt40Kmh,
-        formattedDistance: formattedDistance,
-        formattedEta: formattedEta,
-        isAccurateRoad: res.isAccurateRoad,
-      );
-
-      if (mounted) {
-        setState(() {
-          _routeResult = routeResult;
-          _isCalculatingRoute = false;
-        });
-        context.read<RequirementDraftProvider>().setRoadRoute(
+      RoadRouteResult routeResult;
+      if (alternatives.isNotEmpty) {
+        final shortest = alternatives.first;
+        routeResult = RoadRouteResult(
+          distanceKm: shortest.distanceKm,
+          durationMinutes: shortest.durationMinutes,
+          formattedDistance: shortest.formattedDistance,
+          formattedEta: shortest.formattedEta,
+          isAccurateRoad: true,
+        );
+      } else {
+        final res = await LocationService.instance.calculateRoadRoute(
+          startLat: _pickupLat,
+          startLng: _pickupLng,
+          endLat: _dropLat,
+          endLng: _dropLng,
+        );
+        final distanceKm = res.distanceKm;
+        final minutesAt40Kmh = distanceKm > 0 ? ((distanceKm / 40.0) * 60.0).round().clamp(1, 1440) : 0;
+        final formattedEta = minutesAt40Kmh < 60
+            ? '$minutesAt40Kmh mins'
+            : '${minutesAt40Kmh ~/ 60}h ${minutesAt40Kmh % 60}m';
+        final formattedDistance = distanceKm < 1
+            ? '${(distanceKm * 1000).round()} m'
+            : '${distanceKm.toStringAsFixed(1)} km';
+        routeResult = RoadRouteResult(
           distanceKm: distanceKm,
           durationMinutes: minutesAt40Kmh,
           formattedDistance: formattedDistance,
           formattedEta: formattedEta,
+          isAccurateRoad: res.isAccurateRoad,
+        );
+      }
+
+      if (mounted) {
+        setState(() {
+          _routeOptions = alternatives;
+          _selectedRouteIndex = 0;
+          _routeResult = routeResult;
+          _isCalculatingRoute = false;
+        });
+        context.read<RequirementDraftProvider>().setRoadRoute(
+          distanceKm: routeResult.distanceKm,
+          durationMinutes: routeResult.durationMinutes,
+          formattedDistance: routeResult.formattedDistance,
+          formattedEta: routeResult.formattedEta,
         );
       }
 
@@ -452,6 +475,41 @@ class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirement
 
                     // 1. UNIFIED CONNECTED ROUTE CARD
                     _buildConnectedRouteCard(isDark, primaryText, mutedText),
+
+                    if (_hasValidCoordinates && _routeOptions.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      MultiRouteSelectorMap(
+                        pickupLat: _pickupLat,
+                        pickupLng: _pickupLng,
+                        dropLat: _dropLat,
+                        dropLng: _dropLng,
+                        pickupAddress: _pickupAddress,
+                        dropAddress: _dropAddress,
+                        routes: _routeOptions,
+                        selectedIndex: _selectedRouteIndex,
+                        onSelectRoute: (idx) {
+                          if (idx < 0 || idx >= _routeOptions.length) return;
+                          final picked = _routeOptions[idx];
+                          final updated = RoadRouteResult(
+                            distanceKm: picked.distanceKm,
+                            durationMinutes: picked.durationMinutes,
+                            formattedDistance: picked.formattedDistance,
+                            formattedEta: picked.formattedEta,
+                            isAccurateRoad: true,
+                          );
+                          setState(() {
+                            _selectedRouteIndex = idx;
+                            _routeResult = updated;
+                          });
+                          context.read<RequirementDraftProvider>().setRoadRoute(
+                            distanceKm: updated.distanceKm,
+                            durationMinutes: updated.durationMinutes,
+                            formattedDistance: updated.formattedDistance,
+                            formattedEta: updated.formattedEta,
+                          );
+                        },
+                      ),
+                    ],
 
                     const SizedBox(height: 12),
 

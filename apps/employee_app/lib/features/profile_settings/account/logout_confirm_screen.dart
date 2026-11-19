@@ -5,6 +5,7 @@ import 'package:adhocx_employee/routes/app_routes.dart';
 import 'package:adhocx_employee/shared/components/components.dart';
 import 'package:adhocx_employee/shared/illustrations/profile_illustrations.dart';
 import 'package:adhocx_employee/state/employee_auth_provider.dart';
+import 'package:adhocx_employee/state/employee_data_provider.dart';
 import 'package:adhocx_employee/theme/app_spacing.dart';
 import 'package:adhocx_employee/theme/employee_palette.dart';
 
@@ -22,7 +23,11 @@ class _LogoutConfirmScreenState extends State<LogoutConfirmScreen> {
   Future<void> _handleSignOut() async {
     setState(() => _isSigningOut = true);
     await context.read<EmployeeAuthProvider>().signOut();
-    if (mounted) context.go(AppRoutes.welcome);
+    if (!mounted) return;
+    try {
+      context.read<EmployeeDataProvider>().clear();
+    } catch (_) {}
+    context.go(AppRoutes.welcome);
   }
 
   @override

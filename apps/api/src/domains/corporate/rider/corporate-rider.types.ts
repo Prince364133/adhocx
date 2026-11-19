@@ -43,6 +43,7 @@ export interface RiderScheduleItem {
   direction: CorporateTransportDirection;
   status: string; // APPROVED | PLANNED | ASSIGNED | COMPLETED | CANCELLED
   requestId: string;
+  stopId?: string | null;
   routeId?: string | null;
   pickupTime?: string | null;
   officeArrivalTime?: string | null;
@@ -132,6 +133,8 @@ export type RiderNextTripResponse =
       stopId: string;
       routeId: string;
       routeNumber: string;
+      shiftDate?: string;
+      shiftTime?: string;
       direction: CorporateTransportDirection;
       routeStatus: CorporateRouteStatus;
       stopStatus: CorporateStopStatus;
@@ -144,6 +147,15 @@ export type RiderNextTripResponse =
       officeDestination: { id: string; name: string; addressText: string };
       driver: { id: string; name: string; phone: string | null } | null;
       vehicle: { id: string; registrationNumber: string; model: string; vehicleType: string } | null;
+      routeStops?: Array<{
+        stopId: string;
+        stopSequence: number;
+        stopType: string;
+        addressText: string;
+        plannedEta: Date;
+        status: string;
+        isCurrentUser: boolean;
+      }>;
     };
 
 export interface RiderTripTrackingResponse {
@@ -189,6 +201,15 @@ export interface RiderTripTrackingResponse {
     triggeredAt: Date;
   } | null;
   coPassengersCount: number;
+  routeStops?: Array<{
+    stopId: string;
+    stopSequence: number;
+    stopType: string;
+    addressText: string;
+    plannedEta: Date;
+    status: string;
+    isCurrentUser: boolean;
+  }>;
 }
 
 export interface SubmitSafeReachDto {
@@ -262,5 +283,6 @@ export interface RiderNotificationItem {
   title: string;
   message: string;
   timestamp: Date;
+  isRead?: boolean;
   metadata?: Record<string, any>;
 }

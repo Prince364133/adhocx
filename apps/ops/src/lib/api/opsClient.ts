@@ -17,6 +17,17 @@ import {
   OpsDriverDetail,
   OpsDriverListResponse,
   LiveOperationsResponse,
+  RouteStop,
+  CreateManualRoutePayload,
+  UpdateRoutePayload,
+  ManualRouteStopInput,
+  UpdateRouteStopPayload,
+  CorporateEmployeeItem,
+  CorporateEmployeeListResponse,
+  CreateTenantEmployeePayload,
+  UpdateTenantEmployeePayload,
+  OperationsAnalyticsDashboard,
+  OperationsExceptionsResponse,
 } from './opsTypes';
 import {
   getStoredOpsToken,
@@ -172,6 +183,9 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
       headers,
     });
   } catch (err: any) {
+    if (err?.name === 'AbortError' || fetchOptions.signal?.aborted) {
+      throw err;
+    }
     throw new Error(`Network failure: ${err?.message || 'Could not connect to the API at ' + baseUrl}`, { cause: err });
   }
 
@@ -429,7 +443,7 @@ export const opsApi = {
     return categories.filter((category) => category.isActive);
   },
 
-  getTenants: async (params: { search?: string; page?: number; limit?: number } = {}): Promise<{
+  getTenants: async (params: { search?: string; page?: number; limit?: number; minimal?: boolean } = {}): Promise<{
     items: CorporateTenantOption[];
     pagination: { total: number; page: number; limit: number; totalPages: number };
   }> => {
@@ -437,6 +451,7 @@ export const opsApi = {
     if (params.search) q.set('search', params.search);
     q.set('page', String(params.page ?? 1));
     q.set('limit', String(params.limit ?? 100));
+    if (params.minimal) q.set('minimal', 'true');
     return request<{
       items: CorporateTenantOption[];
       pagination: { total: number; page: number; limit: number; totalPages: number };
@@ -504,6 +519,136 @@ export const opsApi = {
     );
   },
 
+  // ── Manual Route & Stop CRUD ──
+  createManualRoute: (payload: CreateManualRoutePayload): Promise<CorporateRouteItem> =>
+    request<CorporateRouteItem>('/corporate/routes', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  updateRoute: (routeId: string, payload: UpdateRoutePayload): Promise<CorporateRouteItem> =>
+    request<CorporateRouteItem>(`/corporate/routes/${encodeURIComponent(routeId)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
+
+  deleteRoute: (routeId: string): Promise<{ id: string; deleted: boolean }> =>
+    request<{ id: string; deleted: boolean }>(`/corporate/routes/${encodeURIComponent(routeId)}`, {
+      method: 'DELETE',
+    }),
+
+  addRouteStop: (routeId: string, payload: ManualRouteStopInput): Promise<RouteStop> =>
+    request<RouteStop>(`/corporate/routes/${encodeURIComponent(routeId)}/stops`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  updateRouteStop: (routeId: string, stopId: string, payload: UpdateRouteStopPayload): Promise<RouteStop> =>
+    request<RouteStop>(`/corporate/routes/${encodeURIComponent(routeId)}/stops/${encodeURIComponent(stopId)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
+
+  deleteRouteStop: (routeId: string, stopId: string): Promise<{ id: string; deleted: boolean }> =>
+    request<{ id: string; deleted: boolean }>(
+      `/corporate/routes/${encodeURIComponent(routeId)}/stops/${encodeURIComponent(stopId)}`,
+      { method: 'DELETE' },
+    ),
+
+  // ── Tenant Employee Directory CRUD ──
+  getTenantEmployees: (
+    tenantId: string,
+    params: {
+      search?: string;
+      officeId?: string;
+      department?: string;
+      isActive?: boolean;
+      page?: number;
+      limit?: number;
+    } = {},
+  ): Promise<CorporateEmployeeListResponse> => {
+    const q = new URLSearchParams();
+    if (params.search?.trim()) q.set('search', params.search.trim());
+    if (params.officeId) q.set('officeId', params.officeId);
+    if (params.department) q.set('department', params.department);
+    if (params.isActive !== undefined) q.set('isActive', String(params.isActive));
+    if (params.page) q.set('page', String(params.page));
+    if (params.limit) q.set('limit', String(params.limit));
+    const suffix = q.size ? `?${q.toString()}` : '';
+    return request<CorporateEmployeeListResponse>(
+      `/corporate/tenants/${encodeURIComponent(tenantId)}/employees${suffix}`,
+    );
+  },
+
+  createTenantEmployee: (
+    tenantId: string,
+    payload: CreateTenantEmployeePayload,
+  ): Promise<CorporateEmployeeItem> =>
+    request<CorporateEmployeeItem>(`/corporate/tenants/${encodeURIComponent(tenantId)}/employees`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  updateTenantEmployee: (
+    tenantId: string,
+    employeeId: string,
+    payload: UpdateTenantEmployeePayload,
+  ): Promise<CorporateEmployeeItem> =>
+    request<CorporateEmployeeItem>(
+      `/corporate/tenants/${encodeURIComponent(tenantId)}/employees/${encodeURIComponent(employeeId)}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+      },
+    ),
+
+  deleteTenantEmployee: (
+    tenantId: string,
+    employeeId: string,
+  ): Promise<{ id?: string; deleted?: boolean; deactivated?: boolean; message?: string }> =>
+    request<{ id?: string; deleted?: boolean; deactivated?: boolean; message?: string }>(
+      `/corporate/tenants/${encodeURIComponent(tenantId)}/employees/${encodeURIComponent(employeeId)}`,
+      { method: 'DELETE' },
+    ),
+
+  // ── Analytics & Exceptions ──
+  getAnalyticsDashboard: (params: {
+    tenantId?: string;
+    officeId?: string;
+    from: string;
+    to: string;
+    direction?: string;
+    shiftTime?: string;
+    signal?: AbortSignal;
+  }): Promise<OperationsAnalyticsDashboard> => {
+    const q = new URLSearchParams({
+      from: params.from,
+      to: params.to,
+    });
+    if (params.tenantId && params.tenantId !== 'ALL') q.set('tenantId', params.tenantId);
+    if (params.officeId) q.set('officeId', params.officeId);
+    if (params.direction) q.set('direction', params.direction);
+    if (params.shiftTime) q.set('shiftTime', params.shiftTime);
+    return request<OperationsAnalyticsDashboard>(`/corporate/analytics/dashboard?${q.toString()}`, {
+      signal: params.signal,
+    });
+  },
+
+  getExceptions: (params: {
+    tenantId: string;
+    officeId?: string;
+    from: string;
+    to: string;
+  }): Promise<OperationsExceptionsResponse> => {
+    const q = new URLSearchParams({
+      tenantId: params.tenantId,
+      from: params.from,
+      to: params.to,
+    });
+    if (params.officeId) q.set('officeId', params.officeId);
+    return request<OperationsExceptionsResponse>(`/corporate/analytics/exceptions?${q.toString()}`);
+  },
+
   // ── Manual Operations Interventions (§ 55) ──
   forceDispatchRoute: async (routeId: string): Promise<{
     routeId: string;
@@ -525,8 +670,22 @@ export const opsApi = {
   reassignDriver: async (
     routeId: string,
     payload: { newDriverId?: string; reason: string },
-  ): Promise<{ success: boolean; routeId: string; message: string }> => {
-    return request<{ success: boolean; routeId: string; message: string }>(`/corporate/ops/routes/${routeId}/reassign`, {
+  ): Promise<{
+    routeId: string;
+    reassignmentId?: string;
+    status: string;
+    previousDriverId?: string;
+    mode?: 'DIRECT_OFFER' | 'AUTO_DISPATCH' | string;
+    dispatch?: Record<string, unknown>;
+  }> => {
+    return request<{
+      routeId: string;
+      reassignmentId?: string;
+      status: string;
+      previousDriverId?: string;
+      mode?: 'DIRECT_OFFER' | 'AUTO_DISPATCH' | string;
+      dispatch?: Record<string, unknown>;
+    }>(`/corporate/ops/routes/${routeId}/reassign`, {
       method: 'POST',
       body: JSON.stringify(payload),
     });
@@ -535,8 +694,26 @@ export const opsApi = {
   cancelRoute: async (
     routeId: string,
     payload: { reason: string },
-  ): Promise<{ success: boolean; routeId: string; message: string }> => {
-    return request<{ success: boolean; routeId: string; message: string }>(`/corporate/trips/routes/${routeId}/cancel`, {
+  ): Promise<{
+    routeId: string;
+    cancellationId?: string;
+    status: string;
+    previousStatus?: string;
+    cancelledAt?: string;
+    cancelledStops?: number;
+    cancelledRequests?: number;
+    voidedEarnings?: number;
+  }> => {
+    return request<{
+      routeId: string;
+      cancellationId?: string;
+      status: string;
+      previousStatus?: string;
+      cancelledAt?: string;
+      cancelledStops?: number;
+      cancelledRequests?: number;
+      voidedEarnings?: number;
+    }>(`/corporate/trips/routes/${routeId}/cancel`, {
       method: 'POST',
       body: JSON.stringify(payload),
     });
@@ -754,8 +931,24 @@ export const opsApi = {
   },
 
   // ── SOS Crisis Cockpit ──
-  getSosAlerts: async (): Promise<SosAlertItem[]> => {
-    return request<SosAlertItem[]>(`/corporate/safety/alerts`);
+  getSosAlerts: async (params: {
+    activeOnly?: boolean;
+    limit?: number;
+    tenantId?: string;
+    status?: string;
+    routeId?: string;
+    signal?: AbortSignal;
+  } = {}): Promise<SosAlertItem[]> => {
+    const q = new URLSearchParams();
+    if (params.activeOnly) q.set('activeOnly', 'true');
+    if (params.limit !== undefined) q.set('limit', String(params.limit));
+    if (params.tenantId) q.set('tenantId', params.tenantId);
+    if (params.status) q.set('status', params.status);
+    if (params.routeId) q.set('routeId', params.routeId);
+    const suffix = q.size ? `?${q.toString()}` : '';
+    return request<SosAlertItem[]>(`/corporate/safety/alerts${suffix}`, {
+      signal: params.signal,
+    });
   },
 
   getSupportTickets: async (): Promise<OpsSupportTicket[]> =>

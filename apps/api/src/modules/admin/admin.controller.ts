@@ -21,6 +21,7 @@ import {
   ReactivateDriverDto,
   VerifyVendorDto,
   RejectVendorDto,
+  CreateVendorDto,
   AuthUserDto,
   UserRole,
 } from '@adhocx/contracts';
@@ -120,6 +121,17 @@ export class AdminController {
   }
 
   // --- Vendor Verification Workflows ---
+
+  @Post('vendors')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Manually onboard and create a new vendor account' })
+  @SwaggerResponse({ status: 201, description: 'Vendor created successfully' })
+  async createVendor(
+    @CurrentUser() admin: AuthUserDto,
+    @Body() dto: CreateVendorDto,
+  ) {
+    return this.adminService.createVendor(admin.id, dto);
+  }
 
   @Get('vendors')
   @ApiOperation({ summary: 'List vendors for onboarding review' })

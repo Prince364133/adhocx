@@ -183,7 +183,21 @@ export class CorporateBillingService {
     const randomSuffix = Math.floor(1000 + Math.random() * 9000);
     const invoiceNumber = `INV-${tenant.code}-${periodMonthStr}-${randomSuffix}`;
 
+    const billedRouteIds = lineItemData.map((l) => l.routeId);
     const invoice = await this.db.$transaction(async (tx) => {
+      // Re-check inside transaction to prevent concurrent double-billing race conditions
+      if (billedRouteIds.length > 0 && typeof (tx as any).corporateInvoiceLine?.findMany === 'function') {
+        const concurrentLines = await tx.corporateInvoiceLine.findMany({
+          where: { routeId: { in: billedRouteIds } },
+          select: { routeId: true },
+        });
+        if (concurrentLines && concurrentLines.length > 0) {
+          throw new ConflictException(
+            `One or more routes (${concurrentLines.length}) were already billed by a concurrent invoice generation request`,
+          );
+        }
+      }
+
       const createdInvoice = await tx.corporateInvoice.create({
         data: {
           tenantId: dto.tenantId,
@@ -197,20 +211,24 @@ export class CorporateBillingService {
         },
       });
 
-      for (const line of lineItemData) {
-        await tx.corporateInvoiceLine.create({
-          data: {
-            invoiceId: createdInvoice.id,
-            routeId: line.routeId,
-            billableDistanceMeters: line.billableDistanceMeters,
-            amountPaise: line.amountPaise,
-            lineType: line.lineType,
-            rateCardId: line.rateCardId,
-            rateCardVersion: line.rateCardVersion,
-            noShowCount: line.noShowCount,
-            noShowPaise: line.noShowPaise,
-          },
-        });
+      const linePayloads = lineItemData.map((line) => ({
+        invoiceId: createdInvoice.id,
+        routeId: line.routeId,
+        billableDistanceMeters: line.billableDistanceMeters,
+        amountPaise: line.amountPaise,
+        lineType: line.lineType,
+        rateCardId: line.rateCardId,
+        rateCardVersion: line.rateCardVersion,
+        noShowCount: line.noShowCount,
+        noShowPaise: line.noShowPaise,
+      }));
+
+      if (typeof (tx as any).corporateInvoiceLine?.createMany === 'function') {
+        await tx.corporateInvoiceLine.createMany({ data: linePayloads });
+      } else {
+        for (const payload of linePayloads) {
+          await tx.corporateInvoiceLine.create({ data: payload });
+        }
       }
 
       return createdInvoice;
@@ -383,7 +401,7 @@ export class CorporateBillingService {
       doc.fillColor('#0F172A').fontSize(18).text('ADHOCX FLEET TECHNOLOGIES PVT LTD', { align: 'left' });
       doc.fontSize(8).fillColor('#64748B')
         .text('Hitec City, Madhapur, Hyderabad, Telangana 500081 | operations@adhocx.com')
-        .text('GSTIN: 36AAACA1234F1Z8 | SAC Code: 9964 (Passenger Transport Services)');
+        .text(`GSTIN: ${process.env.PLATFORM_GSTIN || 'Configured on Tax Profile'} | SAC Code: 9964 (Passenger Transport Services)`);
       
       doc.moveDown(0.5);
       doc.strokeColor('#E2E8F0').lineWidth(1).moveTo(40, doc.y).lineTo(555, doc.y).stroke();
@@ -478,10 +496,16 @@ export class CorporateBillingService {
       doc.rect(40, currentY, 515, 50).fill('#F8FAFC');
       doc.strokeColor('#CBD5E1').lineWidth(0.5).rect(40, currentY, 515, 50).stroke();
 
+      const bankAccountName = process.env.PLATFORM_BANK_ACCOUNT_NAME || 'AdhocX Fleet Technologies Pvt Ltd';
+      const bankAccountNo = process.env.PLATFORM_BANK_ACCOUNT || 'Configured on invoice schedule';
+      const bankName = process.env.PLATFORM_BANK_NAME || 'Settlement Bank';
+      const bankIfsc = process.env.PLATFORM_BANK_IFSC || 'Configured on invoice schedule';
+      const bankBranch = process.env.PLATFORM_BANK_BRANCH || '';
+
       doc.fillColor('#0F172A').fontSize(8).text('SETTLEMENT BANK ACCOUNT DETAILS (NEFT / RTGS / IMPS):', 50, currentY + 8);
       doc.fillColor('#475569').fontSize(8)
-        .text('Account Name: AdhocX Fleet Technologies Pvt Ltd  |  Account No: 50200012345678', 50, currentY + 22)
-        .text('Bank: HDFC Bank Ltd  |  IFSC Code: HDFC0000123  |  Branch: Madhapur Hitec City, Hyderabad', 50, currentY + 34);
+        .text(`Account Name: ${bankAccountName}  |  Account No: ${bankAccountNo}`, 50, currentY + 22)
+        .text(`Bank: ${bankName}  |  IFSC Code: ${bankIfsc}${bankBranch ? `  |  Branch: ${bankBranch}` : ''}`, 50, currentY + 34);
 
       // ─── Footer ───────────────────────────────────────────
       doc.fontSize(7).fillColor('#94A3B8').text(

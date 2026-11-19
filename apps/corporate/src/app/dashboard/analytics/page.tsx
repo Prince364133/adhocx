@@ -9,10 +9,7 @@ import { analyticsApi } from '../../../lib/api/corporate';
 import type { Dashboard } from '../../../lib/api/types';
 import type { TripsAnalyticsReport } from '../../../lib/api/corporate';
 import { useSession } from '../../../lib/auth/SessionContext';
-
-function dateKey(date: Date) {
-  return date.toISOString().slice(0, 10);
-}
+import { addDays, todayIst } from '../../../lib/format';
 
 export default function TransportAnalyticsPage() {
   const { tenantId, status } = useSession();
@@ -30,8 +27,8 @@ export default function TransportAnalyticsPage() {
       return;
     }
 
-    const to = dateKey(new Date());
-    const from = dateKey(new Date(Date.now() - 29 * 24 * 60 * 60 * 1000));
+    const to = todayIst();
+    const from = addDays(to, -29);
     setLoading(true);
     setError(null);
     try {
@@ -68,9 +65,10 @@ export default function TransportAnalyticsPage() {
       counts.set(day, current);
     }
 
+    const today = todayIst();
     return Array.from({ length: 7 }, (_, index) => {
-      const date = new Date(Date.now() - (6 - index) * 24 * 60 * 60 * 1000);
-      const key = dateKey(date);
+      const key = addDays(today, -(6 - index));
+      const date = new Date(`${key}T00:00:00.000Z`);
       return {
         day: new Intl.DateTimeFormat('en', { weekday: 'short', timeZone: 'UTC' }).format(date),
         scheduled: counts.get(key)?.scheduled ?? 0,

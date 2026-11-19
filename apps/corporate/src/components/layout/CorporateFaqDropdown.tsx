@@ -25,7 +25,11 @@ import {
 import styles from "./CorporateFaqDropdown.module.css";
 
 type HelpCategoryId =
-  "employees" | "routes-trips" | "billing-payments" | "account-company";
+  | "employees"
+  | "routes-trips"
+  | "billing-payments"
+  | "support-tickets"
+  | "account-company";
 
 const HELP_CATEGORIES: Array<{
   id: HelpCategoryId;
@@ -54,6 +58,13 @@ const HELP_CATEGORIES: Array<{
     description: "Invoices, payments and financial details.",
     sourceCategories: ["billing-payments"],
     icon: ReceiptText,
+  },
+  {
+    id: "support-tickets",
+    label: "Support & Tickets",
+    description: "Support tickets, employee complaints and responses.",
+    sourceCategories: ["support-tickets"],
+    icon: LifeBuoy,
   },
   {
     id: "account-company",

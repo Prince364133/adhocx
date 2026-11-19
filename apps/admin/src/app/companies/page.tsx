@@ -16,7 +16,10 @@ import {
   Select,
   StatusBadge,
 } from "../../components/common";
-import { CompanyOnboardingDrawer } from "../../components/companies/CompanyOnboardingDrawer";
+import {
+  CompanyOnboardingDrawer,
+  CompanyOnboardingResult,
+} from "../../components/companies/CompanyOnboardingDrawer";
 import type { Column } from "../../components/common/DataTable";
 
 const PAGE_SIZE = 20;
@@ -159,14 +162,24 @@ export default function CompaniesPage() {
     [],
   );
 
-  function handleCreated(companyId: string, logoUploadFailed: boolean, portalAccessCreated: boolean) {
+  function handleCreated(
+    result: CompanyOnboardingResult,
+    options?: { navigate?: boolean },
+  ) {
     setDrawerOpen(false);
     setPagination((current) => ({ ...current, page: 1 }));
     setRefreshKey((current) => current + 1);
+    if (options?.navigate === false) return;
     const params = new URLSearchParams();
-    if (logoUploadFailed) params.set('logoUpload', 'failed');
-    params.set('portalAccess', portalAccessCreated ? 'created' : 'not-confirmed');
-    router.push(`/companies/${companyId}?${params.toString()}`);
+    if (result.logoUploadFailed) params.set("logoUpload", "failed");
+    params.set(
+      "portalAccess",
+      result.portalAccessCreated ? "created" : "not-confirmed",
+    );
+    if (result.hqOfficeWarning) {
+      params.set("hqOfficeWarning", result.hqOfficeWarning);
+    }
+    router.push(`/companies/${result.companyId}?${params.toString()}`);
   }
 
   return (
@@ -212,7 +225,7 @@ export default function CompaniesPage() {
                 { value: "ALL", label: "All statuses" },
                 { value: "ACTIVE", label: "Active" },
                 { value: "SUSPENDED", label: "Suspended" },
-                { value: "INACTIVE", label: "Inactive" },
+                { value: "TERMINATED", label: "Terminated" },
               ]}
               wrapperClassName="!mb-0"
             />

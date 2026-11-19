@@ -324,7 +324,7 @@ export class CorporateTripExecutionController {
   }
 
   @Post('requests/:id/reschedule')
-  @Roles(UserRole.ADMIN, UserRole.OPS, UserRole.EMPLOYEE)
+  @Roles(UserRole.ADMIN, UserRole.OPS, UserRole.EMPLOYEE, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
   @CorporateResource('request', 'id')
   @ApiOperation({
     summary:
@@ -339,19 +339,21 @@ export class CorporateTripExecutionController {
         newShiftTime: { type: 'string', example: '09:00' },
         newShiftDate: { type: 'string', example: '2026-11-05' },
       },
-      required: ['employeeId', 'action'],
+      required: ['action'],
     },
   })
   public async rescheduleOrCancel(
     @Param('id') requestId: string,
     @Body() body: RescheduleRequestDto,
+    @Req() req?: any,
   ) {
-    if (!body.employeeId || !body.action) {
+    const resolvedEmployeeId = body.employeeId || req?.user?.corporateEmployeeId;
+    if (!resolvedEmployeeId || !body.action) {
       throw new BadRequestException('employeeId and action are required');
     }
     // Employee channel: never honour a cutoff override from the request body.
     return this.executionService.handleRescheduleOrCancel(requestId, {
-      employeeId: body.employeeId,
+      employeeId: resolvedEmployeeId,
       action: body.action,
       newShiftTime: body.newShiftTime,
       newShiftDate: body.newShiftDate,
@@ -359,7 +361,7 @@ export class CorporateTripExecutionController {
   }
 
   @Post('requests/:id/admin-reschedule')
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.OPS, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
   @CorporateResource('request', 'id')
   @ApiOperation({
     summary:
@@ -492,7 +494,7 @@ export class CorporateTripExecutionController {
   }
 
   @Post('requests/:id/review')
-  @Roles(UserRole.ADMIN, UserRole.OPS)
+  @Roles(UserRole.ADMIN, UserRole.OPS, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
   @CorporateResource('request', 'id')
   @ApiOperation({ summary: 'Approve or reject an ad-hoc or exception transport booking request' })
   public async reviewRequest(

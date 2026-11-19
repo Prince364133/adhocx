@@ -251,6 +251,7 @@ class DriverService {
   }
 
   Future<dynamic> submitKyc({
+    String? referralCode,
     String? licenseNumber,
     DateTime? licenseExpiry,
     required List<String> documentUrls,
@@ -288,6 +289,7 @@ class DriverService {
       '/drivers/kyc',
       body: {
         ...licenseFieldsFor(licenseNumber: licenseNumber, dlNumber: dlNumber, licenseExpiry: licenseExpiry),
+        if (referralCode != null && referralCode.isNotEmpty) 'referralCode': referralCode,
         'documentUrls': documentUrls,
         'vehicle': vehicleDetails,
         if (phone != null && phone.isNotEmpty) 'phone': phone,
@@ -1069,5 +1071,53 @@ class DriverService {
         if (note != null && note.trim().isNotEmpty) 'triggerReason': note.trim(),
       },
     );
+  }
+
+  // ── Driver Referral Methods ──────────────────────────────────────────────
+
+  /// Validate a referral code or 10-digit registered mobile number before signup
+  Future<Map<String, dynamic>?> validateReferral(String identifier) async {
+    final res = await _api.post(
+      '/drivers/referral/validate',
+      body: {'identifier': identifier.trim()},
+    );
+    if (res is Map) {
+      return Map<String, dynamic>.from(res);
+    }
+    return null;
+  }
+
+  /// Get driver's referral dashboard: milestone progress, vault totals & referee cards
+  Future<Map<String, dynamic>?> getReferralDashboard({bool forceRefresh = false}) async {
+    await _ensureDriverSession();
+    final res = await _api.get('/drivers/referral/dashboard', force: forceRefresh);
+    if (res is Map) {
+      return Map<String, dynamic>.from(res);
+    }
+    return null;
+  }
+
+  /// Claim a single unlocked referral reward into the driver's withdrawal wallet
+  Future<Map<String, dynamic>?> claimReferralReward(String referralId) async {
+    await _ensureDriverSession();
+    final res = await _api.post('/drivers/referral/claim/$referralId');
+    _api.invalidateCache(prefix: '/drivers/referral');
+    _api.invalidateCache(prefix: '/wallet');
+    if (res is Map) {
+      return Map<String, dynamic>.from(res);
+    }
+    return null;
+  }
+
+  /// Bulk claim all unlocked referral rewards into the driver's withdrawal wallet
+  Future<Map<String, dynamic>?> claimAllReferralRewards() async {
+    await _ensureDriverSession();
+    final res = await _api.post('/drivers/referral/claim-all');
+    _api.invalidateCache(prefix: '/drivers/referral');
+    _api.invalidateCache(prefix: '/wallet');
+    if (res is Map) {
+      return Map<String, dynamic>.from(res);
+    }
+    return null;
   }
 }

@@ -23,6 +23,10 @@ export interface AuthUser {
   fullName?: string | null;
   email?: string | null;
   phone?: string | null;
+  corporateTenantId?: string | null;
+  corporateRole?: string | null;
+  corporateOfficeIds?: string[];
+  corporateEmployeeId?: string | null;
 }
 
 export interface AuthResponse {
@@ -48,7 +52,12 @@ export interface Office {
   address?: string;
   city?: string;
   state?: string;
+  pinCode?: string | null;
   pincode?: string;
+  country?: string | null;
+  contactName?: string | null;
+  contactEmail?: string | null;
+  contactPhone?: string | null;
   isActive?: boolean;
   geofenceRadiusMeters?: number;
   employeeCount?: number;
@@ -235,8 +244,26 @@ export interface Department {
   tenantId: string;
   code: string;
   name: string;
+  departmentHead?: string | null;
+  officeId?: string | null;
+  description?: string | null;
   isActive: boolean;
+  office?: { id: string; code: string; name: string } | null;
   _count?: { employees: number };
+}
+
+export interface TransportZone {
+  id: string;
+  tenantId: string;
+  officeId: string;
+  code: string;
+  name: string;
+  description?: string | null;
+  serviceArea: string;
+  pickupLocations: string[];
+  dropLocations: string[];
+  isActive: boolean;
+  office?: { id: string; code: string; name: string; isActive?: boolean } | null;
 }
 
 export interface SafetyIncident {
@@ -511,6 +538,25 @@ export interface RouteTimeline {
 
 // ── Safety & support ───────────────────────────────────────────────────────
 
+export type CorporateSosStatus =
+  | 'NEW'
+  | 'ACTIVE'
+  | 'ACKNOWLEDGED'
+  | 'INVESTIGATING'
+  | 'ESCALATED'
+  | 'RESPONDED'
+  | 'RESOLVED'
+  | 'FALSE_ALARM';
+
+export const OPEN_SOS_STATUSES: readonly CorporateSosStatus[] = [
+  'NEW',
+  'ACTIVE',
+  'ACKNOWLEDGED',
+  'INVESTIGATING',
+  'ESCALATED',
+  'RESPONDED',
+];
+
 export interface SosAlert {
   id: string;
   routeId: string;
@@ -559,6 +605,7 @@ export interface SupportTicket {
     id: string;
     fullName: string;
     employeeCode?: string;
+    phoneNumber?: string;
     phone?: string;
     email?: string;
   } | null;

@@ -7,6 +7,7 @@ import type { AttendancePage, Employee } from '../../../lib/api/types';
 import MetricCard from '../../../components/common/MetricCard';
 import { DonutChart } from '../../../components/charts/DonutChart';
 import { useSession } from '../../../lib/auth/SessionContext';
+import { addDays, todayIst } from '../../../lib/format';
 
 const chartColors = ['#5728B2', '#38BDF8', '#8B5CF6', '#F59E0B', '#10B981', '#EC4899'];
 
@@ -28,8 +29,8 @@ export default function EmployeeUsageReportPage() {
     }
 
     let active = true;
-    const to = new Date().toISOString().slice(0, 10);
-    const from = new Date(Date.now() - 29 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const to = todayIst();
+    const from = addDays(to, -29);
     setLoading(true);
     setError(null);
     Promise.all([

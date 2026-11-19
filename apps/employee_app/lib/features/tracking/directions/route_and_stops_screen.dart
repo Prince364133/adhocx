@@ -1,23 +1,38 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
-import 'package:adhocx_employee/services/mock_data_service.dart';
 import 'package:adhocx_employee/shared/components/components.dart';
 import 'package:adhocx_employee/shared/components/trip/trip_widgets.dart';
+import 'package:adhocx_employee/state/employee_data_provider.dart';
 import 'package:adhocx_employee/theme/app_colors.dart';
 import 'package:adhocx_employee/theme/app_spacing.dart';
 import 'package:adhocx_employee/theme/app_typography.dart';
 import 'package:adhocx_employee/theme/employee_palette.dart';
 
-/// Screen 8: Route & Stops
+/// Route & Stops backed by live routeStops from nextTrip or GET /corporate/routes/:id.
 class RouteAndStopsScreen extends StatelessWidget {
   const RouteAndStopsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return TripDataBuilder(
-      load: () async => {
-        'stops': (await MockDataService.getLiveTracking())['routeAndStops'],
+      load: () async {
+        final data = maybeEmployeeData(context);
+        if (data == null) return const {'stops': []};
+        final next = await data.loadNextTrip();
+        if (next != null &&
+            next['routeStops'] is List &&
+            (next['routeStops'] as List).isNotEmpty) {
+          return {'stops': next['routeStops']};
+        }
+        final routeId = next?['routeId']?.toString();
+        if (routeId != null && routeId.isNotEmpty) {
+          final route = await data.loadRouteDetails(routeId);
+          if (route != null && route['stops'] is List) {
+            return {'stops': route['stops']};
+          }
+        }
+        return const {'stops': []};
       },
       builder: (context, data) {
         final p = EmployeePalette.of(context);
@@ -29,7 +44,6 @@ class RouteAndStopsScreen extends StatelessWidget {
           body: SafeArea(
             child: Column(
               children: [
-                // Scrolls so long routes never overflow the screen.
                 Expanded(
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.symmetric(
@@ -43,7 +57,7 @@ class RouteAndStopsScreen extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Active Passenger Manifest',
+                            'Route Stops',
                             style: AppTypography.h4(
                               color: p.textPrimary,
                               fontSize: 15,
@@ -51,11 +65,18 @@ class RouteAndStopsScreen extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(height: AppSpacing.xl),
-                          for (var i = 0; i < stops.length; i++)
-                            _StopRow(
-                              stop: stops[i] as Map<String, dynamic>,
-                              isLast: i == stops.length - 1,
-                            ),
+                          if (stops.isEmpty)
+                            Text(
+                              'No stops assigned to an active route yet.',
+                              style: AppTypography.small(color: p.textSecondary),
+                            )
+                          else
+                            for (var i = 0; i < stops.length; i++)
+                              _StopRow(
+                                stop: Map<String, dynamic>.from(stops[i] as Map),
+                                index: i,
+                                isLast: i == stops.length - 1,
+                              ),
                         ],
                       ),
                     ),
@@ -85,15 +106,30 @@ class RouteAndStopsScreen extends StatelessWidget {
 
 class _StopRow extends StatelessWidget {
   final Map<String, dynamic> stop;
+  final int index;
   final bool isLast;
 
-  const _StopRow({required this.stop, required this.isLast});
+  const _StopRow({
+    required this.stop,
+    required this.index,
+    required this.isLast,
+  });
 
   @override
   Widget build(BuildContext context) {
     final p = EmployeePalette.of(context);
-    final isDrop = stop['isDrop'] == true;
-    final time = stop['time'] ?? '';
+    final stopType = (stop['stopType'] ?? '').toString().toUpperCase();
+    final isDrop =
+        stopType == 'DROP' || stopType == 'DROPOFF' || stopType == 'OFFICE';
+    final isCurrent =
+        stop['isCurrentUser'] == true || stop['isCurrentUserStop'] == true;
+    final seq = stop['stopSequence']?.toString() ?? '${index + 1}';
+    final eta = EmployeeDataProvider.formatDisplayTime(
+      stop['plannedEta']?.toString(),
+    );
+    final address = stop['addressText']?.toString() ??
+        (isDrop ? 'Office Destination' : 'Commuter Stop');
+    final status = stop['status']?.toString() ?? '';
 
     return IntrinsicHeight(
       child: Row(
@@ -105,11 +141,15 @@ class _StopRow extends StatelessWidget {
                 width: 22,
                 height: 22,
                 decoration: BoxDecoration(
-                  color: isDrop ? AppColors.brandOrange : AppColors.success,
+                  color: isCurrent
+                      ? AppColors.primary
+                      : (isDrop ? AppColors.brandOrange : AppColors.success),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
-                  isDrop ? Icons.business_rounded : Icons.check,
+                  isDrop
+                      ? Icons.business_rounded
+                      : (isCurrent ? Icons.person : Icons.check),
                   size: 13,
                   color: Colors.white,
                 ),
@@ -126,17 +166,21 @@ class _StopRow extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    stop['name'] ?? '',
+                    isCurrent
+                        ? 'Your Stop (Stop $seq)'
+                        : (isDrop ? 'Office Destination' : 'Stop $seq'),
                     style: AppTypography.bodyMedium(
-                      color: p.textPrimary,
+                      color: isCurrent ? p.accent : p.textPrimary,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    isDrop
-                        ? 'ETA $time'
-                        : '$time • ${stop['status'] ?? ''} (${stop['location'] ?? ''})',
+                    [
+                      if (eta.isNotEmpty) 'ETA $eta',
+                      if (status.isNotEmpty) status,
+                      address,
+                    ].join(' • '),
                     style: AppTypography.caption(color: p.textSecondary),
                   ),
                 ],

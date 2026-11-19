@@ -15,6 +15,7 @@ import { GoogleRouteMap } from '../../components/maps/GoogleRouteMap';
 import { routesApi, analyticsApi } from '../../lib/api/corporate';
 import type { RouteListItem, Dashboard, RouteTracking } from '../../lib/api/types';
 import { useSession } from '../../lib/auth/SessionContext';
+import { todayIst } from '../../lib/format';
 
 export default function LiveOperationsMapPage() {
   const { tenantId } = useSession();
@@ -37,10 +38,10 @@ export default function LiveOperationsMapPage() {
     }
     setLoading(true);
     setLoadError(null);
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayIst();
 
     Promise.all([
-      routesApi.list(activeTenantId, { status: 'IN_PROGRESS' }),
+      routesApi.list(activeTenantId, { status: 'IN_TRANSIT' }),
       analyticsApi.dashboard({ tenantId: activeTenantId, from: today, to: today }),
     ])
       .then(([rts, dash]) => {

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Clock, Radio, ShieldAlert, LogOut, UserCheck } from 'lucide-react';
 import { opsApi, getStoredOpsUser, clearOpsSession } from '../../lib/api/opsClient';
 import { SosAlertItem } from '../../lib/api/opsTypes';
+import { isActiveSosStatus } from '../../lib/opsHelpers';
 import { ThemeToggle } from '../common/ThemeToggle';
 
 export const OpsTopBar: React.FC = () => {
@@ -44,25 +45,47 @@ export const OpsTopBar: React.FC = () => {
     return () => clearInterval(timer);
   }, []);
 
-  // Poll for active SOS alerts every 10 seconds
+  // Poll for active SOS alerts every 10 seconds (pauses when tab is hidden, with in-flight guard)
   useEffect(() => {
     let cancelled = false;
+    let inFlight = false;
+
     async function checkAlerts() {
+      if (cancelled || inFlight) return;
+      if (typeof document !== 'undefined' && document.hidden) return;
+      inFlight = true;
       try {
-        const alerts = await opsApi.getSosAlerts();
+        const alerts = await opsApi.getSosAlerts({ activeOnly: true });
         if (!cancelled) {
-          const active = alerts.filter((a) => a.status === 'NEW' || a.status === 'ACKNOWLEDGED' || a.status === 'INVESTIGATING');
+          const active = (Array.isArray(alerts) ? alerts : []).filter((a) => isActiveSosStatus(a.status));
           setActiveSosAlerts(active);
         }
       } catch {
         // quiet in polling
+      } finally {
+        inFlight = false;
       }
     }
-    checkAlerts();
-    const interval = setInterval(checkAlerts, 10000);
+
+    const handleVisibilityChange = () => {
+      if (typeof document !== 'undefined' && !document.hidden) {
+        void checkAlerts();
+      }
+    };
+
+    void checkAlerts();
+    const interval = setInterval(() => {
+      void checkAlerts();
+    }, 10000);
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+    }
     return () => {
       cancelled = true;
       clearInterval(interval);
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+      }
     };
   }, []);
 
@@ -173,7 +196,7 @@ export const OpsTopBar: React.FC = () => {
             paddingLeft: '12px',
           }}
         >
-          Port <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>7004</span> · Staging
+          <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>Ops Desk</span> · {process.env.NEXT_PUBLIC_APP_ENV || 'Live'}
         </div>
 
         {/* Dispatcher Identity Pill & Logout */}

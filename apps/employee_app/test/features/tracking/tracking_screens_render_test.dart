@@ -1,5 +1,5 @@
 import 'package:adhocx_employee/features/tracking/tracking.dart';
-import 'package:adhocx_employee/services/mock_data_service.dart';
+import 'package:adhocx_employee/shared/illustrations/tracking_illustrations.dart';
 import 'package:adhocx_employee/theme/app_colors.dart';
 import 'package:adhocx_employee/theme/app_theme.dart';
 import 'package:flutter/material.dart';
@@ -20,11 +20,11 @@ final _screens = <String, Widget Function()>{
   'Reconnecting': () => const ReconnectingScreen(),
 };
 
-Future<void> _pump(WidgetTester tester, Widget screen, {bool dark = false}) async {
+Future<void> _pump(WidgetTester tester, Widget screen,
+    {bool dark = false}) async {
   tester.view.physicalSize = const Size(360, 640);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
-  await tester.runAsync(MockDataService.loadData);
   await tester.pumpWidget(MaterialApp(
     theme: AppTheme.lightTheme,
     darkTheme: AppTheme.darkTheme,
@@ -56,6 +56,16 @@ void main() {
     });
   }
 
+  testWidgets('full live map fills the viewport', (tester) async {
+    await _pump(tester, const TripLiveMapFullScreen());
+
+    expect(
+      tester.getSize(find.byType(VectorLiveMapCanvas)),
+      const Size(360, 640),
+    );
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
   Future<String?> trackerLabel(WidgetTester tester) async {
     final handle = tester.ensureSemantics();
     final node = tester.getSemantics(find.bySemanticsLabel(
@@ -65,7 +75,8 @@ void main() {
     return node.label;
   }
 
-  testWidgets('Cab approaching highlights the Approaching step', (tester) async {
+  testWidgets('Cab approaching highlights the Approaching step',
+      (tester) async {
     await _pump(tester, const CabApproachingScreen());
     expect(await trackerLabel(tester), contains('Approaching, step 3 of 5'));
     await tester.pumpWidget(const SizedBox.shrink());

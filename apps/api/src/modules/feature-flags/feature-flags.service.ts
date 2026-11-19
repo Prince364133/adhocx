@@ -183,7 +183,7 @@ export class FeatureFlagsService implements OnModuleInit {
 
     const currentMeta = (flag.metadata && typeof flag.metadata === 'object') ? { ...(flag.metadata as any) } : {};
     const nextMeta = { ...currentMeta };
-    let nextIsEnabled = isEnabled;
+    let nextIsEnabled: boolean;
 
     if (platform === 'android') {
       nextMeta.android = isEnabled;

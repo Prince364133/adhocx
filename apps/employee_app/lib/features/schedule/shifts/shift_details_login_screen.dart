@@ -11,18 +11,11 @@ class ShiftDetailsLoginScreen extends StatelessWidget {
     return const ShiftDetailsView(
       sectionKey: 'shift_details_standard',
       accent: AppColors.primary,
+      preferLogout: false,
       badge: EmployeeStatusBadge(
         label: 'Login Shift',
         variant: BadgeVariant.approved,
       ),
-      fallback: {
-        'date': 'Tue, 09 Dec 2026',
-        'hours': '9:00 AM - 6:00 PM',
-        'pickupTime': '8:15 AM',
-        'pickupLoc': 'Home (Kondapur)',
-        'dropTime': '6:30 PM',
-        'dropLoc': 'HITEC City Office',
-      },
     );
   }
 }

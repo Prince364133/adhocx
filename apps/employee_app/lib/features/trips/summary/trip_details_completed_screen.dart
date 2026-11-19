@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
-import 'package:adhocx_employee/services/mock_data_service.dart';
 import 'package:adhocx_employee/shared/components/components.dart';
+import 'package:adhocx_employee/shared/components/trip/trip_widgets.dart';
+import 'package:adhocx_employee/state/employee_data_provider.dart';
 import 'package:adhocx_employee/theme/app_colors.dart';
 import 'package:adhocx_employee/theme/app_spacing.dart';
 import 'package:adhocx_employee/theme/app_typography.dart';
 import 'package:adhocx_employee/theme/employee_palette.dart';
-import 'package:adhocx_employee/shared/components/trip/trip_widgets.dart';
 
 class TripDetailsCompletedScreen extends StatelessWidget {
   const TripDetailsCompletedScreen({super.key});
@@ -15,21 +15,60 @@ class TripDetailsCompletedScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return TripDataBuilder(
-      load: () => MockDataService.getTrip('completed'),
+      load: () => loadLiveLatestTrip(context),
       builder: (context, trip) {
         final p = EmployeePalette.of(context);
-        final type = trip['type'] ?? 'Login (Pickup)';
-        final date = trip['date'] ?? '09 Dec 2026';
-        final timeline = (trip['timeline'] as List<dynamic>?) ?? const [];
+        final type = EmployeeDataProvider.formatDirectionLabel(
+          trip['direction']?.toString(),
+        );
+        final date = EmployeeDataProvider.formatDisplayDate(
+          trip['shiftDate']?.toString(),
+        );
+        final status =
+            (trip['status'] ?? trip['routeStatus'] ?? 'Scheduled').toString();
+        final plannedEta = EmployeeDataProvider.formatDisplayTime(
+          trip['plannedEta']?.toString() ?? trip['shiftTime']?.toString(),
+        );
+        final arrival = EmployeeDataProvider.formatDisplayTime(
+          trip['actualArrivalTime']?.toString(),
+        );
+        final departure = EmployeeDataProvider.formatDisplayTime(
+          trip['actualDepartureTime']?.toString(),
+        );
+        final pickupAddr = trip['pickupAddress']?.toString() ??
+            (trip['pickupLocation'] is Map
+                ? (trip['pickupLocation'] as Map)['addressText']?.toString()
+                : null) ??
+            'Pickup point';
+        final destAddr = trip['destinationAddress']?.toString() ??
+            (trip['officeDestination'] is Map
+                ? (trip['officeDestination'] as Map)['name']?.toString()
+                : null) ??
+            'Destination';
+
+        final timeline = <Map<String, String>>[
+          {
+            'event': 'Pickup scheduled • $pickupAddr',
+            'time': plannedEta.isNotEmpty ? plannedEta : 'Scheduled',
+          },
+          if (arrival.isNotEmpty)
+            {'event': 'Cab arrived at pickup point', 'time': arrival},
+          if (departure.isNotEmpty)
+            {'event': 'Completed / Drop off • $destAddr', 'time': departure}
+          else
+            {'event': 'Destination • $destAddr', 'time': status},
+        ];
 
         return TripStageScaffold(
           title: 'Trip Details',
-          statusLabel: 'Completed',
-          statusVariant: BadgeVariant.completed,
+          statusLabel: status,
+          statusVariant: status.toUpperCase() == 'COMPLETED'
+              ? BadgeVariant.completed
+              : BadgeVariant.upcoming,
           alignStart: true,
           children: [
             Text(
-              '$type • $date',
+              date.isNotEmpty ? '$type • $date' : type,
               style: AppTypography.h4(
                 color: p.textPrimary,
                 fontWeight: FontWeight.w800,
@@ -40,7 +79,7 @@ class TripDetailsCompletedScreen extends StatelessWidget {
               padding: AppSpacing.paddingXl,
               child: Column(
                 children: List.generate(timeline.length, (index) {
-                  final item = timeline[index] as Map<String, dynamic>;
+                  final item = timeline[index];
                   final isLast = index == timeline.length - 1;
 
                   return EmployeeEntrance(

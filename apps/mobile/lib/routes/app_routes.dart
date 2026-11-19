@@ -33,6 +33,7 @@ import '../presentation/profile_screen/kyc_verification_screen.dart';
 import '../presentation/profile_screen/my_vehicle_screen.dart';
 import '../presentation/profile_screen/personal_information_screen.dart';
 import '../presentation/profile_screen/profile_screen.dart';
+import '../presentation/profile_screen/referral_screen.dart';
 import '../presentation/trips_screen/trip_details_screen.dart';
 import '../presentation/trips_screen/trip_chat_screen.dart';
 import '../presentation/trips_screen/trips_screen.dart';
@@ -137,6 +138,7 @@ class AppRoutes {
   // Profile & Settings Detail Screens
   static const String personalInfoScreen = '/profile/personal-info';
   static const String editPersonalInfoScreen = '/profile/personal-info/edit';
+  static const String referralScreen = '/profile/referral';
   static const String myVehicleScreen = '/profile/vehicle';
   static const String addVehicleScreen = '/profile/vehicle/add';
   static const String kycVerificationScreen = '/profile/kyc';
@@ -809,6 +811,10 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: AppRoutes.editPersonalInfoScreen,
       builder: (context, state) => const EditPersonalInfoScreen(),
+    ),
+    GoRoute(
+      path: AppRoutes.referralScreen,
+      builder: (context, state) => const ReferralScreen(),
     ),
     GoRoute(
       path: AppRoutes.myVehicleScreen,

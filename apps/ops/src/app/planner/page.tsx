@@ -3,7 +3,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { opsApi, ShiftOptimizationResponse } from '../../lib/api/opsClient';
+import { escapeHtml, isValidIndianMobile } from '../../lib/opsHelpers';
 import {
+  CorporateRouteItem,
   CorporateTenantOption,
   RoutePlanningResult,
   RoutePlanningDirectionOutcome,
@@ -11,6 +13,9 @@ import {
   VehicleCategoryOption,
 } from '../../lib/api/opsTypes';
 import { Button } from '../../components/common/Button';
+import { useToast } from '../../components/common/ToastProvider';
+import { OfficeHubRequiredModal } from '../../components/operations/OfficeHubRequiredModal';
+import { OfficeLocationMismatchModal } from '../../components/operations/OfficeLocationMismatchModal';
 import { SpatialTopologyCanvas } from '../../components/operations/SpatialTopologyCanvas';
 import {
   Cpu,
@@ -28,7 +33,12 @@ import {
   Radar,
   Map as MapIcon,
   Database,
+  Plus,
+  Trash2,
+  Route as RouteIcon,
 } from 'lucide-react';
+
+const COMPANY_STORAGE_KEY = 'adhocx_ops_selected_tenant';
 
 const ROUTE_COLORS = [
   '#5728B2', // Electric Indigo
@@ -75,6 +85,42 @@ interface RosterPlanSettings {
   stopDwellMinutes: number;
 }
 
+function stripApiErrorPrefix(message: string): string {
+  return message.replace(/^API Error\s*\[\d+\]:\s*/i, '').trim();
+}
+
+function parseOfficeLocationMismatch(
+  message: string,
+): { distanceKm?: string; savedOfficeName?: string } | null {
+  const cleaned = stripApiErrorPrefix(message);
+  const commitMatch = cleaned.match(
+    /optimized to an office location\s+([\d.]+)\s*km away from the saved office\s+"([^"]+)"/i,
+  );
+  if (commitMatch) {
+    return { distanceKm: commitMatch[1], savedOfficeName: commitMatch[2] };
+  }
+  const planWarnMatch = cleaned.match(
+    /saved office pin for\s+"([^"]+)"\s+differs from the geocoded address by\s+([\d.]+)\s*km/i,
+  );
+  if (planWarnMatch) {
+    return { distanceKm: planWarnMatch[2], savedOfficeName: planWarnMatch[1] };
+  }
+  if (/office location.*away from the saved office|saved office pin.*differs/i.test(cleaned)) {
+    return {};
+  }
+  return null;
+}
+
+function haversineDistanceKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
 function getLocationShortcut(address: string, fallback: string): string {
   const location = address
     .split(',')
@@ -88,7 +134,29 @@ function getLocationShortcut(address: string, fallback: string): string {
 }
 
 export default function RouteOptimizerPage() {
-  const [activeTab, setActiveTab] = useState<'FILE_UPLOAD' | 'DB_SHIFT'>('FILE_UPLOAD');
+  const toast = useToast();
+  const [activeTab, setActiveTab] = useState<'FILE_UPLOAD' | 'DB_SHIFT' | 'MANUAL'>(() => {
+    if (typeof window !== 'undefined') {
+      const tabParam = new URLSearchParams(window.location.search).get('tab')?.toUpperCase();
+      if (tabParam === 'MANUAL') return 'MANUAL';
+      if (tabParam === 'DB_SHIFT') return 'DB_SHIFT';
+    }
+    return 'FILE_UPLOAD';
+  });
+
+  // Manual Route Builder State
+  const [manualDirection, setManualDirection] = useState<'LOGIN' | 'LOGOUT'>('LOGIN');
+  const [manualShiftDate, setManualShiftDate] = useState<string>(
+    () => new Date(Date.now() + 330 * 60_000).toISOString().slice(0, 10),
+  );
+  const [manualShiftTime, setManualShiftTime] = useState<string>('09:00');
+  const [manualVehicleCategory, setManualVehicleCategory] = useState<string>('SEDAN');
+  const [manualMaxCapacity, setManualMaxCapacity] = useState<number>(4);
+  const [manualStops, setManualStops] = useState<
+    Array<{ id: string; name: string; phoneNumber: string; email: string; address: string }>
+  >([{ id: 'stop-1', name: '', phoneNumber: '', email: '', address: '' }]);
+  const [manualSaving, setManualSaving] = useState(false);
+  const [manualCreatedRoute, setManualCreatedRoute] = useState<CorporateRouteItem | null>(null);
 
   // File Upload Form State
   const [officeAddress, setOfficeAddress] = useState('');
@@ -111,6 +179,26 @@ export default function RouteOptimizerPage() {
   const [selectedUploadTenantId, setSelectedUploadTenantId] = useState<string>('');
   const [selectedOfficeId, setSelectedOfficeId] = useState<string>('');
   const [uploadCompanyLoading, setUploadCompanyLoading] = useState(false);
+  const [tenantsLoaded, setTenantsLoaded] = useState(false);
+  const [missingOfficeModal, setMissingOfficeModal] = useState<{
+    open: boolean;
+    context: 'import' | 'post';
+    companyName?: string;
+    hasCompanies: boolean;
+  }>({
+    open: false,
+    context: 'post',
+    hasCompanies: true,
+  });
+  const [refreshingOffices, setRefreshingOffices] = useState(false);
+  const [refreshOfficesNotice, setRefreshOfficesNotice] = useState<string | null>(null);
+  const [officeMismatchModal, setOfficeMismatchModal] = useState<{
+    open: boolean;
+    distanceKm?: string;
+    savedOfficeName?: string;
+    savedOfficeAddress?: string;
+    plannedOfficeName?: string;
+  }>({ open: false });
   const [shiftDate, setShiftDate] = useState<string>(new Date(Date.now() + 330 * 60_000).toISOString().slice(0, 10));
   const [loginShiftTime, setLoginShiftTime] = useState<string>('08:00');
   const [logoutShiftTime, setLogoutShiftTime] = useState<string>('17:00');
@@ -186,22 +274,38 @@ export default function RouteOptimizerPage() {
     let cancelled = false;
     (async () => {
       try {
-        const res = await opsApi.getTenants({ limit: 100 });
+        const res = await opsApi.getTenants({ limit: 100, minimal: true });
         const items = res?.items ?? [];
         if (cancelled) return;
         setTenants(items);
         const requestedTenantId =
-          typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('tenantId') : null;
+          typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('tenantId')?.trim() : null;
+        let rememberedTenantId = '';
+        if (typeof window !== 'undefined') {
+          try {
+            rememberedTenantId = window.localStorage.getItem(COMPANY_STORAGE_KEY)?.trim() || '';
+          } catch {}
+        }
+        const preferredTenantId = requestedTenantId || rememberedTenantId;
         let tenant: CorporateTenantOption | undefined;
-        if (requestedTenantId) {
-          tenant = items.find((item) => item.id === requestedTenantId) ?? await opsApi.getTenant(requestedTenantId);
-        } else {
+        if (preferredTenantId) {
+          tenant =
+            items.find((item) => item.id === preferredTenantId) ??
+            (await opsApi.getTenant(preferredTenantId).catch(() => undefined));
+        }
+        if (!tenant) {
           tenant = items[0];
         }
         if (tenant) {
           setUploadCompanyLoading(true);
           setSelectedTenantId(tenant.id);
           setSelectedUploadTenantId(tenant.id);
+          if (typeof window !== 'undefined') {
+            try {
+              window.localStorage.setItem(COMPANY_STORAGE_KEY, tenant.id);
+              window.dispatchEvent(new Event('adhocx:ops-tenant-changed'));
+            } catch {}
+          }
           if (!tenant.offices?.length) {
             tenant = await opsApi.getTenant(tenant.id);
             if (cancelled) return;
@@ -226,6 +330,10 @@ export default function RouteOptimizerPage() {
           setErrorMsg(`Could not load companies or office details: ${err instanceof Error ? err.message : String(err)}`);
           setUploadCompanyLoading(false);
         }
+      } finally {
+        if (!cancelled) {
+          setTenantsLoaded(true);
+        }
       }
     })();
     return () => {
@@ -233,7 +341,193 @@ export default function RouteOptimizerPage() {
     };
   }, []);
 
+  async function handleSelectCompany(nextTenantId: string) {
+    setSelectedTenantId(nextTenantId);
+    setSelectedUploadTenantId(nextTenantId);
+    setSelectedOfficeId('');
+    setOfficeAddress('');
+    setErrorMsg(null);
+    setManualCreatedRoute(null);
+
+    if (typeof window !== 'undefined' && nextTenantId) {
+      try {
+        window.localStorage.setItem(COMPANY_STORAGE_KEY, nextTenantId);
+        window.dispatchEvent(new Event('adhocx:ops-tenant-changed'));
+        const url = new URL(window.location.href);
+        url.searchParams.set('tenantId', nextTenantId);
+        window.history.replaceState({}, '', url.toString());
+      } catch {}
+    }
+
+    if (!nextTenantId) return;
+
+    const cached = tenants.find((item) => item.id === nextTenantId);
+    if (cached?.offices?.length) {
+      const office = cached.offices[0];
+      setSelectedOfficeId(office.id);
+      setOfficeAddress(office.addressText || office.name || '');
+      const policyDwell = cached.policies?.[0]?.stopDwellMinutes;
+      if (typeof policyDwell === 'number') {
+        setStopDwellMinutes(Math.min(Math.max(policyDwell, 1), 10));
+      }
+      return;
+    }
+
+    setUploadCompanyLoading(true);
+    try {
+      const detailed = await opsApi.getTenant(nextTenantId);
+      setTenants((current) => {
+        const exists = current.some((item) => item.id === detailed.id);
+        return exists
+          ? current.map((item) => (item.id === detailed.id ? detailed : item))
+          : [detailed, ...current];
+      });
+      const office = detailed.offices?.[0];
+      setSelectedOfficeId(office?.id ?? '');
+      setOfficeAddress(office?.addressText || office?.name || '');
+      const policyDwell = detailed.policies?.[0]?.stopDwellMinutes;
+      if (typeof policyDwell === 'number') {
+        setStopDwellMinutes(Math.min(Math.max(policyDwell, 1), 10));
+      }
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? `Could not load company offices: ${err.message}` : 'Could not load company offices.');
+    } finally {
+      setUploadCompanyLoading(false);
+    }
+  }
+
+  async function handleCreateManualRoute(e: React.FormEvent) {
+    e.preventDefault();
+    const targetTenantId = selectedUploadTenantId || selectedTenantId;
+    if (!targetTenantId || !selectedOfficeId) {
+      setErrorMsg('Please select a corporate company and office hub first.');
+      return;
+    }
+    const cleanedStops = manualStops
+      .map((s) => ({
+        name: s.name.trim(),
+        phoneNumber: s.phoneNumber.trim(),
+        email: s.email.trim() || undefined,
+        address: s.address.trim(),
+      }))
+      .filter((s) => s.name || s.phoneNumber || s.address);
+
+    if (cleanedStops.length === 0) {
+      setErrorMsg('Add at least one employee stop with name, phone number, and address.');
+      return;
+    }
+    for (let i = 0; i < cleanedStops.length; i++) {
+      const s = cleanedStops[i];
+      if (!s.name || !s.phoneNumber || !s.address) {
+        setErrorMsg(`Stop #${i + 1}: Name, Phone Number, and Address are all required.`);
+        return;
+      }
+      if (!isValidIndianMobile(s.phoneNumber)) {
+        setErrorMsg(`Stop #${i + 1}: Enter a valid 10-digit Indian mobile number (e.g. 9876543210 or +919876543210).`);
+        return;
+      }
+    }
+
+    setManualSaving(true);
+    setErrorMsg(null);
+    setManualCreatedRoute(null);
+    try {
+      const created = await opsApi.createManualRoute({
+        tenantId: targetTenantId,
+        officeId: selectedOfficeId,
+        shiftDate: manualShiftDate,
+        shiftTime: manualShiftTime,
+        direction: manualDirection,
+        vehicleCategory: manualVehicleCategory || 'SEDAN',
+        maxCapacity: Math.max(cleanedStops.length, Number(manualMaxCapacity) || 4),
+        stops: cleanedStops,
+      });
+      setManualCreatedRoute(created);
+      toast.success(
+        `Created manual route with ${cleanedStops.length} employee stop${cleanedStops.length === 1 ? '' : 's'} (all employees auto-registered).`,
+        'Manual Route Created',
+      );
+      setManualStops([{ id: `stop-${Date.now()}`, name: '', phoneNumber: '', email: '', address: '' }]);
+    } catch (err: any) {
+      setErrorMsg(stripApiErrorPrefix(err?.message || 'Could not create manual route.'));
+    } finally {
+      setManualSaving(false);
+    }
+  }
+
   const selectedUploadTenant = tenants.find((tenant) => tenant.id === selectedUploadTenantId);
+  const hasConfiguredOffices = Boolean(selectedUploadTenant?.offices?.length);
+  const isMissingOffices = tenantsLoaded && !uploadCompanyLoading && !hasConfiguredOffices;
+
+  function notifyMissingOffices(
+    tenantForContext?: CorporateTenantOption,
+    context: 'import' | 'post' = 'import',
+  ) {
+    setRefreshOfficesNotice(null);
+    setMissingOfficeModal({
+      open: true,
+      context,
+      companyName: tenantForContext?.name,
+      hasCompanies: tenants.length > 0,
+    });
+  }
+
+  async function handleRefreshOffices() {
+    setRefreshingOffices(true);
+    setRefreshOfficesNotice(null);
+    try {
+      const res = await opsApi.getTenants({ limit: 100, minimal: true });
+      const items = res?.items ?? [];
+      setTenants(items);
+      const preferredId = selectedUploadTenantId || selectedTenantId;
+      let tenant = (preferredId ? items.find((item) => item.id === preferredId) : undefined) ?? items[0];
+      if (tenant && !tenant.offices?.length) {
+        tenant = await opsApi.getTenant(tenant.id);
+      }
+      if (tenant) {
+        setTenants((current) => [tenant!, ...current.filter((item) => item.id !== tenant!.id)]);
+        setSelectedTenantId(tenant.id);
+        setSelectedUploadTenantId(tenant.id);
+        const office =
+          tenant.offices?.find((item) => item.id === selectedOfficeId) ?? tenant.offices?.[0];
+        if (office) {
+          setSelectedOfficeId(office.id);
+          if (office.addressText || office.name) setOfficeAddress(office.addressText || office.name);
+          if (missingOfficeModal.open) {
+            setMissingOfficeModal((prev) => ({ ...prev, open: false }));
+            toast.success(
+              `Loaded office hub "${office.name}" for ${tenant.name}. You can now post your routes.`,
+              'Office Hub Ready',
+              'ops-planner-offices-loaded',
+            );
+          } else if (officeMismatchModal.open) {
+            setOfficeMismatchModal((prev) => ({
+              ...prev,
+              savedOfficeName: office.name,
+              savedOfficeAddress: office.addressText || office.name,
+            }));
+            setRefreshOfficesNotice(
+              `Updated office details loaded for "${office.name}". Click Edit Params and re-run Calculate Routes to apply the updated coordinates.`,
+            );
+          }
+          return;
+        }
+        setRefreshOfficesNotice(
+          `No office hubs found for ${tenant.name} yet. Please add and save an office in the Admin Dashboard, then click Refresh Offices again.`,
+        );
+      } else {
+        setRefreshOfficesNotice(
+          'No companies or office hubs found yet. Please add a company and office in the Admin Dashboard, then try again.',
+        );
+      }
+    } catch (err) {
+      setRefreshOfficesNotice(
+        err instanceof Error ? `Could not refresh offices: ${err.message}` : 'Could not refresh offices. Please try again.',
+      );
+    } finally {
+      setRefreshingOffices(false);
+    }
+  }
   const uncommittedSelectedRoutes = planResult?.routes.filter(
     (route) => selectedCabsForCommit.has(route.cab) && !committedRouteCabs.has(route.cab),
   ) ?? [];
@@ -447,11 +741,11 @@ export default function RouteOptimizerPage() {
         const infoWindow = new google.maps.InfoWindow({
           content: `
             <div style="color: #191B1C; padding: 4px; font-family: Inter, sans-serif; font-size: 13px;">
-              <strong style="color: #5728B2; font-size: 14px;">${locationShortcut}: ${stop.name}</strong><br/>
-              <span style="color: #595F61;">${stop.matchedAddress}</span><br/>
+              <strong style="color: #5728B2; font-size: 14px;">${escapeHtml(locationShortcut)}: ${escapeHtml(stop.name)}</strong><br/>
+              <span style="color: #595F61;">${escapeHtml(stop.matchedAddress)}</span><br/>
               ${stop.outOfRadius ? '<span style="color: #DC2626; font-weight: bold;">⚠️ Outside Catchment Radius</span><br/>' : ''}
-              <strong>Pickup ETA:</strong> ${stop.eta} (Dwell until ${stop.dwellUntil})<br/>
-              <strong>Distance to office:</strong> ${stop.officeDistanceKm} km
+              <strong>Pickup ETA:</strong> ${escapeHtml(stop.eta)} (Dwell until ${escapeHtml(stop.dwellUntil)})<br/>
+              <strong>Distance to office:</strong> ${escapeHtml(stop.officeDistanceKm)} km
             </div>
           `,
         });
@@ -513,6 +807,9 @@ export default function RouteOptimizerPage() {
       setErrorMsg('Upload a CSV, Excel workbook/template (.xls, .xlsx, .xlsm, .xlsb), or OpenDocument (.ods) file.');
       return;
     }
+    if (file && isMissingOffices) {
+      notifyMissingOffices(selectedUploadTenant);
+    }
     setSelectedFile(file);
     setPlanResult(null);
     setCommittedSuccess(null);
@@ -532,8 +829,12 @@ export default function RouteOptimizerPage() {
       return;
     }
     if (!selectedUploadTenantId || !selectedUploadTenant) {
+      notifyMissingOffices();
       setErrorMsg('Please select an onboarded company before importing the roster.');
       return;
+    }
+    if (!selectedUploadTenant.offices?.length) {
+      notifyMissingOffices(selectedUploadTenant);
     }
 
     const loginIso = direction === 'LOGIN' || direction === 'BOTH' ? istLocalToIso(loginDeadline) : undefined;
@@ -689,6 +990,34 @@ export default function RouteOptimizerPage() {
       );
       setSelectedCabsForCommit(new Set(finalRoutes.map((route) => route.cab)));
       setExpandedCabs(new Set(finalRoutes[0] ? [finalRoutes[0].cab] : []));
+      if (!selectedUploadTenant || !selectedOfficeId) {
+        notifyMissingOffices(selectedUploadTenant, 'post');
+      } else {
+        const matchedOffice = selectedUploadTenant.offices?.find((item) => item.id === selectedOfficeId);
+        const plannedOffice = sortedPlan.routes[0]?.office ?? sortedPlan.office;
+        const warnMismatch = (sortedPlan.warnings ?? [])
+          .map((warning) => parseOfficeLocationMismatch(warning))
+          .find((item) => Boolean(item));
+        const computedDriftKm =
+          matchedOffice &&
+          typeof matchedOffice.latitude === 'number' &&
+          typeof matchedOffice.longitude === 'number' &&
+          plannedOffice &&
+          typeof plannedOffice.lat === 'number' &&
+          typeof plannedOffice.lng === 'number'
+            ? haversineDistanceKm(matchedOffice.latitude, matchedOffice.longitude, plannedOffice.lat, plannedOffice.lng)
+            : null;
+        if (warnMismatch || (computedDriftKm !== null && computedDriftKm > 2)) {
+          setRefreshOfficesNotice(null);
+          setOfficeMismatchModal({
+            open: true,
+            distanceKm: warnMismatch?.distanceKm ?? (computedDriftKm !== null ? computedDriftKm.toFixed(1) : undefined),
+            savedOfficeName: matchedOffice?.name || warnMismatch?.savedOfficeName,
+            savedOfficeAddress: matchedOffice?.addressText || matchedOffice?.name,
+            plannedOfficeName: plannedOffice?.name,
+          });
+        }
+      }
       if (directionFailures.length > 0) {
         setErrorMsg(
           `Partial planning result: ${directionFailures
@@ -710,6 +1039,7 @@ export default function RouteOptimizerPage() {
       return;
     }
     if (!selectedTenantId || !selectedOfficeId) {
+      notifyMissingOffices(tenants.find((item) => item.id === selectedTenantId));
       setErrorMsg('Please select a tenant and office hub');
       return;
     }
@@ -767,6 +1097,7 @@ export default function RouteOptimizerPage() {
   async function handleCommitToDatabase() {
     if (!planResult || !planSettings || isMultiOfficePlan) return;
     if (!selectedUploadTenant || !selectedOfficeId) {
+      notifyMissingOffices(selectedUploadTenant, 'post');
       setErrorMsg('Select a real company with an office hub before committing routes.');
       return;
     }
@@ -873,12 +1204,46 @@ export default function RouteOptimizerPage() {
       }
       setCommitFailures(failures);
       if (failures.length > 0) {
-        setErrorMsg(
-          `Partial commit: ${failures.map(({ direction: failedDirection, error }) => `${failedDirection} failed: ${error}`).join('; ')}. Successful directions remain committed; retry the failed direction.`,
+        const mismatchEntry = failures
+          .map((entry) => ({ entry, parsed: parseOfficeLocationMismatch(entry.error) }))
+          .find((item) => Boolean(item.parsed));
+
+        if (mismatchEntry?.parsed) {
+          const matchedOffice = selectedUploadTenant.offices?.find((item) => item.id === selectedOfficeId);
+          const plannedOffice = planResult.routes[0]?.office ?? planResult.office;
+          setRefreshOfficesNotice(null);
+          setOfficeMismatchModal({
+            open: true,
+            distanceKm: mismatchEntry.parsed.distanceKm,
+            savedOfficeName: mismatchEntry.parsed.savedOfficeName || matchedOffice?.name,
+            savedOfficeAddress: matchedOffice?.addressText || matchedOffice?.name,
+            plannedOfficeName: plannedOffice?.name,
+          });
+        }
+
+        const allFailuresAreOfficeMismatch = failures.every((entry) =>
+          Boolean(parseOfficeLocationMismatch(entry.error)),
         );
+        if (successes.length > 0) {
+          setErrorMsg(
+            `Some shifts could not be posted: ${failures
+              .map(({ direction: failedDirection, error }) => `${failedDirection} — ${stripApiErrorPrefix(error)}`)
+              .join('; ')}. Already posted shifts remain saved.`,
+          );
+        } else if (!allFailuresAreOfficeMismatch) {
+          setErrorMsg(
+            failures
+              .map(({ direction: failedDirection, error }) =>
+                failures.length > 1
+                  ? `${failedDirection}: ${stripApiErrorPrefix(error)}`
+                  : stripApiErrorPrefix(error),
+              )
+              .join(' '),
+          );
+        }
       }
     } catch (err: any) {
-      setErrorMsg(err.message || 'Failed to commit routes to live operational database.');
+      setErrorMsg(stripApiErrorPrefix(err.message || 'Could not post routes. Please try again.'));
     } finally {
       setCommitting(false);
     }
@@ -1157,8 +1522,8 @@ export default function RouteOptimizerPage() {
                   onClick={() => setActiveTab('FILE_UPLOAD')}
                   style={{
                     flex: 1,
-                    padding: '12px 14px',
-                    fontSize: '13px',
+                    padding: '12px 10px',
+                    fontSize: '12px',
                     fontWeight: 600,
                     background: activeTab === 'FILE_UPLOAD' ? 'var(--brand-primary-subtle)' : 'transparent',
                     color: activeTab === 'FILE_UPLOAD' ? 'var(--brand-blue-500, #5728B2)' : 'var(--text-muted)',
@@ -1168,20 +1533,20 @@ export default function RouteOptimizerPage() {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    gap: '8px',
+                    gap: '6px',
                     transition: 'all 0.15s ease',
                   }}
                 >
-                  <FileSpreadsheet size={15} />
-                  <span>Roster File Ingest</span>
+                  <FileSpreadsheet size={14} />
+                  <span>Roster Ingest</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setActiveTab('DB_SHIFT')}
                   style={{
                     flex: 1,
-                    padding: '12px 14px',
-                    fontSize: '13px',
+                    padding: '12px 10px',
+                    fontSize: '12px',
                     fontWeight: 600,
                     background: activeTab === 'DB_SHIFT' ? 'var(--brand-primary-subtle)' : 'transparent',
                     color: activeTab === 'DB_SHIFT' ? 'var(--brand-blue-500, #5728B2)' : 'var(--text-muted)',
@@ -1191,12 +1556,35 @@ export default function RouteOptimizerPage() {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    gap: '8px',
+                    gap: '6px',
                     transition: 'all 0.15s ease',
                   }}
                 >
-                  <Database size={15} />
-                  <span>Live Shift Optimize</span>
+                  <Database size={14} />
+                  <span>Live Shift</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('MANUAL')}
+                  style={{
+                    flex: 1,
+                    padding: '12px 10px',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    background: activeTab === 'MANUAL' ? 'var(--brand-primary-subtle)' : 'transparent',
+                    color: activeTab === 'MANUAL' ? 'var(--brand-blue-500, #5728B2)' : 'var(--text-muted)',
+                    border: 'none',
+                    borderBottom: activeTab === 'MANUAL' ? '2px solid var(--brand-blue-500, #5728B2)' : '2px solid transparent',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <RouteIcon size={14} />
+                  <span>Manual Route</span>
                 </button>
               </div>
 
@@ -1204,8 +1592,39 @@ export default function RouteOptimizerPage() {
                 /* FILE UPLOADER & HEURISTIC SOLVER */
                 <form onSubmit={handleCalculateRoutes} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}>
                   <div style={{ padding: '16px 20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '14px', flex: 1, minHeight: 0 }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                        Corporate Client (Company) *
+                      </label>
+                      <select
+                        value={selectedUploadTenantId}
+                        onChange={(e) => void handleSelectCompany(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '8px 12px',
+                          backgroundColor: 'var(--bg-input)',
+                          border: '1px solid var(--border-subtle)',
+                          borderRadius: '6px',
+                          color: 'var(--text-primary)',
+                          fontSize: '13px',
+                          outline: 'none',
+                        }}
+                      >
+                        {tenants.length === 0 && <option value="">No companies onboarded</option>}
+                        {tenants.map((t) => (
+                          <option key={t.id} value={t.id}>
+                            {t.name} ({t.code})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
                     {selectedUploadTenant && (
-                      <div>
+                      <div
+                        onClick={() => {
+                          if (isMissingOffices) notifyMissingOffices(selectedUploadTenant);
+                        }}
+                      >
                         <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
                           Company Office Hub *
                         </label>
@@ -1226,6 +1645,7 @@ export default function RouteOptimizerPage() {
                             color: 'var(--text-primary)',
                             fontSize: '13px',
                             outline: 'none',
+                            pointerEvents: !selectedUploadTenant.offices?.length ? 'none' : undefined,
                           }}
                         >
                           {!selectedUploadTenant.offices?.length && <option value="">No office hubs configured</option>}
@@ -1582,7 +2002,7 @@ export default function RouteOptimizerPage() {
                     </Button>
                   </div>
                 </form>
-              ) : (
+              ) : activeTab === 'DB_SHIFT' ? (
                 /* DATABASE SHIFT AUTO-OPTIMIZER FORM */
                 <form onSubmit={handleOptimizeDbShift} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}>
                   <div style={{ padding: '16px 20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '14px', flex: 1, minHeight: 0 }}>
@@ -1593,13 +2013,7 @@ export default function RouteOptimizerPage() {
                       </label>
                       <select
                         value={selectedTenantId}
-                        onChange={(e) => {
-                          setSelectedTenantId(e.target.value);
-                          const t = tenants.find((item) => item.id === e.target.value);
-                          if (t && t.offices && t.offices.length > 0) {
-                            setSelectedOfficeId(t.offices[0].id);
-                          }
-                        }}
+                        onChange={(e) => void handleSelectCompany(e.target.value)}
                         style={{
                           width: '100%',
                           padding: '8px 12px',
@@ -1878,6 +2292,387 @@ export default function RouteOptimizerPage() {
                     </Button>
                   </div>
                 </form>
+              ) : (
+                /* MANUAL ROUTE BUILDER FORM */
+                <form onSubmit={handleCreateManualRoute} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}>
+                  <div style={{ padding: '16px 20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px', flex: 1, minHeight: 0 }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                        Corporate Client (Company) *
+                      </label>
+                      <select
+                        value={selectedUploadTenantId}
+                        onChange={(e) => void handleSelectCompany(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '8px 12px',
+                          backgroundColor: 'var(--bg-input)',
+                          border: '1px solid var(--border-subtle)',
+                          borderRadius: '6px',
+                          color: 'var(--text-primary)',
+                          fontSize: '13px',
+                          outline: 'none',
+                        }}
+                      >
+                        {tenants.length === 0 && <option value="">No companies onboarded</option>}
+                        {tenants.map((t) => (
+                          <option key={t.id} value={t.id}>
+                            {t.name} ({t.code})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                        Company Office Hub *
+                      </label>
+                      <select
+                        value={selectedOfficeId}
+                        disabled={uploadCompanyLoading || !selectedUploadTenant?.offices?.length}
+                        onChange={(e) => setSelectedOfficeId(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '8px 12px',
+                          backgroundColor: 'var(--bg-input)',
+                          border: '1px solid var(--border-subtle)',
+                          borderRadius: '6px',
+                          color: 'var(--text-primary)',
+                          fontSize: '13px',
+                          outline: 'none',
+                        }}
+                      >
+                        {!selectedUploadTenant?.offices?.length && <option value="">No office hubs configured</option>}
+                        {selectedUploadTenant?.offices?.map((off) => (
+                          <option key={off.id} value={off.id}>
+                            {off.name} ({off.code})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                          Shift Date *
+                        </label>
+                        <input
+                          type="date"
+                          required
+                          value={manualShiftDate}
+                          onChange={(e) => setManualShiftDate(e.target.value)}
+                          style={{
+                            width: '100%',
+                            padding: '8px 10px',
+                            backgroundColor: 'var(--bg-input)',
+                            border: '1px solid var(--border-subtle)',
+                            borderRadius: '6px',
+                            color: 'var(--text-primary)',
+                            fontSize: '13px',
+                            outline: 'none',
+                          }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                          Shift Time (IST) *
+                        </label>
+                        <input
+                          type="time"
+                          required
+                          value={manualShiftTime}
+                          onChange={(e) => setManualShiftTime(e.target.value)}
+                          style={{
+                            width: '100%',
+                            padding: '8px 10px',
+                            backgroundColor: 'var(--bg-input)',
+                            border: '1px solid var(--border-subtle)',
+                            borderRadius: '6px',
+                            color: 'var(--text-primary)',
+                            fontSize: '13px',
+                            outline: 'none',
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 80px', gap: '10px' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                          Direction *
+                        </label>
+                        <select
+                          value={manualDirection}
+                          onChange={(e) => setManualDirection(e.target.value as 'LOGIN' | 'LOGOUT')}
+                          style={{
+                            width: '100%',
+                            padding: '8px 10px',
+                            backgroundColor: 'var(--bg-input)',
+                            border: '1px solid var(--border-subtle)',
+                            borderRadius: '6px',
+                            color: 'var(--text-primary)',
+                            fontSize: '12px',
+                            outline: 'none',
+                          }}
+                        >
+                          <option value="LOGIN">LOGIN</option>
+                          <option value="LOGOUT">LOGOUT</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                          Vehicle *
+                        </label>
+                        <select
+                          value={manualVehicleCategory}
+                          onChange={(e) => setManualVehicleCategory(e.target.value)}
+                          style={{
+                            width: '100%',
+                            padding: '8px 10px',
+                            backgroundColor: 'var(--bg-input)',
+                            border: '1px solid var(--border-subtle)',
+                            borderRadius: '6px',
+                            color: 'var(--text-primary)',
+                            fontSize: '12px',
+                            outline: 'none',
+                          }}
+                        >
+                          {vehicleCategories.length > 0 ? (
+                            vehicleCategories.map((cat) => (
+                              <option key={cat.vehicleType} value={cat.vehicleType}>
+                                {cat.categoryLabel}
+                              </option>
+                            ))
+                          ) : (
+                            <>
+                              <option value="SEDAN">Sedan</option>
+                              <option value="SUV">SUV</option>
+                              <option value="HATCHBACK">Hatchback</option>
+                              <option value="TEMPO_TRAVELLER">Tempo Traveller</option>
+                            </>
+                          )}
+                        </select>
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                          Seats
+                        </label>
+                        <input
+                          type="number"
+                          min={1}
+                          max={40}
+                          value={manualMaxCapacity}
+                          onChange={(e) => setManualMaxCapacity(Math.max(1, Number(e.target.value) || 4))}
+                          style={{
+                            width: '100%',
+                            padding: '8px 8px',
+                            backgroundColor: 'var(--bg-input)',
+                            border: '1px solid var(--border-subtle)',
+                            borderRadius: '6px',
+                            color: 'var(--text-primary)',
+                            fontSize: '12px',
+                            outline: 'none',
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Dynamic Employee Stops */}
+                    <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '10px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                          Employee Stops ({manualStops.length})
+                        </span>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          leftIcon={<Plus size={13} />}
+                          onClick={() =>
+                            setManualStops((prev) => [
+                              ...prev,
+                              { id: `stop-${Date.now()}-${prev.length}`, name: '', phoneNumber: '', email: '', address: '' },
+                            ])
+                          }
+                        >
+                          Add Stop
+                        </Button>
+                      </div>
+                      <p style={{ margin: 0, fontSize: '11px', color: 'var(--text-muted)' }}>
+                        Every employee added here is automatically registered in the company directory with a commuter login account.
+                      </p>
+
+                      {manualStops.map((stop, idx) => (
+                        <div
+                          key={stop.id}
+                          style={{
+                            padding: '10px',
+                            borderRadius: '8px',
+                            backgroundColor: 'var(--bg-surface-muted)',
+                            border: '1px solid var(--border-subtle)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '8px',
+                          }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--brand-blue-500, #5728B2)' }}>
+                              Stop #{idx + 1}
+                            </span>
+                            {manualStops.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => setManualStops((prev) => prev.filter((item) => item.id !== stop.id))}
+                                style={{
+                                  background: 'transparent',
+                                  border: 'none',
+                                  color: 'var(--color-danger, #DC2626)',
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  fontSize: '11px',
+                                  fontWeight: 600,
+                                }}
+                              >
+                                <Trash2 size={12} /> Remove
+                              </button>
+                            )}
+                          </div>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                            <input
+                              type="text"
+                              required
+                              placeholder="Employee Name *"
+                              value={stop.name}
+                              onChange={(e) =>
+                                setManualStops((prev) =>
+                                  prev.map((item) => (item.id === stop.id ? { ...item, name: e.target.value } : item)),
+                                )
+                              }
+                              style={{
+                                width: '100%',
+                                padding: '7px 9px',
+                                backgroundColor: 'var(--bg-input)',
+                                border: '1px solid var(--border-subtle)',
+                                borderRadius: '6px',
+                                color: 'var(--text-primary)',
+                                fontSize: '12px',
+                              }}
+                            />
+                            <input
+                              type="tel"
+                              required
+                              placeholder="Phone (+91...) *"
+                              value={stop.phoneNumber}
+                              onChange={(e) =>
+                                setManualStops((prev) =>
+                                  prev.map((item) => (item.id === stop.id ? { ...item, phoneNumber: e.target.value } : item)),
+                                )
+                              }
+                              style={{
+                                width: '100%',
+                                padding: '7px 9px',
+                                backgroundColor: 'var(--bg-input)',
+                                border: '1px solid var(--border-subtle)',
+                                borderRadius: '6px',
+                                color: 'var(--text-primary)',
+                                fontSize: '12px',
+                              }}
+                            />
+                          </div>
+                          <input
+                            type="email"
+                            placeholder="Email (optional)"
+                            value={stop.email}
+                            onChange={(e) =>
+                              setManualStops((prev) =>
+                                prev.map((item) => (item.id === stop.id ? { ...item, email: e.target.value } : item)),
+                              )
+                            }
+                            style={{
+                              width: '100%',
+                              padding: '7px 9px',
+                              backgroundColor: 'var(--bg-input)',
+                              border: '1px solid var(--border-subtle)',
+                              borderRadius: '6px',
+                              color: 'var(--text-primary)',
+                              fontSize: '12px',
+                            }}
+                          />
+                          <input
+                            type="text"
+                            required
+                            placeholder="Pickup / Drop Address *"
+                            value={stop.address}
+                            onChange={(e) =>
+                              setManualStops((prev) =>
+                                prev.map((item) => (item.id === stop.id ? { ...item, address: e.target.value } : item)),
+                              )
+                            }
+                            style={{
+                              width: '100%',
+                              padding: '7px 9px',
+                              backgroundColor: 'var(--bg-input)',
+                              border: '1px solid var(--border-subtle)',
+                              borderRadius: '6px',
+                              color: 'var(--text-primary)',
+                              fontSize: '12px',
+                            }}
+                          />
+                        </div>
+                      ))}
+                    </div>
+
+                    {manualCreatedRoute && (
+                      <div
+                        style={{
+                          padding: '12px 14px',
+                          borderRadius: '8px',
+                          backgroundColor: 'var(--color-success-bg)',
+                          border: '1px solid var(--color-success-border)',
+                          fontSize: '12px',
+                          color: 'var(--color-success)',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '8px',
+                        }}
+                      >
+                        <div>
+                          <strong>Manual route created!</strong> RT-{manualCreatedRoute.id.slice(0, 8).toUpperCase()} ({manualCreatedRoute.assignedPassengerCount} passengers auto-registered).
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                          <Link href={`/routes/${manualCreatedRoute.id}`} style={{ textDecoration: 'none' }}>
+                            <Button type="button" size="sm" variant="primary" rightIcon={<ExternalLink size={12} />}>
+                              Inspect Route
+                            </Button>
+                          </Link>
+                          <Link
+                            href={selectedUploadTenantId ? `/routes?tenantId=${encodeURIComponent(selectedUploadTenantId)}` : '/routes'}
+                            style={{ textDecoration: 'none' }}
+                          >
+                            <Button type="button" size="sm" variant="outline">
+                              Open Routes Page
+                            </Button>
+                          </Link>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={{ padding: '16px 20px', borderTop: '1px solid var(--border-subtle)' }}>
+                    <Button
+                      type="submit"
+                      variant="primary"
+                      style={{ width: '100%' }}
+                      isLoading={manualSaving}
+                      disabled={!selectedUploadTenantId || !selectedOfficeId}
+                      leftIcon={<Plus size={16} />}
+                    >
+                      {manualSaving ? 'Creating Route...' : 'Create Manual Route'}
+                    </Button>
+                  </div>
+                </form>
               )}
             </div>
           ) : (
@@ -2138,19 +2933,49 @@ export default function RouteOptimizerPage() {
                 </div>
               )}
               <div style={{ padding: '14px 18px', borderTop: '1px solid var(--border-subtle)', display: 'flex', gap: '10px' }}>
-                <Button
-                  variant="primary"
-                  style={{ width: '100%' }}
-                  disabled={committing || !canCommitUploadPlan || uploadCompanyLoading || isMultiOfficePlan}
-                  onClick={handleCommitToDatabase}
-                  leftIcon={committing ? <RefreshCw className="spin" size={14} /> : <CheckCircle size={14} />}
+                <div
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    cursor:
+                      !committing && !uploadCompanyLoading && !isMultiOfficePlan && (!selectedUploadTenant || !selectedOfficeId)
+                        ? 'pointer'
+                        : undefined,
+                  }}
+                  onClick={() => {
+                    if (
+                      !committing &&
+                      !uploadCompanyLoading &&
+                      !isMultiOfficePlan &&
+                      (!selectedUploadTenant || !selectedOfficeId)
+                    ) {
+                      notifyMissingOffices(selectedUploadTenant, 'post');
+                    }
+                  }}
                 >
-                  {committing
-                    ? 'Adding Routes...'
-                    : canCommitUploadPlan
-                      ? `Add ${selectedCabsForCommit.size === planResult.routes.length ? 'All' : selectedCabsForCommit.size} Route${selectedCabsForCommit.size === 1 ? '' : 's'} to Routes Page`
-                      : 'Select Company & Office to Add Routes'}
-                </Button>
+                  <Button
+                    variant="primary"
+                    style={{
+                      width: '100%',
+                      pointerEvents:
+                        !committing &&
+                        !uploadCompanyLoading &&
+                        !isMultiOfficePlan &&
+                        (!selectedUploadTenant || !selectedOfficeId)
+                          ? 'none'
+                          : undefined,
+                    }}
+                    disabled={committing || !canCommitUploadPlan || uploadCompanyLoading || isMultiOfficePlan}
+                    onClick={handleCommitToDatabase}
+                    leftIcon={committing ? <RefreshCw className="spin" size={14} /> : <CheckCircle size={14} />}
+                  >
+                    {committing
+                      ? 'Adding Routes...'
+                      : canCommitUploadPlan
+                        ? `Add ${selectedCabsForCommit.size === planResult.routes.length ? 'All' : selectedCabsForCommit.size} Route${selectedCabsForCommit.size === 1 ? '' : 's'} to Routes Page`
+                        : 'Select Company & Office to Add Routes'}
+                  </Button>
+                </div>
                 <Button variant="secondary" onClick={handleExportExcel} leftIcon={<FileSpreadsheet size={14} />}>
                   Export Excel
                 </Button>
@@ -2318,6 +3143,37 @@ export default function RouteOptimizerPage() {
           )}
         </div>
       </div>
+
+      {/* Prominent Popup when Company Offices are Missing */}
+      <OfficeHubRequiredModal
+        isOpen={missingOfficeModal.open}
+        onClose={() => setMissingOfficeModal((prev) => ({ ...prev, open: false }))}
+        context={missingOfficeModal.context}
+        companyName={missingOfficeModal.companyName}
+        hasCompanies={missingOfficeModal.hasCompanies}
+        refreshing={refreshingOffices}
+        refreshNotice={refreshOfficesNotice}
+        onRefreshOffices={handleRefreshOffices}
+      />
+
+      {/* Prominent Popup when Planned Destination Differs from Saved Office Coordinates */}
+      <OfficeLocationMismatchModal
+        isOpen={officeMismatchModal.open}
+        onClose={() => setOfficeMismatchModal((prev) => ({ ...prev, open: false }))}
+        distanceKm={officeMismatchModal.distanceKm}
+        savedOfficeName={officeMismatchModal.savedOfficeName}
+        savedOfficeAddress={officeMismatchModal.savedOfficeAddress}
+        plannedOfficeName={officeMismatchModal.plannedOfficeName}
+        refreshing={refreshingOffices}
+        refreshNotice={refreshOfficesNotice}
+        onRefreshOffices={handleRefreshOffices}
+        onEditParams={() => {
+          setOfficeMismatchModal((prev) => ({ ...prev, open: false }));
+          setPlanResult(null);
+          setCommittedSuccess(null);
+          setErrorMsg(null);
+        }}
+      />
     </div>
   );
 }

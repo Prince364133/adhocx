@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, MapPin, Navigation } from 'lucide-react';
+import { escapeHtml } from '../../lib/opsHelpers';
 
 export interface GoogleRouteMapStop {
   id?: string;
@@ -227,10 +228,10 @@ export function GoogleRouteMap({
             const dwellMin = Math.round((stop.dwellBufferSeconds ?? 600) / 60);
             infoWindowRef.current.setContent(
               `<div style="font-family:system-ui,sans-serif;min-width:190px;padding:4px 2px;color:#0f172a">
-                <div style="font-weight:700;font-size:13px;margin-bottom:4px">Stop #${stop.stopSequence}: ${stop.employeeName || 'Employee'}</div>
-                ${stop.employeePhone ? `<div style="font-size:12px;margin-bottom:3px">Phone: <strong>${stop.employeePhone}</strong></div>` : ''}
-                <div style="font-size:12px;color:#475569;margin-bottom:4px">${stop.addressText || 'Pickup point'}</div>
-                <div style="font-size:11px;color:#64748b">ETA: ${formatIstTime(stop.plannedEta)} IST · Wait: ${dwellMin} min</div>
+                <div style="font-weight:700;font-size:13px;margin-bottom:4px">Stop #${escapeHtml(stop.stopSequence)}: ${escapeHtml(stop.employeeName || 'Employee')}</div>
+                ${stop.employeePhone ? `<div style="font-size:12px;margin-bottom:3px">Phone: <strong>${escapeHtml(stop.employeePhone)}</strong></div>` : ''}
+                <div style="font-size:12px;color:#475569;margin-bottom:4px">${escapeHtml(stop.addressText || 'Pickup point')}</div>
+                <div style="font-size:11px;color:#64748b">ETA: ${escapeHtml(formatIstTime(stop.plannedEta))} IST · Wait: ${escapeHtml(dwellMin)} min</div>
               </div>`,
             );
             infoWindowRef.current.open(mapRef.current, marker);
@@ -269,8 +270,8 @@ export function GoogleRouteMap({
             infoWindowRef.current.setContent(
               `<div style="font-family:system-ui,sans-serif;min-width:180px;padding:4px 2px;color:#0f172a">
                 <div style="font-weight:700;font-size:13px;color:#059669">Destination Office</div>
-                <div style="font-weight:600;font-size:12px">${office.name}</div>
-                <div style="font-size:11px;color:#475569;margin-top:2px">${office.addressText || ''}</div>
+                <div style="font-weight:600;font-size:12px">${escapeHtml(office.name)}</div>
+                <div style="font-size:11px;color:#475569;margin-top:2px">${escapeHtml(office.addressText || '')}</div>
               </div>`,
             );
             infoWindowRef.current.open(mapRef.current, officeMarker);

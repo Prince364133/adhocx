@@ -86,6 +86,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       context: context,
       useRootNavigator: true,
       isScrollControlled: true,
+      useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (_) => modal,
     );
@@ -469,7 +470,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       iconColor: AppColors.info,
                       label: context.tr('Vehicle Details'),
                       subtitle: context.tr('Car model, plate & specifications'),
-                      onTap: () => context.push(AppRoutes.myVehicleScreen),
+                      onTap: () async {
+                        await context.push(AppRoutes.myVehicleScreen);
+                        if (mounted) _fetchProfile();
+                      },
                     ),
                   ],
                 ),
@@ -487,6 +491,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       label: context.tr('Earnings'),
                       subtitle: context.tr('Wallet balance, transactions & withdrawals'),
                       onTap: () => context.push(AppRoutes.walletScreen),
+                    ),
+                    _divider(isDark),
+                    ProfileMenuItemWidget(
+                      icon: Icons.card_giftcard_rounded,
+                      iconColor: AppColors.primary,
+                      label: context.tr('Refer & Earn ₹500'),
+                      subtitle: context.tr('Invite drivers & unlock milestone cash rewards'),
+                      onTap: () => context.push(AppRoutes.referralScreen),
                     ),
                     _divider(isDark),
                     ProfileMenuItemWidget(

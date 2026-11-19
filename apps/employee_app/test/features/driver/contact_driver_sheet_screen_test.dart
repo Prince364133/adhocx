@@ -1,5 +1,4 @@
 import 'package:adhocx_employee/features/driver/profiles/contact_driver_sheet_screen.dart';
-import 'package:adhocx_employee/services/mock_data_service.dart';
 import 'package:adhocx_employee/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -10,7 +9,6 @@ void main() {
     tester.view.physicalSize = const Size(360, 800);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    await tester.runAsync(MockDataService.loadData);
 
     await tester.pumpWidget(
       MaterialApp(

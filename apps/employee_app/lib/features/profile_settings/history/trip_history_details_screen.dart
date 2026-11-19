@@ -41,19 +41,29 @@ class _TripHistoryDetailsScreenState extends State<TripHistoryDetailsScreen> {
   Widget build(BuildContext context) {
     final p = EmployeePalette.of(context);
     final trip = widget.trip;
-    final title = trip?.title ?? 'Login Trip';
-    final status = trip?.displayStatus ?? 'Completed';
-    final date = trip?.displayDate ?? 'Tue, 09 Dec 2026';
-    final pickup = trip?.pickupAddress.isNotEmpty == true
-        ? trip!.pickupAddress
-        : 'Home (Kondapur)';
-    final destination = trip?.destinationAddress.isNotEmpty == true
-        ? trip!.destinationAddress
-        : 'HITEC City Office';
-    final shiftTime = trip?.shiftTime ?? '8:15 AM';
-    final hasVehicle = trip == null ||
-        trip.vehicleModel.isNotEmpty ||
-        trip.vehiclePlate.isNotEmpty;
+
+    if (trip == null) {
+      return Scaffold(
+        backgroundColor: p.background,
+        appBar: const EmployeeAppBar(title: 'Trip Details'),
+        body: const SafeArea(
+          child: EmployeeEmptyState(
+            icon: Icons.directions_car_outlined,
+            title: 'No Trip Selected',
+            description: 'Select a trip from your Trip History to view details.',
+          ),
+        ),
+      );
+    }
+
+    final pickup = trip.pickupAddress.isNotEmpty
+        ? trip.pickupAddress
+        : 'Pickup point unavailable';
+    final destination = trip.destinationAddress.isNotEmpty
+        ? trip.destinationAddress
+        : 'Destination unavailable';
+    final hasVehicle =
+        trip.vehicleModel.isNotEmpty || trip.vehiclePlate.isNotEmpty;
 
     Widget routePoint(IconData icon, Color color, String label, String location,
             String time) =>
@@ -109,17 +119,17 @@ class _TripHistoryDetailsScreenState extends State<TripHistoryDetailsScreen> {
                       children: [
                         Expanded(
                           child: Text(
-                            title,
+                            trip.title,
                             style: AppTypography.h4(
                               color: p.textPrimary,
                               fontWeight: FontWeight.w800,
                             ),
                           ),
                         ),
-                        EmployeeStatusBadge.fromString(status),
+                        EmployeeStatusBadge.fromString(trip.displayStatus),
                       ],
                     ),
-                    Text(date,
+                    Text(trip.displayDate,
                         style: AppTypography.caption(color: p.textMuted)),
                     Divider(color: p.border, height: AppSpacing.xxl),
                     routePoint(
@@ -127,7 +137,7 @@ class _TripHistoryDetailsScreenState extends State<TripHistoryDetailsScreen> {
                       AppColors.success,
                       'Pickup',
                       pickup,
-                      shiftTime,
+                      trip.shiftTime,
                     ),
                     const SizedBox(height: AppSpacing.lg),
                     routePoint(
@@ -141,13 +151,7 @@ class _TripHistoryDetailsScreenState extends State<TripHistoryDetailsScreen> {
                 ),
               ),
               const SizedBox(height: AppSpacing.lg),
-              if (trip == null)
-                const TripDriverRow(
-                  name: 'Suresh R',
-                  rating: '4.8',
-                  avatarRadius: 22,
-                )
-              else if (trip.driverName.isNotEmpty)
+              if (trip.driverName.isNotEmpty)
                 TripDriverRow(
                   name: trip.driverName,
                   rating: trip.driverRating?.toStringAsFixed(1) ?? '—',
@@ -158,32 +162,28 @@ class _TripHistoryDetailsScreenState extends State<TripHistoryDetailsScreen> {
               if (hasVehicle) ...[
                 const SizedBox(height: AppSpacing.md),
                 TripVehicleCard(
-                  model: trip == null
-                      ? 'Maruti Ertiga'
-                      : trip.vehicleModel.isEmpty
-                          ? 'Vehicle model unavailable'
-                          : trip.vehicleModel,
-                  plate: trip == null
-                      ? 'TS09UB7845'
-                      : trip.vehiclePlate.isEmpty
-                          ? 'Plate unavailable'
-                          : trip.vehiclePlate,
-                  details: trip == null ? 'White • 7 Seater' : '',
+                  model: trip.vehicleModel.isEmpty
+                      ? 'Vehicle model unavailable'
+                      : trip.vehicleModel,
+                  plate: trip.vehiclePlate.isEmpty
+                      ? 'Plate unavailable'
+                      : trip.vehiclePlate,
+                  details: '',
                 ),
               ],
-              if (trip?.canRate == true && !_submitted) ...[
+              if (trip.canRate && !_submitted) ...[
                 const SizedBox(height: AppSpacing.lg),
                 EmployeePrimaryButton(
                   label: 'Rate Driver',
                   icon: Icons.star_rounded,
                   onPressed: _rateDriver,
                 ),
-              ] else if (trip?.hasFeedback == true || _submitted) ...[
+              ] else if (trip.hasFeedback || _submitted) ...[
                 const SizedBox(height: AppSpacing.lg),
                 AppCard(
                   child: Text(
                     'Your rating has been submitted'
-                    '${trip?.feedbackRating == null ? '.' : ': ${trip!.feedbackRating} stars.'}',
+                    '${trip.feedbackRating == null ? '.' : ': ${trip.feedbackRating} stars.'}',
                     style: AppTypography.bodyMedium(
                       color: p.textSecondary,
                       fontWeight: FontWeight.w600,

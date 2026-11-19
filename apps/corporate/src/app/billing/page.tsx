@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
   IndianRupee,
@@ -10,6 +10,7 @@ import {
   Scale,
   Receipt,
 } from 'lucide-react';
+import { ApiError } from '../../lib/api/client';
 import { billingApi } from '../../lib/api/corporate';
 import { Invoice, InvoiceDispute } from '../../lib/api/types';
 import { MetricCard } from '../../components/common/MetricCard';
@@ -28,40 +29,45 @@ function formatPaiseToRupees(paise: string | number): string {
 
 export default function BillingOverviewPage() {
   const { tenantId: activeTenantId } = useSession();
+  const [selectedOffice, setSelectedOffice] = useState('All Offices');
   const [loading, setLoading] = useState(true);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [disputes, setDisputes] = useState<InvoiceDispute[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function loadBilling() {
-      if (!activeTenantId) {
-        setInvoices([]);
-        setDisputes([]);
-        setLoadError(null);
-        setLoading(false);
-        return;
-      }
-      try {
-        setLoading(true);
-        setLoadError(null);
-        const [invRes, dispRes] = await Promise.all([
-          billingApi.invoices(activeTenantId, { limit: 100 }),
-          billingApi.disputes(activeTenantId),
-        ]);
-        setInvoices(invRes.items || []);
-        setDisputes(dispRes || []);
-      } catch (err) {
-        console.error('Failed to load corporate billing overview:', err);
-        setInvoices([]);
-        setDisputes([]);
-        setLoadError(err instanceof Error ? err.message : 'Failed to load billing data.');
-      } finally {
-        setLoading(false);
-      }
+  const loadBilling = useCallback(async () => {
+    if (!activeTenantId) {
+      setInvoices([]);
+      setDisputes([]);
+      setLoadError(null);
+      setLoading(false);
+      return;
     }
-    loadBilling();
+    try {
+      setLoading(true);
+      setLoadError(null);
+      const [invRes, dispRes] = await Promise.all([
+        billingApi.invoices(activeTenantId, { limit: 100 }),
+        billingApi.disputes(activeTenantId).catch((err) => {
+          if (err instanceof ApiError && err.status === 403) return [] as InvoiceDispute[];
+          throw err;
+        }),
+      ]);
+      setInvoices(invRes.items || []);
+      setDisputes(dispRes || []);
+    } catch (err) {
+      console.error('Failed to load corporate billing overview:', err);
+      setInvoices([]);
+      setDisputes([]);
+      setLoadError(err instanceof Error ? err.message : 'Failed to load billing data.');
+    } finally {
+      setLoading(false);
+    }
   }, [activeTenantId]);
+
+  useEffect(() => {
+    void loadBilling();
+  }, [loadBilling]);
 
   const totalBilledPaise = invoices.reduce(
     (acc, inv) => acc + (Number(inv.totalAmountPaise) || 0),
@@ -109,7 +115,10 @@ export default function BillingOverviewPage() {
 
         <FilterBar
           showOffices={true}
-          showDateRange={true}
+          showDateRange={false}
+          selectedOffice={selectedOffice}
+          onOfficeChange={setSelectedOffice}
+          onRefresh={() => void loadBilling()}
         />
       </div>
 

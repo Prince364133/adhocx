@@ -21,6 +21,7 @@ class HttpEmployeeAuthRepository implements EmployeeAuthRepository {
         if (isEmail) 'email': sanitized.toLowerCase() else 'phone': cleanPhone,
         'channel': isEmail ? 'EMAIL' : 'SMS',
         if (!isEmail) 'countryCode': '+91',
+        'role': 'EMPLOYEE',
         'isRegister': false,
       });
     } on ApiException catch (e) {
@@ -48,6 +49,7 @@ class HttpEmployeeAuthRepository implements EmployeeAuthRepository {
         if (isEmail) 'email': clean.toLowerCase() else 'phone': cleanPhone,
         'otp': cleanOtp,
         if (!isEmail) 'countryCode': '+91',
+        'role': 'EMPLOYEE',
       });
 
       final payload = res['data'] ?? res;
@@ -143,7 +145,7 @@ class HttpEmployeeAuthRepository implements EmployeeAuthRepository {
     try {
       _cachedUser = await _fetchAndCacheProfile();
     } catch (e) {
-      if (_isAuthorizationFailure(e)) {
+      if (_isAuthorizationFailure(e) || e is TransportIneligibleException) {
         _cachedUser = null;
         return null;
       }
@@ -156,6 +158,25 @@ class HttpEmployeeAuthRepository implements EmployeeAuthRepository {
 
   @override
   Future<void> signOut() async {
+    try {
+      final refreshToken = await _client.getRefreshToken();
+      await _client.post(
+        '/auth/logout',
+        body: refreshToken != null && refreshToken.isNotEmpty
+            ? {'refreshToken': refreshToken}
+            : null,
+      );
+    } catch (e) {
+      debugPrint('[HttpEmployeeAuthRepository] Logout request failed: $e');
+    } finally {
+      _cachedUser = null;
+      await _client.clearSession();
+    }
+  }
+
+  @override
+  Future<void> deleteAccount() async {
+    await _client.delete('/auth/account');
     _cachedUser = null;
     await _client.clearSession();
   }
@@ -175,13 +196,13 @@ class HttpEmployeeAuthRepository implements EmployeeAuthRepository {
             '',
         fullName: data['fullName']?.toString() ??
             fallbackUser?['fullName']?.toString() ??
-            'Corporate Commuter',
+            '',
         organization: data['tenant']?['name']?.toString() ??
             fallbackUser?['tenantName']?.toString() ??
-            'Corporate Enterprise',
+            '',
         office: data['office']?['name']?.toString() ??
             fallbackUser?['officeName']?.toString() ??
-            'Corporate Campus',
+            '',
         email: data['email']?.toString() ??
             fallbackUser?['email']?.toString() ??
             '',
@@ -198,20 +219,28 @@ class HttpEmployeeAuthRepository implements EmployeeAuthRepository {
     } catch (e) {
       debugPrint(
           '[HttpEmployeeAuthRepository] Error fetching /corporate/me: $e');
+      if (e is ApiException && e.statusCode == 404) {
+        _cachedUser = null;
+        await _client.clearSession();
+        throw const TransportIneligibleException(
+          'Your phone number is not linked to an active company transport profile.',
+        );
+      }
       if (_isAuthorizationFailure(e)) {
         _cachedUser = null;
         await _client.clearSession();
+        if (e is ApiException && e.statusCode == 403) {
+          throw TransportIneligibleException(e.message);
+        }
         rethrow;
       }
       if (fallbackUser != null) {
         final user = EmployeeUser(
           id: fallbackUser['id']?.toString() ?? '',
           employeeId: fallbackUser['employeeCode']?.toString() ?? '',
-          fullName:
-              fallbackUser['fullName']?.toString() ?? 'Corporate Commuter',
-          organization:
-              fallbackUser['tenantName']?.toString() ?? 'Corporate Enterprise',
-          office: fallbackUser['officeName']?.toString() ?? 'Corporate Campus',
+          fullName: fallbackUser['fullName']?.toString() ?? '',
+          organization: fallbackUser['tenantName']?.toString() ?? '',
+          office: fallbackUser['officeName']?.toString() ?? '',
           email: fallbackUser['email']?.toString() ?? '',
           phone: fallbackUser['phone']?.toString() ?? '',
           isTransportEligible: true,

@@ -114,6 +114,7 @@ class _OnboardingReviewScreenState extends State<OnboardingReviewScreen> {
       ];
 
       await driverService.submitKyc(
+        referralCode: onboarding.referralCode.isNotEmpty ? onboarding.referralCode : null,
         // Only a real DL number (entered/OCR'd/verified) is sent; never derived from the plate.
         dlNumber: onboarding.dlNumber.isNotEmpty ? onboarding.dlNumber : null,
         panNumber: onboarding.panNumber.isNotEmpty ? onboarding.panNumber : null,

@@ -197,7 +197,7 @@ export class CorporateSupportTicketController {
   }
 
   @Get('summary')
-  @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER, UserRole.EMPLOYEE)
+  @Roles(UserRole.ADMIN, UserRole.OPS, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER, UserRole.EMPLOYEE)
   @CorporateTenantScoped()
   public async summary(@Req() req: any, @Query('tenantId') tenantId?: string) {
     const actor = actorFromRequest(req);
@@ -263,7 +263,7 @@ export class CorporateSupportTicketController {
   }
 
   @Patch(':id/status')
-  @Roles(UserRole.ADMIN, UserRole.OPS)
+  @Roles(UserRole.ADMIN, UserRole.OPS, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
   @CorporateResource('ticket', 'id')
   @ApiOperation({ summary: 'Change ticket status within the shared workflow' })
   @ApiBody({ schema: { type: 'object', properties: { status: { type: 'string', enum: Object.values(CorporateTicketStatus) }, notes: { type: 'string' } }, required: ['status'] } })
@@ -366,26 +366,26 @@ export class OpsSupportTicketController {
   constructor(private readonly tickets: CorporateSupportTicketService) {}
 
   @Get()
-  @Roles(UserRole.OPS)
+  @Roles(UserRole.OPS, UserRole.ADMIN)
   public async list(@Req() req: any) {
     return this.tickets.listOpsTickets(resolveActor(req));
   }
 
   @Get(':id')
-  @Roles(UserRole.OPS)
+  @Roles(UserRole.OPS, UserRole.ADMIN)
   public async detail(@Param('id') id: string, @Req() req: any) {
     return this.tickets.getOpsTicket(id, resolveActor(req));
   }
 
   @Post(':id/updates')
-  @Roles(UserRole.OPS)
+  @Roles(UserRole.OPS, UserRole.ADMIN)
   public async update(@Param('id') id: string, @Body('message') message: string, @Req() req: any) {
     await this.tickets.assertOpsTicket(id, resolveActor(req));
     return this.tickets.addComment(id, message, resolveActor(req), CorporateTicketCommentVisibility.INTERNAL);
   }
 
   @Patch(':id/status')
-  @Roles(UserRole.OPS)
+  @Roles(UserRole.OPS, UserRole.ADMIN)
   public async status(@Param('id') id: string, @Body() dto: UpdateSupportTicketStatusDto, @Req() req: any) {
     const actor = resolveActor(req);
     await this.tickets.assertOpsTicket(id, actor);

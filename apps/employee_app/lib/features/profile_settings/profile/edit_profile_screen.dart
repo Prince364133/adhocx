@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:adhocx_employee/services/mock_data_service.dart';
+import 'package:provider/provider.dart';
 import 'package:adhocx_employee/shared/components/components.dart';
+import 'package:adhocx_employee/state/employee_auth_provider.dart';
+import 'package:adhocx_employee/state/employee_data_provider.dart';
 import 'package:adhocx_employee/theme/app_colors.dart';
 import 'package:adhocx_employee/theme/app_radius.dart';
 import 'package:adhocx_employee/theme/app_spacing.dart';
 import 'package:adhocx_employee/theme/app_typography.dart';
 import 'package:adhocx_employee/theme/employee_palette.dart';
 
+/// Edit Profile wired to GET /corporate/me and PATCH /corporate/me.
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
 
@@ -15,29 +18,104 @@ class EditProfileScreen extends StatefulWidget {
 }
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
-  final _name = TextEditingController(text: 'Ravi Kumar');
-  final _phone = TextEditingController(text: '+91 98765 43210');
-  final _email = TextEditingController(text: 'ravi.kumar@hitec.com');
-  final _address = TextEditingController(text: 'Kondapur, Hyderabad');
+  final _name = TextEditingController();
+  final _phone = TextEditingController();
+  final _email = TextEditingController();
+  final _address = TextEditingController();
   bool _isLoading = true;
+  bool _saving = false;
 
   @override
   void initState() {
     super.initState();
-    _loadProfile();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadProfile());
   }
 
   Future<void> _loadProfile() async {
-    final hp = await MockDataService.getHistoryProfileData();
+    EmployeeDataProvider? data;
+    EmployeeAuthProvider? auth;
+    try {
+      data = context.read<EmployeeDataProvider>();
+    } catch (_) {}
+    try {
+      auth = context.read<EmployeeAuthProvider>();
+    } catch (_) {}
+
+    final profile = data != null ? await data.loadProfile() : null;
     if (!mounted) return;
-    final profile = hp['profile'] as Map<String, dynamic>?;
-    if (profile != null) {
-      _name.text = profile['fullName'] ?? _name.text;
-      _phone.text = profile['phone'] ?? _phone.text;
-      _email.text = profile['email'] ?? _email.text;
-      _address.text = profile['address'] ?? _address.text;
-    }
+    final user = auth?.currentUser;
+
+    _name.text = profile?['fullName']?.toString() ?? user?.fullName ?? '';
+    _phone.text = profile?['phoneNumber']?.toString() ?? user?.phone ?? '';
+    _email.text = profile?['email']?.toString() ?? user?.email ?? '';
+    final loc = profile?['defaultPickupLocation'];
+    _address.text = loc is Map ? (loc['addressText']?.toString() ?? '') : '';
+
     setState(() => _isLoading = false);
+  }
+
+  Future<void> _saveProfile() async {
+    final fullName = _name.text.trim();
+    final email = _email.text.trim();
+    final homeAddress = _address.text.trim();
+
+    if (fullName.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter your full name.'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _saving = true);
+    try {
+      EmployeeDataProvider? data;
+      EmployeeAuthProvider? auth;
+      try {
+        data = context.read<EmployeeDataProvider>();
+      } catch (_) {}
+      try {
+        auth = context.read<EmployeeAuthProvider>();
+      } catch (_) {}
+
+      if (data != null) {
+        final updated = await data.updateProfile(
+          fullName: fullName,
+          email: email.isNotEmpty ? email : null,
+          homeAddress: homeAddress.isNotEmpty ? homeAddress : null,
+        );
+        if (auth != null && auth.currentUser != null) {
+          auth.updateCurrentUser(
+            auth.currentUser!.copyWith(
+              fullName: updated['fullName']?.toString() ?? fullName,
+              email: updated['email']?.toString() ?? email,
+            ),
+          );
+        }
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Profile updated successfully.'),
+          backgroundColor: AppColors.success,
+        ),
+      );
+      Navigator.of(context).maybePop();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Unable to update profile: ${e.toString().replaceFirst('Exception: ', '')}',
+          ),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   @override
@@ -165,13 +243,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 const SizedBox(height: AppSpacing.xxxl + AppSpacing.sm),
                 EmployeePrimaryButton(
                   label: 'Save Changes',
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                          content: Text('Profile updated successfully.')),
-                    );
-                    Navigator.of(context).maybePop();
-                  },
+                  isLoading: _saving,
+                  onPressed: _saving ? null : _saveProfile,
                 ),
               ],
             ),

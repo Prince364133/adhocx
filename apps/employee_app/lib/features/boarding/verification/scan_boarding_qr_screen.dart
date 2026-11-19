@@ -2,15 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
 import 'package:adhocx_employee/shared/components/components.dart';
+import 'package:adhocx_employee/shared/components/trip/trip_widgets.dart';
 import 'package:adhocx_employee/shared/illustrations/boarding_illustrations.dart';
 import 'package:adhocx_employee/theme/app_colors.dart';
+import 'package:adhocx_employee/theme/app_radius.dart';
 import 'package:adhocx_employee/theme/app_spacing.dart';
 import 'package:adhocx_employee/theme/app_typography.dart';
 
-/// Screen 3: Scan QR for Boarding.
-///
-/// Camera viewfinder surface: intentionally pure black (Driver `bgDark`) with
-/// white controls in both light and dark mode.
+/// Boarding Pass / QR screen backed by live tracking dynamicQrToken & boardingOtp.
 class ScanBoardingQrScreen extends StatefulWidget {
   const ScanBoardingQrScreen({super.key});
 
@@ -19,14 +18,43 @@ class ScanBoardingQrScreen extends StatefulWidget {
 }
 
 class _ScanBoardingQrScreenState extends State<ScanBoardingQrScreen> {
-  bool _isFlashOn = false;
+  bool _refreshing = false;
+  String? _qrToken;
+  String? _boardingOtp;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadPass());
+  }
+
+  Future<void> _loadPass({bool force = false}) async {
+    if (force && mounted) setState(() => _refreshing = true);
+    try {
+      final snapshot = await loadLiveTripSnapshot(context, force: force);
+      final tracking =
+          (snapshot['tracking'] as Map<String, dynamic>?) ?? const {};
+      final next = (snapshot['nextTrip'] as Map<String, dynamic>?) ?? const {};
+      final rawToken = tracking['dynamicQrToken']?.toString().trim();
+      final rawOtp = tracking['boardingOtp']?.toString().trim() ??
+          next['boardingOtp']?.toString().trim();
+      if (mounted) {
+        setState(() {
+          _qrToken = (rawToken != null && rawToken.isNotEmpty) ? rawToken : null;
+          _boardingOtp = (rawOtp != null && rawOtp.isNotEmpty) ? rawOtp : null;
+        });
+      }
+    } finally {
+      if (mounted) setState(() => _refreshing = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.bgDark,
       appBar: const EmployeeAppBar(
-        title: 'Scan Boarding QR',
+        title: 'Boarding QR Pass',
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
       ),
@@ -36,7 +64,7 @@ class _ScanBoardingQrScreenState extends State<ScanBoardingQrScreen> {
             const Spacer(),
             Semantics(
               button: true,
-              label: 'Simulate QR scan',
+              label: 'Verify boarding pass',
               child: GestureDetector(
                 onTap: () => context.push(AppRoutes.verifyingBoarding),
                 child: Column(
@@ -48,13 +76,61 @@ class _ScanBoardingQrScreenState extends State<ScanBoardingQrScreen> {
                         horizontal: AppSpacing.pageHorizontal,
                       ),
                       child: Text(
-                        'Point camera at the QR code on the cab dashboard',
+                        _qrToken != null
+                            ? 'Dynamic boarding pass active — show this pass or OTP to your driver'
+                            : 'Boarding pass will activate once your cab is dispatched',
                         textAlign: TextAlign.center,
                         style: AppTypography.small(
                           color: Colors.white.withAlpha(179),
                         ),
                       ),
                     ),
+                    if (_qrToken != null) ...[
+                      const SizedBox(height: AppSpacing.md),
+                      Container(
+                        margin: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.pageHorizontal,
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.lg,
+                          vertical: AppSpacing.xs + 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withAlpha(20),
+                          borderRadius: AppRadius.borderMd,
+                          border: Border.all(color: Colors.white.withAlpha(50)),
+                        ),
+                        child: Text(
+                          'Pass Token: $_qrToken',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTypography.caption(
+                            color: Colors.white.withAlpha(220),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                    if (_boardingOtp != null) ...[
+                      const SizedBox(height: AppSpacing.sm + 2),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.lg,
+                          vertical: AppSpacing.xs + 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withAlpha(26),
+                          borderRadius: AppRadius.borderPill,
+                        ),
+                        child: Text(
+                          'Boarding OTP: $_boardingOtp',
+                          style: AppTypography.caption(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -67,16 +143,7 @@ class _ScanBoardingQrScreenState extends State<ScanBoardingQrScreen> {
               ),
               child: InkWell(
                 customBorder: const StadiumBorder(),
-                onTap: () {
-                  setState(() => _isFlashOn = !_isFlashOn);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(_isFlashOn
-                          ? 'Camera flash turned ON'
-                          : 'Camera flash turned OFF'),
-                    ),
-                  );
-                },
+                onTap: _refreshing ? null : () => _loadPass(force: true),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: AppSpacing.xl,
@@ -85,16 +152,23 @@ class _ScanBoardingQrScreenState extends State<ScanBoardingQrScreen> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(
-                        _isFlashOn
-                            ? Icons.flash_on_rounded
-                            : Icons.flash_off_rounded,
-                        color: Colors.white,
-                        size: 20,
-                      ),
+                      _refreshing
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(
+                              Icons.refresh_rounded,
+                              color: Colors.white,
+                              size: 20,
+                            ),
                       const SizedBox(width: AppSpacing.sm),
                       Text(
-                        _isFlashOn ? 'Turn Off Flash' : 'Turn On Flash',
+                        _refreshing ? 'Refreshing Pass…' : 'Refresh Pass',
                         style: AppTypography.small(
                           color: Colors.white,
                           fontWeight: FontWeight.w600,
@@ -105,7 +179,18 @@ class _ScanBoardingQrScreenState extends State<ScanBoardingQrScreen> {
                 ),
               ),
             ),
-            const SizedBox(height: AppSpacing.xxxl + 4),
+            const SizedBox(height: AppSpacing.md),
+            TextButton(
+              onPressed: () => context.push(AppRoutes.boardingOtpInput),
+              child: Text(
+                'Enter Boarding OTP Instead',
+                style: AppTypography.small(
+                  color: Colors.white.withAlpha(200),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xl),
           ],
         ),
       ),

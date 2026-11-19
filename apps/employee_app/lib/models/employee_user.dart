@@ -27,10 +27,10 @@ class EmployeeUser {
   factory EmployeeUser.fromJson(Map<String, dynamic> json) {
     return EmployeeUser(
       id: json['id'] as String? ?? '',
-      employeeId: json['employeeId'] as String? ?? 'EMP10294',
-      fullName: json['fullName'] as String? ?? 'Corporate Employee',
-      organization: json['organization'] as String? ?? 'Estemporaneo Tech Pvt. Ltd.',
-      office: json['office'] as String? ?? 'HITEC City, Hyderabad',
+      employeeId: json['employeeId'] as String? ?? '',
+      fullName: json['fullName'] as String? ?? '',
+      organization: json['organization'] as String? ?? '',
+      office: json['office'] as String? ?? '',
       email: json['email'] as String? ?? '',
       phone: json['phone'] as String? ?? '',
       isTransportEligible: json['isTransportEligible'] as bool? ?? true,

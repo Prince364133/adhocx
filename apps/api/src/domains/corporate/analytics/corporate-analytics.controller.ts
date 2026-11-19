@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Query, Res, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Query, Req, Res, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
 import { UserRole } from '@adhocx/contracts';
@@ -44,8 +44,19 @@ export class CorporateAnalyticsController {
     @Query('to') to?: string,
     @Query('direction') direction?: string,
     @Query('shiftTime') shiftTime?: string,
+    @Req() req?: any,
   ) {
-    return this.analytics.getDashboard({ tenantId, officeId, from, to, direction, shiftTime });
+    const isPlatformStaff = req?.user?.role === UserRole.ADMIN || req?.user?.role === UserRole.OPS;
+    return this.analytics.getDashboard({
+      tenantId,
+      officeId,
+      officeScope: req?.corporateOfficeScope,
+      allowFleetWide: isPlatformStaff,
+      from,
+      to,
+      direction,
+      shiftTime,
+    });
   }
 
   @Get('exceptions')
@@ -60,8 +71,16 @@ export class CorporateAnalyticsController {
     @Query('officeId') officeId?: string,
     @Query('from') from?: string,
     @Query('to') to?: string,
+    @Req() req?: any,
   ) {
-    return this.analytics.getExceptions({ tenantId, officeId, from, to });
+    const isPlatformStaff = req?.user?.role === UserRole.ADMIN || req?.user?.role === UserRole.OPS;
+    return this.analytics.getExceptions({
+      tenantId,
+      officeId,
+      allowFleetWide: isPlatformStaff,
+      from,
+      to,
+    });
   }
 
   @Get('attendance')
@@ -75,10 +94,12 @@ export class CorporateAnalyticsController {
     @Query('to') to?: string,
     @Query('page') page?: string,
     @Query('pageSize') pageSize?: string,
+    @Req() req?: any,
   ) {
     return this.analytics.getAttendance({
       tenantId,
       officeId,
+      officeScope: req?.corporateOfficeScope,
       from,
       to,
       page: page !== undefined ? Number(page) : undefined,
@@ -100,8 +121,17 @@ export class CorporateAnalyticsController {
     @Query('to') to?: string,
     @Query('direction') direction?: string,
     @Query('shiftTime') shiftTime?: string,
+    @Req() req?: any,
   ) {
-    const out = await this.analytics.getReport(type, format, { tenantId, officeId, from, to, direction, shiftTime });
+    const out = await this.analytics.getReport(type, format, {
+      tenantId,
+      officeId,
+      officeScope: req?.corporateOfficeScope,
+      from,
+      to,
+      direction,
+      shiftTime,
+    });
     // @Res() bypasses the envelope interceptor, so JSON reports carry the same envelope by hand.
     if (out.format === 'json') {
       res.status(200).json({ success: true, data: out.body, timestamp: new Date().toISOString() });

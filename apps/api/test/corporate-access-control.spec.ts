@@ -247,13 +247,16 @@ describe('Corporate access control', () => {
   });
 
   describe('CORPORATE_ADMIN / CORPORATE_MANAGER', () => {
-    it('may read their own tenant invoice with a single minimal select', async () => {
-      const r = req(manager1, { params: { id: 'inv-1' } });
+    it('may read their own tenant invoice with a single minimal select (and blocks roles without invoices:read)', async () => {
+      const r = req(corpAdmin1, { params: { id: 'inv-1' } });
       await expect(guard.canActivate(ctx(CorporateBillingController, 'downloadInvoicePdf', r))).resolves.toBe(true);
       expect(db.corporateInvoice.findUnique).toHaveBeenCalledTimes(1);
       expect(db.corporateInvoice.findUnique.mock.calls[0][0]).toEqual(
         expect.objectContaining({ where: { id: 'inv-1' }, select: expect.objectContaining({ tenantId: true }) }),
       );
+      await expect(
+        guard.canActivate(ctx(CorporateBillingController, 'downloadInvoicePdf', req(manager1, { params: { id: 'inv-1' } }))),
+      ).rejects.toThrow(ForbiddenException);
     });
 
     it("gets 403 on another tenant's invoice, route and tenant profile", async () => {
@@ -271,7 +274,7 @@ describe('Corporate access control', () => {
     });
 
     it('has tenantId forced to the claim tenant on list endpoints when none is supplied', async () => {
-      const r = req(manager1);
+      const r = req(corpAdmin1);
       await expect(guard.canActivate(ctx(CorporateBillingController, 'listInvoices', r))).resolves.toBe(true);
       expect(r.query.tenantId).toBe(T1.id);
       expect(r.corporateTenant).toEqual(T1);

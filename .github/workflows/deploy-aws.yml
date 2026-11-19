@@ -16,7 +16,6 @@ on:
           - all
           - api
           - admin
-          - marketing
 
 permissions:
   contents: read

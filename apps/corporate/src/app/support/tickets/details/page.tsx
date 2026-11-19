@@ -21,12 +21,11 @@ import type { SupportTicket, CorporateTicketMessage } from '../../../../lib/api/
 import { useSession } from '../../../../lib/auth/SessionContext';
 
 function TicketDetailsThreadContent() {
-  const { tenantId, user } = useSession();
-  const activeTenantId = tenantId || '9d66820f-280c-400c-98dc-e021d0045b58';
+  const { tenantId, status: sessionStatus } = useSession();
 
   const searchParams = useSearchParams();
   const routeParams = useParams();
-  const ticketIdParam = (routeParams?.id as string) || searchParams.get('id');
+  const ticketIdParam = (Array.isArray(routeParams?.id) ? routeParams.id[0] : routeParams?.id) || searchParams.get('id');
 
   const [ticket, setTicket] = useState<SupportTicket | null>(null);
   const [loading, setLoading] = useState(true);
@@ -44,11 +43,18 @@ function TicketDetailsThreadContent() {
 
   // Load ticket details and persistent messages
   const loadTicketAndMessages = useCallback(async () => {
+    if (sessionStatus === 'loading') return;
+    if (!tenantId && !ticketIdParam) {
+      setTicket(null);
+      setLoading(false);
+      return;
+    }
+
     if (!ticketIdParam) {
       // If no ID param, load latest ticket for tenant
       try {
         setLoading(true);
-        const list = await supportApi.list(activeTenantId, { limit: 1 });
+        const list = await supportApi.list(tenantId || undefined, { limit: 1 });
         if (list.length > 0) {
           const t = list[0];
           setTicket(t);
@@ -67,8 +73,9 @@ function TicketDetailsThreadContent() {
     setLoading(true);
     try {
       const data = await supportApi.get(ticketIdParam).catch(async () => {
+        if (!tenantId) return null;
         // Fallback to searching the list
-        const list = await supportApi.list(activeTenantId, {});
+        const list = await supportApi.list(tenantId, {});
         return list.find((t) => t.id === ticketIdParam) || null;
       });
 
@@ -82,7 +89,7 @@ function TicketDetailsThreadContent() {
     } finally {
       setLoading(false);
     }
-  }, [ticketIdParam, activeTenantId]);
+  }, [ticketIdParam, tenantId, sessionStatus]);
 
   const loadMessages = async (id: string) => {
     setMessagesLoading(true);
@@ -633,9 +640,9 @@ function TicketDetailsThreadContent() {
                     ID: {ticket.employee.employeeCode}
                   </div>
                 )}
-                {ticket.employee.phone && (
+                {(ticket.employee.phoneNumber ?? ticket.employee.phone) && (
                   <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                    Phone: {ticket.employee.phone}
+                    Phone: {ticket.employee.phoneNumber ?? ticket.employee.phone}
                   </div>
                 )}
               </div>

@@ -8,110 +8,130 @@ class VectorLiveMapCanvas extends StatelessWidget {
   final double height;
   final bool showControls;
   final String? etaBadge;
+  final bool fullScreen;
 
   const VectorLiveMapCanvas({
     super.key,
     this.height = 240,
     this.showControls = false,
     this.etaBadge,
+    this.fullScreen = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      height: height,
-      decoration: BoxDecoration(
-        color: AppColors.slate100, // Map background
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.borderLight),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(18),
-        child: Stack(
-          children: [
-            // Custom Painter for streets, road grid, and polyline
-            Positioned.fill(
-              child: CustomPaint(
-                painter: _MapGridRoutePainter(),
-              ),
-            ),
+    return LayoutBuilder(
+      builder: (context, outerConstraints) {
+        final canvasHeight = height.isFinite
+            ? height
+            : outerConstraints.maxHeight.isFinite
+                ? outerConstraints.maxHeight
+                : MediaQuery.sizeOf(context).height;
+        final borderRadius =
+            fullScreen ? BorderRadius.zero : BorderRadius.circular(18);
 
-            // Start Pickup Pin (Green)
-            const Positioned(
-              left: 48,
-              bottom: 48,
-              child: _MapPinBadge(
-                color: AppColors.success,
-                icon: Icons.person_pin_circle_rounded,
-              ),
+        return SizedBox(
+          width: double.infinity,
+          height: canvasHeight,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: AppColors.slate100,
+              borderRadius: borderRadius,
+              border:
+                  fullScreen ? null : Border.all(color: AppColors.borderLight),
             ),
+            child: ClipRRect(
+              borderRadius: borderRadius,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final width = constraints.maxWidth;
+                  final canvasHeight = constraints.maxHeight;
 
-            // Moving Cab Marker (along polyline)
-            const Positioned(
-              left: 140,
-              top: 86,
-              child: _CabMarkerBadge(),
-            ),
-
-            // Destination Pin (Orange)
-            const Positioned(
-              right: 48,
-              top: 36,
-              child: _MapPinBadge(
-                color: AppColors.brandOrange,
-                icon: Icons.business_rounded,
-              ),
-            ),
-
-            // ETA floating pill
-            if (etaBadge != null)
-              Positioned(
-                left: 110,
-                top: 130,
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary,
-                    borderRadius: BorderRadius.circular(14),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.primary.withValues(alpha: 0.35),
-                        blurRadius: 8,
-                        offset: const Offset(0, 3),
+                  return Stack(
+                    children: [
+                      Positioned.fill(
+                        child: CustomPaint(
+                          painter: _MapGridRoutePainter(),
+                        ),
                       ),
+                      Positioned(
+                        left: width * 0.13,
+                        bottom: canvasHeight * 0.08,
+                        child: const _MapPinBadge(
+                          color: AppColors.success,
+                          icon: Icons.person_pin_circle_rounded,
+                        ),
+                      ),
+                      Positioned(
+                        left: width * 0.45,
+                        top: canvasHeight * 0.30,
+                        child: const _CabMarkerBadge(),
+                      ),
+                      Positioned(
+                        right: width * 0.12,
+                        top: canvasHeight * 0.08,
+                        child: const _MapPinBadge(
+                          color: AppColors.brandOrange,
+                          icon: Icons.business_rounded,
+                        ),
+                      ),
+                      if (etaBadge != null)
+                        Positioned(
+                          left: width * 0.34,
+                          top: canvasHeight * 0.56,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary,
+                              borderRadius: BorderRadius.circular(14),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppColors.primary.withValues(
+                                    alpha: 0.35,
+                                  ),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 3),
+                                ),
+                              ],
+                            ),
+                            child: Text(
+                              etaBadge!,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                      if (showControls)
+                        Positioned(
+                          right: 14,
+                          top: 14,
+                          child: Column(
+                            children: [
+                              _buildMapControlBtn(Icons.layers_rounded, () {}),
+                              const SizedBox(height: 8),
+                              _buildMapControlBtn(
+                                Icons.my_location_rounded,
+                                () {},
+                              ),
+                              const SizedBox(height: 8),
+                              _buildMapControlBtn(Icons.add_rounded, () {}),
+                            ],
+                          ),
+                        ),
                     ],
-                  ),
-                  child: Text(
-                    etaBadge!,
-                    style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
+                  );
+                },
               ),
-
-            // Map floating controls
-            if (showControls)
-              Positioned(
-                right: 14,
-                top: 14,
-                child: Column(
-                  children: [
-                    _buildMapControlBtn(Icons.layers_rounded, () {}),
-                    const SizedBox(height: 8),
-                    _buildMapControlBtn(Icons.my_location_rounded, () {}),
-                    const SizedBox(height: 8),
-                    _buildMapControlBtn(Icons.add_rounded, () {}),
-                  ],
-                ),
-              ),
-          ],
-        ),
-      ),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -175,11 +195,11 @@ class _MapGridRoutePainter extends CustomPainter {
       ..strokeJoin = StrokeJoin.round;
 
     final routePath = Path();
-    routePath.moveTo(60, size.height - 60);
+    routePath.moveTo(size.width * 0.17, size.height * 0.88);
     routePath.lineTo(size.width * 0.25, size.height * 0.7);
     routePath.lineTo(size.width * 0.45, size.height * 0.7);
     routePath.lineTo(size.width * 0.45, size.height * 0.3);
-    routePath.lineTo(size.width - 60, 48);
+    routePath.lineTo(size.width * 0.84, size.height * 0.1);
 
     canvas.drawPath(routePath, routePaint);
   }
@@ -368,8 +388,7 @@ class StaleLocationBadge extends StatelessWidget {
       child: const Stack(
         alignment: Alignment.center,
         children: [
-          Icon(Icons.location_on_rounded,
-              size: 44, color: AppColors.primary),
+          Icon(Icons.location_on_rounded, size: 44, color: AppColors.primary),
           Positioned(
             right: 14,
             bottom: 14,

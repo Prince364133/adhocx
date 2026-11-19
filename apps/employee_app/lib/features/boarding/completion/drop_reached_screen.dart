@@ -3,14 +3,14 @@ import 'package:go_router/go_router.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
 import 'package:adhocx_employee/shared/components/components.dart';
 import 'package:adhocx_employee/shared/components/trip/trip_widgets.dart';
+import 'package:adhocx_employee/state/employee_data_provider.dart';
 import 'package:adhocx_employee/theme/app_colors.dart';
 import 'package:adhocx_employee/theme/app_radius.dart';
 import 'package:adhocx_employee/theme/app_spacing.dart';
 import 'package:adhocx_employee/theme/app_typography.dart';
 import 'package:adhocx_employee/theme/employee_palette.dart';
-import '../widgets/boarding_widgets.dart';
 
-/// Screen 9: Drop Reached / Reached Destination
+/// Drop Reached / Reached Destination backed by live trip data.
 class DropReachedScreen extends StatelessWidget {
   final Map<String, dynamic>? tripData;
 
@@ -19,9 +19,19 @@ class DropReachedScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return TripDataBuilder(
-      load: () => loadBoardingSection('destination_reached'),
+      load: () async => tripData ?? await loadLiveLatestTrip(context),
       builder: (context, data) {
         final p = EmployeePalette.of(context);
+        final location = data['destinationAddress']?.toString() ??
+            (data['officeDestination'] is Map
+                ? (data['officeDestination'] as Map)['name']?.toString()
+                : null) ??
+            'Drop Location';
+        final arrivedAt = EmployeeDataProvider.formatDisplayTime(
+          data['actualDepartureTime']?.toString() ??
+              data['actualArrivalTime']?.toString() ??
+              DateTime.now().toIso8601String(),
+        );
 
         return EmployeeCenteredLayout(
           appBar: const EmployeeAppBar(),
@@ -46,9 +56,8 @@ class DropReachedScreen extends StatelessWidget {
               ],
             ),
           ),
-          title: data['title'] ?? 'Reached Destination',
-          message:
-              data['subtitle'] ?? 'You have arrived at your drop location.',
+          title: 'Reached Destination',
+          message: 'You have arrived at your drop location.',
           content: AppCard(
             width: double.infinity,
             child: Column(
@@ -59,7 +68,7 @@ class DropReachedScreen extends StatelessWidget {
                     const SizedBox(width: AppSpacing.md),
                     Expanded(
                       child: Text(
-                        data['location'] ?? 'HITEC City Office',
+                        location,
                         style: AppTypography.h4(
                           color: p.textPrimary,
                           fontSize: 15,
@@ -73,7 +82,7 @@ class DropReachedScreen extends StatelessWidget {
                 TripMetricRow(
                   icon: Icons.access_time_rounded,
                   label: 'Arrived at',
-                  value: data['arrivedAt'] ?? '9:02 AM',
+                  value: arrivedAt.isNotEmpty ? arrivedAt : 'Just now',
                 ),
               ],
             ),
@@ -84,7 +93,7 @@ class DropReachedScreen extends StatelessWidget {
               icon: Icons.check_circle_outline_rounded,
               onPressed: () => context.push(
                 AppRoutes.tripCompletedSummary,
-                extra: tripData,
+                extra: tripData ?? data,
               ),
             ),
           ],

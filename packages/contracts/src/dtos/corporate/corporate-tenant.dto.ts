@@ -19,6 +19,9 @@ export interface CreateCorporateTenantDto {
   createPortalAdmin?: boolean;
   billingAddress?: string;
   billingSameAsRegistered?: boolean;
+  officeName?: string;
+  officeLatitude?: number;
+  officeLongitude?: number;
 }
 
 export interface OnboardCorporateOfficeInputDto {
@@ -155,6 +158,10 @@ export interface UpdateCorporateEmployeeDto {
   officeId?: string;
   department?: string;
   costCenter?: string;
+  homeAddress?: string;
+  landmark?: string;
+  latitude?: number;
+  longitude?: number;
   isActive?: boolean;
 }
 

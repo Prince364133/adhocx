@@ -156,6 +156,13 @@ export enum NotificationType {
   BROADCAST = 'BROADCAST',
 }
 
+export enum ReferralStatus {
+  PENDING_VERIFICATION = 'PENDING_VERIFICATION',
+  UNLOCKED_READY_TO_CLAIM = 'UNLOCKED_READY_TO_CLAIM',
+  CLAIMED = 'CLAIMED',
+  REVOKED = 'REVOKED',
+}
+
 // ==========================================
 // CORPORATE MANAGED ETS ENUMS
 // ==========================================
@@ -163,7 +170,7 @@ export enum NotificationType {
 export enum CorporateTenantStatus {
   ACTIVE = 'ACTIVE',
   SUSPENDED = 'SUSPENDED',
-  INACTIVE = 'INACTIVE',
+  TERMINATED = 'TERMINATED',
 }
 
 export enum CorporateTransportDirection {

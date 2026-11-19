@@ -5,6 +5,7 @@ import 'package:adhocx_employee/routes/app_routes.dart';
 import 'package:adhocx_employee/shared/components/components.dart';
 import 'package:adhocx_employee/shared/illustrations/profile_illustrations.dart';
 import 'package:adhocx_employee/state/employee_auth_provider.dart';
+import 'package:adhocx_employee/state/employee_data_provider.dart';
 import 'package:adhocx_employee/theme/app_colors.dart';
 import 'package:adhocx_employee/theme/app_radius.dart';
 import 'package:adhocx_employee/theme/app_spacing.dart';
@@ -26,17 +27,31 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
   Future<void> _handleDeleteAccount() async {
     if (!_confirmed) return;
     setState(() => _isDeleting = true);
-    await context.read<EmployeeAuthProvider>().signOut();
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Your account and associated data have been deleted.'),
-        backgroundColor: AppColors.error,
-      ),
-    );
-    // Was Navigator.pushNamedAndRemoveUntil('/welcome'), which throws under
-    // GoRouter (no named Navigator routes). go() also clears the stack.
-    context.go(AppRoutes.welcome);
+    try {
+      await context.read<EmployeeAuthProvider>().deleteAccount();
+      if (!mounted) return;
+      try {
+        context.read<EmployeeDataProvider>().clear();
+      } catch (_) {}
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Your account and associated data have been deleted.'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      context.go(AppRoutes.welcome);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isDeleting = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Unable to delete account: ${e.toString().replaceFirst('Exception: ', '')}',
+          ),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
   }
 
   @override

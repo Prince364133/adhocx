@@ -126,6 +126,13 @@ enum DriverSubscriptionStatus {
   FROZEN
 }
 
+enum ReferralStatus {
+  PENDING_VERIFICATION
+  UNLOCKED_READY_TO_CLAIM
+  CLAIMED
+  REVOKED
+}
+
 model User {
   id                 String             @id @default(uuid()) @db.Uuid
   phone              String?            @unique
@@ -192,6 +199,9 @@ model Driver {
   userId              String                   @unique @map("user_id") @db.Uuid
   fullName            String                   @map("full_name")
   phone               String?                  @unique
+  referralCode        String?                  @unique @map("referral_code") @db.VarChar(12)
+  referredById        String?                  @map("referred_by_id") @db.Uuid
+  referredAt          DateTime?                @map("referred_at")
   verificationStatus  VerificationStatus       @default(PENDING) @map("verification_status")
   availabilityStatus  DriverAvailability       @default(OFFLINE) @map("availability_status")
   vehicleType         String?                  @map("vehicle_type") @db.VarChar(50)
@@ -244,9 +254,37 @@ model Driver {
   corporatePayouts     CorporatePayout[] // wire/billing-payouts
   corporateTripFeedbacks CorporateTripFeedback[]
 
+  referredBy           Driver?                     @relation("DriverReferrals", fields: [referredById], references: [id], onDelete: SetNull)
+  referees             Driver[]                    @relation("DriverReferrals")
+  referralsMade        DriverReferral[]            @relation("ReferrerReferrals")
+  referralReceived     DriverReferral?             @relation("RefereeReferral")
+
   @@map("drivers")
   /// Dispatch DB fallback: available + verified + fresh location, narrowed by a lat/lng box.
   @@index([availabilityStatus, verificationStatus, lastLocationAt], map: "drivers_dispatch_fallback_idx")
+  @@index([referralCode])
+  @@index([referredById])
+}
+
+model DriverReferral {
+  id                String         @id @default(uuid()) @db.Uuid
+  referrerDriverId  String         @map("referrer_driver_id") @db.Uuid
+  refereeDriverId   String         @unique @map("referee_driver_id") @db.Uuid
+  rewardPaise       Int            @default(50000) @map("reward_paise")
+  status            ReferralStatus @default(PENDING_VERIFICATION) @map("status")
+  refereeVerifiedAt DateTime?      @map("referee_verified_at")
+  claimedAt         DateTime?      @map("claimed_at")
+  ledgerEntryId     String?        @unique @map("ledger_entry_id") @db.Uuid
+  notes             String?        @map("notes")
+  createdAt         DateTime       @default(now()) @map("created_at")
+  updatedAt         DateTime       @updatedAt @map("updated_at")
+
+  referrerDriver    Driver         @relation("ReferrerReferrals", fields: [referrerDriverId], references: [id], onDelete: Cascade)
+  refereeDriver     Driver         @relation("RefereeReferral", fields: [refereeDriverId], references: [id], onDelete: Cascade)
+
+  @@index([referrerDriverId, status])
+  @@index([refereeDriverId])
+  @@map("driver_referrals")
 }
 
 model Vehicle {
@@ -659,6 +697,7 @@ model Notification {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, isRead])
+  @@index([userId, createdAt])
   @@index([idempotencyKey])
   @@index([createdAt])
   @@map("notifications")
@@ -1238,6 +1277,8 @@ model CorporateEmployee {
 
   @@unique([tenantId, employeeCode])
   @@index([tenantId])
+  @@index([tenantId, phoneNumber])
+  @@index([tenantId, isActive])
   @@index([officeId])
   @@map("corporate_employees")
 }
@@ -1314,7 +1355,9 @@ model CorporateTransportRequest {
   routeStop CorporateRouteStop?
 
   @@index([tenantId, scheduledDate, shiftTime])
+  @@index([tenantId, status, scheduledDate])
   @@index([employeeId])
+  @@index([employeeId, scheduledDate])
   @@index([h3PickupIndex])
   @@map("corporate_transport_requests")
 }
@@ -1357,7 +1400,9 @@ model CorporateRoute {
 
   @@index([tenantId, shiftDate, shiftTime])
   @@index([shiftDate, tenantId, status])
+  @@index([tenantId, status, shiftDate])
   @@index([driverId])
+  @@index([driverId, status, targetPickup1Time])
   @@index([status])
   @@map("corporate_routes")
 }
@@ -1391,7 +1436,10 @@ model CorporateRouteStop {
 
   @@unique([routeId, stopSequence])
   @@index([routeId])
+  @@index([routeId, status])
   @@index([employeeId])
+  @@index([employeeId, status])
+  @@index([status, plannedEta])
   @@map("corporate_route_stops")
 }
 
@@ -1510,8 +1558,10 @@ model CorporateSosAlert {
 
   @@index([routeId])
   @@index([tenantId])
+  @@index([tenantId, status, createdAt])
   @@index([status])
   @@index([status, createdAt])
+  @@index([status, acknowledgedAt, escalatedAt])
   @@map("corporate_sos_alerts")
 }
 

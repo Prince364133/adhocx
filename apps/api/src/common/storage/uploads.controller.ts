@@ -75,7 +75,10 @@ export class UploadsController {
     if (signed && !verifyUploadSignature(cleanFilename, exp, sig)) {
       throw new ForbiddenException('This document link has expired or is invalid. Reopen it from the app.');
     }
-    if (!signed && process.env.STORAGE_REQUIRE_SIGNED_UPLOADS === 'true') {
+    const requireSigned =
+      process.env.STORAGE_REQUIRE_SIGNED_UPLOADS === 'true' ||
+      (process.env.NODE_ENV === 'production' && process.env.STORAGE_REQUIRE_SIGNED_UPLOADS !== 'false');
+    if (!signed && requireSigned) {
       throw new ForbiddenException('A signed link is required for this file.');
     }
 
@@ -106,8 +109,7 @@ export class UploadsController {
     }
 
     // Signed (sensitive) documents must not be cached by shared caches or the browser beyond the link.
-    res.setHeader('Cache-Control', signed ? 'private, no-store' : 'public, max-age=31536000, immutable');
-    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Cache-Control', signed ? 'private, no-store' : 'private, max-age=3600');
     res.setHeader('X-Content-Type-Options', 'nosniff');
 
     return res.sendFile(resolvedPath);

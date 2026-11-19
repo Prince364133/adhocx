@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:adhocx_employee/services/mock_data_service.dart';
 import 'package:adhocx_employee/shared/components/components.dart';
+import 'package:adhocx_employee/shared/components/trip/trip_widgets.dart';
 import 'package:adhocx_employee/theme/app_colors.dart';
 import 'package:adhocx_employee/theme/app_radius.dart';
 import 'package:adhocx_employee/theme/app_spacing.dart';
 import 'package:adhocx_employee/theme/app_typography.dart';
 import 'package:adhocx_employee/theme/employee_palette.dart';
-import 'package:adhocx_employee/shared/components/trip/trip_widgets.dart';
 
 class DriverVehicleDetailsScreen extends StatelessWidget {
   const DriverVehicleDetailsScreen({super.key});
@@ -14,15 +13,38 @@ class DriverVehicleDetailsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return TripDataBuilder(
-      load: MockDataService.getDriverAssignment,
-      builder: (context, assignment) {
+      load: () => loadLiveTripSnapshot(context),
+      builder: (context, snapshot) {
         final p = EmployeePalette.of(context);
-        final driver = assignment['driver'] as Map<String, dynamic>?;
-        final vehicle = assignment['vehicle'] as Map<String, dynamic>?;
-        final rating = (driver?['rating'] ?? 4.8).toString();
-        final tripsCount = (driver?['tripsCompleted'] ?? 412).toString();
-        final color = vehicle?['color'] ?? 'White';
-        final seating = vehicle?['seating'] ?? '7 Seater';
+        final next = (snapshot['nextTrip'] as Map<String, dynamic>?) ?? const {};
+        final tracking =
+            (snapshot['tracking'] as Map<String, dynamic>?) ?? const {};
+        final driver = (tracking['driver'] ?? next['driver']) as Map?;
+        final vehicle = (tracking['vehicle'] ?? next['vehicle']) as Map?;
+
+        final driverName = driver?['fullName']?.toString() ??
+            driver?['name']?.toString() ??
+            'Not yet assigned';
+        final rating = driver?['rating'] != null
+            ? '${driver!['rating']} ★'
+            : 'Verified Driver';
+        final model = vehicle?['model']?.toString() ??
+            vehicle?['vehicleType']?.toString() ??
+            'Vehicle pending assignment';
+        final plate = vehicle?['registrationNumber']?.toString() ??
+            vehicle?['plateNumber']?.toString() ??
+            'Not yet assigned';
+        final subtitleParts = [
+          if (vehicle?['color'] != null &&
+              vehicle!['color'].toString().isNotEmpty)
+            vehicle['color'].toString(),
+          if (vehicle?['category'] != null &&
+              vehicle!['category'].toString().isNotEmpty)
+            vehicle['category'].toString(),
+          if (vehicle?['vehicleType'] != null &&
+              vehicle!['vehicleType'].toString().isNotEmpty)
+            vehicle['vehicleType'].toString(),
+        ];
 
         return Scaffold(
           backgroundColor: p.background,
@@ -44,8 +66,8 @@ class DriverVehicleDetailsScreen extends StatelessWidget {
                   const SizedBox(height: AppSpacing.xxl),
                   EmployeeEntrance(
                     child: TripDriverRow(
-                      name: driver?['name'] ?? 'Suresh R',
-                      rating: '$rating ($tripsCount trips)',
+                      name: driverName,
+                      rating: rating,
                       avatarRadius: 30,
                     ),
                   ),
@@ -74,7 +96,7 @@ class DriverVehicleDetailsScreen extends StatelessWidget {
                           ),
                           const SizedBox(height: AppSpacing.md + 2),
                           Text(
-                            vehicle?['model'] ?? 'Maruti Ertiga',
+                            model,
                             style: AppTypography.h4(
                               color: p.textPrimary,
                               fontWeight: FontWeight.w800,
@@ -92,21 +114,23 @@ class DriverVehicleDetailsScreen extends StatelessWidget {
                               border: Border.all(color: p.border),
                             ),
                             child: Text(
-                              vehicle?['plateNumber'] ?? 'TS09UB7845',
+                              plate,
                               style: AppTypography.bodyMedium(
                                 color: p.accent,
                                 fontWeight: FontWeight.w800,
                               ).copyWith(letterSpacing: 1.0),
                             ),
                           ),
-                          const SizedBox(height: AppSpacing.sm),
-                          Text(
-                            '$color • $seating',
-                            style: AppTypography.small(
-                              color: p.textSecondary,
-                              fontWeight: FontWeight.w500,
+                          if (subtitleParts.isNotEmpty) ...[
+                            const SizedBox(height: AppSpacing.sm),
+                            Text(
+                              subtitleParts.join(' • '),
+                              style: AppTypography.small(
+                                color: p.textSecondary,
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
-                          ),
+                          ],
                         ],
                       ),
                     ),

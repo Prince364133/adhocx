@@ -89,6 +89,9 @@ const navSections: NavSection[] = [
   },
 ];
 
+const OPS_PORTAL_URL =
+  process.env.NEXT_PUBLIC_OPS_URL?.trim().replace(/\/+$/, "") || "";
+
 export const Sidebar: React.FC = () => {
   const pathname = usePathname();
   const router = useRouter();
@@ -179,10 +182,10 @@ export const Sidebar: React.FC = () => {
 
       {/* Bottom Sticky/Fixed Wrapper */}
       <div className="sidebar-bottom-fixed-wrapper">
-        {/* Tactical Fleet Flight Control Launcher (:7004) */}
+        {/* Tactical Fleet Flight Control Launcher */}
         <div className="sidebar-fleet-container">
           <a
-            href="http://localhost:7004"
+            href={OPS_PORTAL_URL || "http://localhost:7004"}
             target="_blank"
             rel="noopener noreferrer"
             title="Open Tactical Fleet Operations (:7004)"

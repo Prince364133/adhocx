@@ -76,9 +76,11 @@ class PrivacyDataScreen extends StatelessWidget {
             EmployeeNavTile(
               icon: Icons.download_rounded,
               title: 'Your Data',
-              subtitle: 'Download your account data archive',
-              onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Data export request initiated.')),
+              subtitle: 'Request account data archive via support',
+              onTap: () => _explain(
+                context,
+                'Your Data',
+                'Self-service data archive downloads are not available in-app yet. To request an export of your commute records, raise a request through Safety & Support.',
               ),
             ),
             gap(),

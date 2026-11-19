@@ -1,27 +1,46 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
-import 'package:adhocx_employee/services/mock_data_service.dart';
 import 'package:adhocx_employee/shared/components/components.dart';
 import 'package:adhocx_employee/shared/components/trip/trip_widgets.dart';
+import 'package:adhocx_employee/state/employee_data_provider.dart';
 import 'package:adhocx_employee/theme/app_colors.dart';
 import 'package:adhocx_employee/theme/app_radius.dart';
 import 'package:adhocx_employee/theme/app_spacing.dart';
 import 'package:adhocx_employee/theme/app_typography.dart';
 import 'package:adhocx_employee/theme/employee_palette.dart';
 
-/// Screen 3: Pickup Point Details
+/// Pickup Point Details backed by live nextTrip & profile APIs.
 class PickupPointDetailsScreen extends StatelessWidget {
   const PickupPointDetailsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return TripDataBuilder(
-      load: () async =>
-          (await MockDataService.getLiveTracking())['pickupPoint']
-              as Map<String, dynamic>?,
+      load: () async {
+        final data = maybeEmployeeData(context);
+        if (data == null) return const {};
+        final results = await Future.wait([
+          data.loadNextTrip(),
+          data.loadProfile(),
+        ]);
+        return {
+          'nextTrip': results[0] ?? const <String, dynamic>{},
+          'profile': results[1] ?? const <String, dynamic>{},
+        };
+      },
       builder: (context, data) {
         final p = EmployeePalette.of(context);
+        final next = (data['nextTrip'] as Map<String, dynamic>?) ?? const {};
+        final profile = (data['profile'] as Map<String, dynamic>?) ?? const {};
+        final pickupLoc = next['pickupLocation'] as Map? ??
+            profile['defaultPickupLocation'] as Map?;
+        final address = pickupLoc?['addressText']?.toString() ??
+            'No pickup location configured yet';
+        final landmark = pickupLoc?['landmark']?.toString();
+        final scheduledTime = EmployeeDataProvider.formatDisplayTime(
+          next['plannedEta']?.toString() ?? next['shiftTime']?.toString(),
+        );
 
         return Scaffold(
           backgroundColor: p.background,
@@ -35,7 +54,6 @@ class PickupPointDetailsScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Pickup bay banner
                   Container(
                     width: double.infinity,
                     height: 180,
@@ -75,8 +93,7 @@ class PickupPointDetailsScreen extends StatelessWidget {
                       const SizedBox(width: AppSpacing.sm + 2),
                       Expanded(
                         child: Text(
-                          data['title'] ??
-                              'Home - Green Meadows, Kondapur, Hyderabad',
+                          address,
                           style: AppTypography.h4(
                             color: p.textPrimary,
                             fontWeight: FontWeight.w700,
@@ -99,21 +116,24 @@ class PickupPointDetailsScreen extends StatelessWidget {
                     child: Column(
                       children: [
                         TripMetricRow(
-                          icon: Icons.directions_walk_rounded,
-                          label: 'Walk to Pickup',
-                          value: data['walkingTime'] ?? '3 min (220 m)',
+                          icon: Icons.place_outlined,
+                          label: 'Landmark',
+                          value: landmark?.isNotEmpty == true
+                              ? landmark!
+                              : 'Designated Pickup Node',
                         ),
                         Divider(color: p.border, height: AppSpacing.xxl),
                         TripMetricRow(
                           icon: Icons.access_time_rounded,
                           label: 'Pickup Time',
-                          value: data['scheduledTime'] ?? '8:15 AM',
+                          value: scheduledTime.isNotEmpty
+                              ? scheduledTime
+                              : 'Pending schedule',
                         ),
                       ],
                     ),
                   ),
                   const SizedBox(height: AppSpacing.xl),
-                  // Advisory (Driver info semantic colours)
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(AppSpacing.md + 2),
@@ -129,8 +149,7 @@ class PickupPointDetailsScreen extends StatelessWidget {
                         const SizedBox(width: AppSpacing.sm + 2),
                         Expanded(
                           child: Text(
-                            data['advisory'] ??
-                                'Be at the pickup point 5 minutes early.',
+                            'Be at the pickup point 5 minutes before scheduled arrival.',
                             style: AppTypography.small(
                               color: AppColors.infoText,
                               fontWeight: FontWeight.w600,

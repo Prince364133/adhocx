@@ -70,7 +70,7 @@ export class CorporateSafetyController {
   }
 
   @Get('alerts')
-  @Roles(UserRole.ADMIN, UserRole.OPS)
+  @Roles(UserRole.ADMIN, UserRole.OPS, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
   @CorporateTenantScoped()
   @ApiOperation({ summary: 'List active and historical corporate SOS emergency alerts for Command Centre' })
   @ApiResponse({ status: 200, description: 'List of emergency alerts' })
@@ -78,8 +78,16 @@ export class CorporateSafetyController {
     @Query('status') status?: CorporateSosStatus,
     @Query('routeId') routeId?: string,
     @Query('tenantId') tenantId?: string,
+    @Query('activeOnly') activeOnly?: string,
+    @Query('limit') limit?: string,
   ) {
-    return this.safetyService.listSosAlerts({ status, routeId, tenantId });
+    return this.safetyService.listSosAlerts({
+      status,
+      routeId,
+      tenantId,
+      activeOnly: activeOnly === 'true',
+      limit: limit ? parseInt(limit, 10) : undefined,
+    });
   }
 
   @Post('alerts/:id/acknowledge')

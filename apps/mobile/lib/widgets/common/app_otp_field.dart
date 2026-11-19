@@ -81,28 +81,31 @@ class _AppOtpFieldState extends State<AppOtpField> {
         otp.length < widget.length ? otp.length : widget.length - 1;
 
     final row = Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      mainAxisAlignment: MainAxisAlignment.center,
       children: List.generate(widget.length, (index) {
         final isActive = _focusNode.hasFocus && index == activeIndex;
-        return Container(
-          width: 46,
-          height: 54,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: isDark ? AppColors.surfaceElevatedDark : AppColors.surfaceLight,
-            borderRadius: AppRadius.borderMd,
-            border: Border.all(
-              color: isActive
-                  ? (isDark ? AppColors.primaryLight : AppColors.primary)
-                  : (isDark ? AppColors.borderDark : AppColors.borderLight),
-              width: isActive ? 2.0 : 1.2,
+        return Padding(
+          padding: EdgeInsets.symmetric(horizontal: widget.length > 6 ? 3 : 5),
+          child: Container(
+            width: 44,
+            height: 52,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: isDark ? AppColors.surfaceElevatedDark : AppColors.surfaceLight,
+              borderRadius: AppRadius.borderMd,
+              border: Border.all(
+                color: isActive
+                    ? (isDark ? AppColors.primaryLight : AppColors.primary)
+                    : (isDark ? AppColors.borderDark : AppColors.borderLight),
+                width: isActive ? 2.0 : 1.2,
+              ),
             ),
-          ),
-          child: Text(
-            index < otp.length ? otp[index] : '',
-            key: ValueKey('app-otp-digit-$index'),
-            style: AppTypography.h2(
-              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+            child: Text(
+              index < otp.length ? otp[index] : '',
+              key: ValueKey('app-otp-digit-$index'),
+              style: AppTypography.h2(
+                color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+              ),
             ),
           ),
         );
@@ -137,7 +140,19 @@ class _AppOtpFieldState extends State<AppOtpField> {
                 fontSize: 1,
                 height: 1,
               ),
-              decoration: const InputDecoration.collapsed(hintText: null),
+              decoration: const InputDecoration(
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                errorBorder: InputBorder.none,
+                focusedErrorBorder: InputBorder.none,
+                disabledBorder: InputBorder.none,
+                filled: false,
+                fillColor: Colors.transparent,
+                contentPadding: EdgeInsets.zero,
+                isDense: true,
+                counterText: '',
+              ),
               onChanged: _onChanged,
             ),
           ),

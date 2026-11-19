@@ -61,6 +61,7 @@ const ALLOWED_DESTINATIONS = new Set([
   '/employee-support',
   '/billing',
   '/billing/invoices',
+  '/routes',
   '/routes-list',
   '/cancellations',
   '/support',
@@ -104,7 +105,8 @@ function getDestination(notification: InAppNotificationItem): string | null {
     if (url.origin !== window.location.origin) return null;
     const path = url.pathname.replace(/\/+$/, '') || '/';
     const isInvoiceDetail = /^\/billing\/invoices\/[^/]+$/.test(path);
-    if (!ALLOWED_DESTINATIONS.has(path) && !isInvoiceDetail) return null;
+    const isRouteDetail = /^\/routes\/[^/]+$/.test(path);
+    if (!ALLOWED_DESTINATIONS.has(path) && !isInvoiceDetail && !isRouteDetail) return null;
     return `${path}${url.search}${url.hash}`;
   } catch {
     return null;

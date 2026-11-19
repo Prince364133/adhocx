@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
 import 'package:adhocx_employee/shared/components/components.dart';
+import 'package:adhocx_employee/shared/components/trip/trip_widgets.dart';
 import 'package:adhocx_employee/shared/illustrations/boarding_illustrations.dart';
 import 'package:adhocx_employee/theme/app_colors.dart';
 import 'package:adhocx_employee/theme/app_spacing.dart';
 import 'package:adhocx_employee/theme/app_typography.dart';
 import 'package:adhocx_employee/theme/employee_palette.dart';
-import '../widgets/boarding_widgets.dart';
 
-/// Screen 12: Post-Trip Feedback
+/// Post-Trip Feedback wired to POST /corporate/me/trips/:stopId/feedback.
 class PostTripFeedbackScreen extends StatefulWidget {
   const PostTripFeedbackScreen({super.key});
 
@@ -20,28 +20,14 @@ class PostTripFeedbackScreen extends StatefulWidget {
 class _PostTripFeedbackScreenState extends State<PostTripFeedbackScreen> {
   static const _maxLength = 200;
 
-  Map<String, dynamic>? _feedbackData;
-  bool _isLoading = true;
   int _selectedRating = 5;
+  bool _submitting = false;
   final TextEditingController _feedbackController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    // Keeps the "n/200" counter in sync while typing (it never updated before).
     _feedbackController.addListener(() => setState(() {}));
-    _loadData();
-  }
-
-  Future<void> _loadData() async {
-    final data = await loadBoardingSection('feedback');
-    if (mounted) {
-      setState(() {
-        _feedbackData = data;
-        _selectedRating = data?['defaultRating'] ?? 5;
-        _isLoading = false;
-      });
-    }
   }
 
   @override
@@ -50,20 +36,58 @@ class _PostTripFeedbackScreenState extends State<PostTripFeedbackScreen> {
     super.dispose();
   }
 
-  void _finish({required bool submitted}) {
-    if (submitted) {
+  Future<String?> _resolveStopId() async {
+    try {
+      final extra = GoRouterState.of(context).extra;
+      if (extra is Map && extra['stopId'] != null) {
+        return extra['stopId'].toString();
+      }
+      if (extra is String && extra.isNotEmpty) return extra;
+    } catch (_) {}
+    final latest = await loadLiveLatestTrip(context);
+    return latest['stopId']?.toString();
+  }
+
+  Future<void> _submitFeedback() async {
+    setState(() => _submitting = true);
+    final data = maybeEmployeeData(context);
+    final stopId = await _resolveStopId();
+    final comment = _feedbackController.text.trim();
+
+    try {
+      if (data != null && stopId != null && stopId.isNotEmpty) {
+        await data.repository.submitFeedback(
+          stopId,
+          rating: _selectedRating,
+          feltSafe: _selectedRating >= 3,
+          comment: comment.isNotEmpty ? comment : null,
+        );
+      }
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Thank you! Your feedback has been recorded.')),
+        const SnackBar(
+          content: Text('Thank you! Your feedback has been recorded.'),
+          backgroundColor: AppColors.success,
+        ),
       );
+      context.go(AppRoutes.homeUpcomingPickup);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            e.toString().replaceFirst('Exception: ', ''),
+          ),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _submitting = false);
     }
-    context.go(AppRoutes.homeUpcomingPickup);
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const EmployeeLoadingScaffold(appBar: EmployeeAppBar());
-    }
     final p = EmployeePalette.of(context);
 
     return Scaffold(
@@ -82,20 +106,18 @@ class _PostTripFeedbackScreenState extends State<PostTripFeedbackScreen> {
               const PostTripFinishGraphic(),
               const SizedBox(height: AppSpacing.xl),
               Text(
-                _feedbackData?['title'] ?? 'Trip Completed',
+                'Trip Completed',
                 style: AppTypography.h2(color: p.textPrimary),
               ),
               const SizedBox(height: AppSpacing.xs + 2),
               Text(
-                _feedbackData?['subtitle'] ?? 'How was your trip?',
+                'How was your trip?',
                 style: AppTypography.bodyLarge(
                   color: p.textSecondary,
                   fontWeight: FontWeight.w600,
                 ),
               ),
               const SizedBox(height: AppSpacing.xxl),
-
-              // 5-star rating
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: List.generate(5, (index) {
@@ -114,7 +136,6 @@ class _PostTripFeedbackScreenState extends State<PostTripFeedbackScreen> {
                 }),
               ),
               const SizedBox(height: AppSpacing.xxl),
-
               AppCard(
                 width: double.infinity,
                 child: Column(
@@ -148,13 +169,14 @@ class _PostTripFeedbackScreenState extends State<PostTripFeedbackScreen> {
               const SizedBox(height: AppSpacing.xxxl + AppSpacing.sm),
               EmployeePrimaryButton(
                 label: 'Submit Feedback',
-                onPressed: () => _finish(submitted: true),
+                isLoading: _submitting,
+                onPressed: _submitting ? null : _submitFeedback,
               ),
               const SizedBox(height: AppSpacing.md),
               EmployeeTextLink(
                 label: 'Maybe Later',
                 emphasised: false,
-                onPressed: () => _finish(submitted: false),
+                onPressed: () => context.go(AppRoutes.homeUpcomingPickup),
               ),
             ],
           ),

@@ -2,6 +2,8 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
+  Delete,
   Param,
   Query,
   Body,
@@ -57,7 +59,7 @@ export class CorporateRoutingController {
   @Post('plan-from-file')
   @Roles(UserRole.ADMIN, UserRole.OPS)
   @CorporateTenantScoped()
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024, files: 1 } }))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Calculate traffic-aware routes using employee, office, and arrival details from each roster row' })
   public async planFromFile(
@@ -78,7 +80,7 @@ export class CorporateRoutingController {
   @Post('plan-stream')
   @Roles(UserRole.ADMIN, UserRole.OPS)
   @CorporateTenantScoped()
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024, files: 1 } }))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Stream route planning progress for an uploaded employee route CSV via Server-Sent Events (SSE)' })
   public async planStream(
@@ -192,7 +194,7 @@ export class CorporateRoutingController {
   @Post('plan-from-file/stream')
   @Roles(UserRole.ADMIN, UserRole.OPS)
   @CorporateTenantScoped()
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024, files: 1 } }))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Alias for plan-stream via Server-Sent Events' })
   public async planFromFileStream(
@@ -644,6 +646,72 @@ export class CorporateRoutingController {
     }));
   }
 
+  @Post()
+  @Roles(UserRole.ADMIN, UserRole.OPS)
+  @CorporateTenantScoped()
+  @ApiOperation({ summary: 'Manually create a corporate route with employee stops and auto-register employee login accounts' })
+  public async createManualRoute(@Body() body: any) {
+    if (!this.routePlannerService) {
+      throw new BadRequestException('Route planner service unavailable');
+    }
+    return this.routePlannerService.createManualRoute(body);
+  }
+
+  @Patch(':id')
+  @Roles(UserRole.ADMIN, UserRole.OPS)
+  @CorporateResource('route', 'id')
+  @ApiOperation({ summary: 'Update an unstarted corporate route (shift, vehicle category, capacity, office)' })
+  public async updateRoute(@Param('id') id: string, @Body() body: any) {
+    if (!this.routePlannerService) {
+      throw new BadRequestException('Route planner service unavailable');
+    }
+    return this.routePlannerService.updateRoute(id, body);
+  }
+
+  @Delete(':id')
+  @Roles(UserRole.ADMIN, UserRole.OPS)
+  @CorporateResource('route', 'id')
+  @ApiOperation({ summary: 'Delete an unstarted corporate route and its pending stops/requests' })
+  public async deleteRoute(@Param('id') id: string) {
+    if (!this.routePlannerService) {
+      throw new BadRequestException('Route planner service unavailable');
+    }
+    return this.routePlannerService.deleteRoute(id);
+  }
+
+  @Post(':id/stops')
+  @Roles(UserRole.ADMIN, UserRole.OPS)
+  @CorporateResource('route', 'id')
+  @ApiOperation({ summary: 'Add an employee stop to an existing corporate route (auto-registers employee account)' })
+  public async addRouteStop(@Param('id') id: string, @Body() body: any) {
+    if (!this.routePlannerService) {
+      throw new BadRequestException('Route planner service unavailable');
+    }
+    return this.routePlannerService.addRouteStop(id, body);
+  }
+
+  @Patch(':id/stops/:stopId')
+  @Roles(UserRole.ADMIN, UserRole.OPS)
+  @CorporateResource('route', 'id')
+  @ApiOperation({ summary: 'Edit a stop on an existing corporate route (syncs employee contact info)' })
+  public async updateRouteStop(@Param('id') id: string, @Param('stopId') stopId: string, @Body() body: any) {
+    if (!this.routePlannerService) {
+      throw new BadRequestException('Route planner service unavailable');
+    }
+    return this.routePlannerService.updateRouteStop(id, stopId, body);
+  }
+
+  @Delete(':id/stops/:stopId')
+  @Roles(UserRole.ADMIN, UserRole.OPS)
+  @CorporateResource('route', 'id')
+  @ApiOperation({ summary: 'Remove an unboarded employee stop from an existing corporate route' })
+  public async deleteRouteStop(@Param('id') id: string, @Param('stopId') stopId: string) {
+    if (!this.routePlannerService) {
+      throw new BadRequestException('Route planner service unavailable');
+    }
+    return this.routePlannerService.deleteRouteStop(id, stopId);
+  }
+
   @Get(':id/directions')
   @Roles(
     UserRole.ADMIN,
@@ -666,6 +734,7 @@ export class CorporateRoutingController {
     UserRole.ADMIN,
     UserRole.OPS,
     UserRole.DRIVER,
+    UserRole.EMPLOYEE,
     UserRole.CORPORATE_ADMIN,
     UserRole.CORPORATE_MANAGER,
   )
@@ -676,7 +745,10 @@ export class CorporateRoutingController {
     @Query('includeDirections') includeDirections?: string,
     @Req() req?: any,
   ) {
-    const showOtp = OTP_VISIBLE_ROLES.has(String(req?.user?.role ?? '').toUpperCase());
+    const callerRole = String(req?.user?.role ?? '').toUpperCase();
+    const isEmployeeCaller = callerRole === UserRole.EMPLOYEE;
+    const callerEmployeeId = req?.user?.corporateEmployeeId;
+    const showOtp = OTP_VISIBLE_ROLES.has(callerRole);
     const route: any = await this.db.corporateRoute.findUnique({
       where: { id },
       include: {
@@ -735,25 +807,33 @@ export class CorporateRoutingController {
       throw new NotFoundException(`Corporate route ${id} not found`);
     }
 
-    const enrichedStops = (route.stops ?? []).map(({ boardingOtp, ...stop }: any) => ({
-      ...stop,
-      ...(showOtp ? { boardingOtp } : {}),
-      employeeName: stop.employeeName ?? stop.employee?.fullName ?? null,
-      employeePhone: stop.employeePhone ?? stop.employee?.phoneNumber ?? null,
-      addressText:
-        stop.addressText ??
-        stop.employee?.locations?.[0]?.addressText ??
-        (stop.stopType === 'DROPOFF' && !stop.employee
-          ? route.office?.addressText ?? route.office?.name ?? 'Corporate Office Hub'
-          : 'Pickup address unavailable'),
-    }));
+    const enrichedStops = (route.stops ?? []).map(({ boardingOtp, ...stop }: any) => {
+      const isOwnStop = isEmployeeCaller && callerEmployeeId && stop.employeeId === callerEmployeeId;
+      const isCoPassengerStop = isEmployeeCaller && Boolean(stop.employeeId) && !isOwnStop;
+      return {
+        ...stop,
+        ...(showOtp || isOwnStop ? { boardingOtp } : {}),
+        ...(isCoPassengerStop ? { latitude: null, longitude: null, transportRequest: null } : {}),
+        isCurrentUserStop: isOwnStop || undefined,
+        employee: isCoPassengerStop ? null : stop.employee,
+        employeeName: isCoPassengerStop ? `Co-passenger #${stop.stopSequence}` : (stop.employeeName ?? stop.employee?.fullName ?? null),
+        employeePhone: isCoPassengerStop ? null : (stop.employeePhone ?? stop.employee?.phoneNumber ?? null),
+        addressText: isCoPassengerStop
+          ? `Co-passenger Stop #${stop.stopSequence}`
+          : (stop.addressText ??
+            stop.employee?.locations?.[0]?.addressText ??
+            (stop.stopType === 'DROPOFF' && !stop.employee
+              ? route.office?.addressText ?? route.office?.name ?? 'Corporate Office Hub'
+              : 'Pickup address unavailable')),
+      };
+    });
 
     const enrichedRoute: any = {
       ...route,
       stops: enrichedStops,
     };
 
-    if (includeDirections === 'true' && this.directionsService) {
+    if (includeDirections === 'true' && !isEmployeeCaller && this.directionsService) {
       // Shared 180 s cache with GET :id/directions: a page load is not a Google Routes call.
       enrichedRoute.directions = await this.directionsService
         .getDirectionsForRoute(id, { routeRecord: enrichedRoute })

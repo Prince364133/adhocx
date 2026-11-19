@@ -1,53 +1,32 @@
-# Flutter Core & Plugins preservation for R8 shrinking
--keep class io.flutter.** { *; }
--keep class io.flutter.app.** { *; }
--keep class io.flutter.plugin.** { *; }
--keep class io.flutter.util.** { *; }
--keep class io.flutter.view.** { *; }
--keep class io.flutter.embedding.** { *; }
--keep class com.google.firebase.** { *; }
+# ==============================================================================
+# AdhocX Release R8 Configuration (Google Play DEX Optimization >= 75%)
+# ==============================================================================
+# NOTE: Flutter embedding, Firebase, Google Play Services, ML Kit, CameraX,
+# Razorpay Checkout, and Google Tink all bundle their own precision consumer
+# ProGuard rules inside their AAR/JARs. NEVER add blanket wildcard
+# `-keep class ...** { *; }` rules here — doing so disables R8 shrinking,
+# optimization, and obfuscation across those libraries and causes Google Play
+# Console "DEX code optimisation is below threshold (<25%)" warnings.
 
--dontwarn com.stripe.android.pushProvisioning.PushProvisioningActivity$g
--dontwarn com.stripe.android.pushProvisioning.PushProvisioningActivityStarter$Args
--dontwarn com.stripe.android.pushProvisioning.PushProvisioningActivityStarter$Error
--dontwarn com.stripe.android.pushProvisioning.PushProvisioningActivityStarter
--dontwarn com.stripe.android.pushProvisioning.PushProvisioningEphemeralKeyProvider
-# Keep Stripe classes
--keep class com.stripe.** { *; }
+# Keep only the exact OverlayService class name resolved via Class.forName in MainActivity.kt
+-keep class flutter.overlay.window.flutter_overlay_window.OverlayService
 
-# Suppress warnings for Play Core deferred components
+# Ensure WebView @JavascriptInterface callbacks (used by Razorpay Checkout) stay intact
+-keepclassmembers class * {
+    @android.webkit.JavascriptInterface <methods>;
+}
+
+# Repackage obfuscated classes into the root package for smaller DEX & stronger obfuscation
+-repackageclasses ''
+
+# Suppress warnings for optional/compile-only transitive references
 -dontwarn com.google.android.play.core.**
--dontwarn com.google.android.play.core.splitcompat.**
--dontwarn com.google.android.play.core.splitinstall.**
--dontwarn com.google.android.play.core.tasks.**
-
-# Google Play Services & Google Sign-In preservation
--keep class com.google.android.gms.auth.api.signin.** { *; }
--keep class com.google.android.gms.common.api.** { *; }
--keep class com.google.android.gms.** { *; }
--dontwarn com.google.android.gms.**
-
-# Razorpay SDK preservation
--keep class com.razorpay.** { *; }
--dontwarn com.razorpay.**
-
-# Flutter Plugins generic keep
--keep class io.flutter.plugins.** { *; }
-
-# Google ML Kit Face Detection & CameraX preservation
--keep class com.google.mlkit.** { *; }
 -dontwarn com.google.mlkit.**
--keep class com.google.android.gms.internal.mlkit_vision_face.** { *; }
 -dontwarn com.google.android.gms.internal.mlkit_vision_face.**
--keep class androidx.camera.** { *; }
--dontwarn androidx.camera.**
-
-# FlutterSecureStorage & Google Tink encryption (prevent R8 stripping in release builds)
--keep class com.it_nomads.fluttersecurestorage.** { *; }
--keep class com.google.crypto.tink.** { *; }
 -dontwarn com.google.crypto.tink.**
 -dontwarn org.conscrypt.**
 -dontwarn org.bouncycastle.**
 -dontwarn org.openjsse.**
+
 
 

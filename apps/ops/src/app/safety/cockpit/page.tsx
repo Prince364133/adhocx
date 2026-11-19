@@ -1,8 +1,13 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { opsApi } from '../../../lib/api/opsClient';
 import { SosAlertItem } from '../../../lib/api/opsTypes';
+import {
+  getSosAlertDisplay,
+  isActiveSosStatus,
+  isTerminalSosStatus,
+} from '../../../lib/opsHelpers';
 import { Button } from '../../../components/common/Button';
 import { StatusBadge } from '../../../components/common/StatusBadge';
 import {
@@ -19,36 +24,69 @@ export default function SosEmergencyCockpitPage() {
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
   const [resolveNotes, setResolveNotes] = useState<Record<string, string>>({});
   const [loadError, setLoadError] = useState('');
+  const [actionError, setActionError] = useState('');
+  const inFlightRef = useRef(false);
+  const requestSeqRef = useRef(0);
 
-  useEffect(() => {
-    loadAlerts();
-    const interval = setInterval(loadAlerts, 6000); // 6s poll
-    return () => clearInterval(interval);
-  }, []);
-
-  async function loadAlerts() {
+  const loadAlerts = useCallback(async (force = false) => {
+    if (!force && inFlightRef.current) return;
+    inFlightRef.current = true;
+    const reqId = ++requestSeqRef.current;
     try {
-      const data = await opsApi.getSosAlerts();
-      setAlerts(data);
+      const data = await opsApi.getSosAlerts({ limit: 100 });
+      if (reqId !== requestSeqRef.current) return;
+      setAlerts(Array.isArray(data) ? data : []);
       setLoadError('');
     } catch (error) {
+      if (reqId !== requestSeqRef.current) return;
       setLoadError(error instanceof Error ? error.message : 'Failed to load SOS alerts.');
     } finally {
-      setLoading(false);
+      if (reqId === requestSeqRef.current) {
+        inFlightRef.current = false;
+        setLoading(false);
+      }
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    void loadAlerts(true);
+    const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return;
+      void loadAlerts(false);
+    }, 6000); // 6s poll (paused when tab is hidden)
+    const handleVisibilityChange = () => {
+      if (typeof document !== 'undefined' && !document.hidden) {
+        void loadAlerts(false);
+      }
+    };
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+    }
+    return () => {
+      clearInterval(interval);
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+      }
+    };
+  }, [loadAlerts]);
 
   async function handleRefresh() {
     setRefreshing(true);
-    await loadAlerts();
-    setRefreshing(false);
+    try {
+      await loadAlerts(true);
+    } finally {
+      setRefreshing(false);
+    }
   }
 
   async function handleAcknowledge(id: string) {
     setActionLoadingId(id);
+    setActionError('');
     try {
       await opsApi.acknowledgeSosAlert(id);
-      await loadAlerts();
+      await loadAlerts(true);
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'Failed to acknowledge SOS alert.');
     } finally {
       setActionLoadingId(null);
     }
@@ -56,9 +94,12 @@ export default function SosEmergencyCockpitPage() {
 
   async function handleInvestigate(id: string) {
     setActionLoadingId(id);
+    setActionError('');
     try {
       await opsApi.investigateSosAlert(id);
-      await loadAlerts();
+      await loadAlerts(true);
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'Failed to mark SOS alert as investigating.');
     } finally {
       setActionLoadingId(null);
     }
@@ -67,9 +108,12 @@ export default function SosEmergencyCockpitPage() {
   async function handleResolve(id: string) {
     const notes = resolveNotes[id] || 'Incident investigated and resolved by operations dispatcher.';
     setActionLoadingId(id);
+    setActionError('');
     try {
       await opsApi.resolveSosAlert(id, notes);
-      await loadAlerts();
+      await loadAlerts(true);
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'Failed to resolve SOS alert.');
     } finally {
       setActionLoadingId(null);
     }
@@ -77,22 +121,38 @@ export default function SosEmergencyCockpitPage() {
 
   async function handleEscalate(id: string) {
     setActionLoadingId(id);
+    setActionError('');
     try {
       await opsApi.escalateSosAlert(id);
-      await loadAlerts();
+      await loadAlerts(true);
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'Failed to escalate SOS alert.');
     } finally {
       setActionLoadingId(null);
     }
   }
 
-  const activeAlerts = alerts.filter(
-    (a) => a.status === 'NEW' || a.status === 'ACKNOWLEDGED' || a.status === 'INVESTIGATING',
-  );
-  const resolvedAlerts = alerts.filter((a) => a.status === 'RESOLVED' || a.status === 'ESCALATED');
+  const activeAlerts = alerts.filter((a) => isActiveSosStatus(a.status));
+  const resolvedAlerts = alerts.filter((a) => isTerminalSosStatus(a.status));
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      {loadError && <div role="alert" style={{ color: 'var(--color-danger, #DC2626)', fontSize: 13 }}>{loadError}</div>}
+      {(loadError || actionError) && (
+        <div
+          role="alert"
+          style={{
+            padding: '12px 16px',
+            borderRadius: 'var(--radius-md, 8px)',
+            backgroundColor: 'var(--color-danger-bg)',
+            border: '1px solid var(--color-danger-border)',
+            color: 'var(--color-danger, #DC2626)',
+            fontSize: 13,
+            fontWeight: 500,
+          }}
+        >
+          {actionError || loadError}
+        </div>
+      )}
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
         <div>
@@ -144,7 +204,12 @@ export default function SosEmergencyCockpitPage() {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             {activeAlerts.map((alert) => {
-              const isNew = alert.status === 'NEW';
+              const display = getSosAlertDisplay(alert);
+              const status = String(alert.status || '').toUpperCase();
+              const isUrgent = status === 'NEW' || status === 'ACTIVE' || status === 'ESCALATED';
+              const canAck = status === 'NEW' || status === 'ACTIVE' || (status === 'ESCALATED' && !alert.acknowledgedAt);
+              const canInvestigate = status === 'ACKNOWLEDGED' || status === 'ESCALATED' || status === 'RESPONDED';
+              const canEscalate = status !== 'ESCALATED';
               return (
                 <div
                   key={alert.id}
@@ -158,11 +223,11 @@ export default function SosEmergencyCockpitPage() {
                     gap: '14px',
                     boxShadow: 'var(--shadow-glow-sos)',
                   }}
-                  className={isNew ? 'pulse-critical' : ''}
+                  className={isUrgent ? 'pulse-critical' : ''}
                 >
                   {/* Alert Header */}
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                       <span
                         style={{
                           fontSize: '11px',
@@ -174,15 +239,18 @@ export default function SosEmergencyCockpitPage() {
                           letterSpacing: '0.04em',
                         }}
                       >
-                        {alert.severity || 'CRITICAL P0'}
+                        {display.severity}
                       </span>
                       <span className="code-tag">INC-{alert.id.slice(0, 8).toUpperCase()}</span>
                       <span style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: 600 }}>
-                        {alert.triggerType || 'PANIC_BUTTON'}
+                        {display.triggerLabel}
+                      </span>
+                      <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                        · {display.tenantName}
                       </span>
                     </div>
 
-                    <StatusBadge status={alert.status} size="md" pulse={isNew} />
+                    <StatusBadge status={alert.status} size="md" pulse={isUrgent} />
                   </div>
 
                   {/* Rider & Driver Telemetry Grid */}
@@ -198,35 +266,51 @@ export default function SosEmergencyCockpitPage() {
                     }}
                   >
                     <div>
-                      <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>REPORTING PASSENGER</div>
+                      <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>REPORTING PARTY &amp; CLIENT</div>
                       <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '14px', marginTop: '2px' }}>
-                        {alert.riderName || 'Employee Rider'}
+                        {display.reporterLabel}
                       </div>
                       <div style={{ fontSize: '12px', color: 'var(--brand-blue-500, #5728B2)' }}>
-                        {alert.riderPhone || 'No phone'}
+                        {display.riderPhone || display.tenantName}
+                        {display.officeName ? ` · ${display.officeName}` : ''}
                       </div>
                     </div>
 
                     <div>
-                      <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>ASSIGNED CAB & DRIVER</div>
+                      <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>ASSIGNED CAB &amp; DRIVER</div>
                       <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '14px', marginTop: '2px' }}>
-                        {alert.driverName || 'Assigned Driver'}
+                        {display.driverName || 'Assigned Driver'}
                       </div>
                       <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                        {alert.driverPhone || 'No phone'} · <span className="code-tag">{alert.vehiclePlate || 'VEHICLE'}</span>
+                        {display.driverPhone || 'No phone'} · <span className="code-tag">{display.vehiclePlate || 'VEHICLE'}</span>
                       </div>
                     </div>
 
                     <div>
                       <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>INCIDENT GPS LOCATION</div>
                       <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '13px', marginTop: '2px' }}>
-                        {alert.addressText || `${alert.locationLat?.toFixed(4)}, ${alert.locationLng?.toFixed(4)}`}
+                        {display.coordinatesLabel}
                       </div>
                       <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
                         Triggered: {new Date(alert.createdAt).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' })}
                       </div>
                     </div>
                   </div>
+
+                  {display.notes && (
+                    <div
+                      style={{
+                        fontSize: '12px',
+                        color: 'var(--text-secondary)',
+                        backgroundColor: 'var(--bg-surface)',
+                        padding: '8px 12px',
+                        borderRadius: 'var(--radius-sm, 6px)',
+                        border: '1px solid var(--border-subtle)',
+                      }}
+                    >
+                      <strong style={{ color: 'var(--text-primary)' }}>Notes:</strong> {display.notes}
+                    </div>
+                  )}
 
                   {/* Resolution Input */}
                   <div>
@@ -264,9 +348,9 @@ export default function SosEmergencyCockpitPage() {
                     }}
                   >
                     <div style={{ display: 'flex', gap: '8px' }}>
-                      {alert.riderPhone && (
+                      {display.riderPhone && (
                         <a
-                          href={`tel:${alert.riderPhone}`}
+                          href={`tel:${display.riderPhone}`}
                           style={{
                             display: 'inline-flex',
                             alignItems: 'center',
@@ -286,9 +370,9 @@ export default function SosEmergencyCockpitPage() {
                         </a>
                       )}
 
-                      {alert.driverPhone && (
+                      {display.driverPhone && (
                         <a
-                          href={`tel:${alert.driverPhone}`}
+                          href={`tel:${display.driverPhone}`}
                           style={{
                             display: 'inline-flex',
                             alignItems: 'center',
@@ -309,24 +393,24 @@ export default function SosEmergencyCockpitPage() {
                       )}
                     </div>
 
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      {alert.status === 'NEW' && (
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                      {canAck && (
                         <Button
                           size="sm"
                           variant="primary"
                           isLoading={actionLoadingId === alert.id}
-                          onClick={() => handleAcknowledge(alert.id)}
+                          onClick={() => void handleAcknowledge(alert.id)}
                         >
                           1. Acknowledge (Assign Owner)
                         </Button>
                       )}
 
-                      {alert.status === 'ACKNOWLEDGED' && (
+                      {canInvestigate && (
                         <Button
                           size="sm"
                           variant="secondary"
                           isLoading={actionLoadingId === alert.id}
-                          onClick={() => handleInvestigate(alert.id)}
+                          onClick={() => void handleInvestigate(alert.id)}
                         >
                           2. Mark Investigating
                         </Button>
@@ -336,19 +420,21 @@ export default function SosEmergencyCockpitPage() {
                         size="sm"
                         variant="success"
                         isLoading={actionLoadingId === alert.id}
-                        onClick={() => handleResolve(alert.id)}
+                        onClick={() => void handleResolve(alert.id)}
                       >
                         Resolve Incident
                       </Button>
 
-                      <Button
-                        size="sm"
-                        variant="danger"
-                        isLoading={actionLoadingId === alert.id}
-                        onClick={() => handleEscalate(alert.id)}
-                      >
-                        Escalate to Police / Safety Head
-                      </Button>
+                      {canEscalate && (
+                        <Button
+                          size="sm"
+                          variant="danger"
+                          isLoading={actionLoadingId === alert.id}
+                          onClick={() => void handleEscalate(alert.id)}
+                        >
+                          Escalate to Police / Safety Head
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -365,35 +451,38 @@ export default function SosEmergencyCockpitPage() {
             Resolved Crisis Archive ({resolvedAlerts.length})
           </h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {resolvedAlerts.slice(0, 10).map((alert) => (
-              <div
-                key={alert.id}
-                style={{
-                  backgroundColor: 'var(--bg-surface)',
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: 'var(--radius-md, 8px)',
-                  padding: '12px 16px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  fontSize: '13px',
-                  boxShadow: 'var(--shadow-sm)',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <span className="code-tag">INC-{alert.id.slice(0, 8).toUpperCase()}</span>
-                  <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{alert.riderName || 'Rider'}</span>
-                  <span style={{ color: 'var(--text-muted)' }}>· {alert.addressText || 'Corridor'}</span>
-                </div>
+            {resolvedAlerts.slice(0, 10).map((alert) => {
+              const display = getSosAlertDisplay(alert);
+              return (
+                <div
+                  key={alert.id}
+                  style={{
+                    backgroundColor: 'var(--bg-surface)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: 'var(--radius-md, 8px)',
+                    padding: '12px 16px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    fontSize: '13px',
+                    boxShadow: 'var(--shadow-sm)',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                    <span className="code-tag">INC-{alert.id.slice(0, 8).toUpperCase()}</span>
+                    <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{display.tenantName}</span>
+                    <span style={{ color: 'var(--text-muted)' }}>· {display.coordinatesLabel}</span>
+                  </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                    Notes: {alert.responderNotes || 'Resolved'}
-                  </span>
-                  <StatusBadge status={alert.status} size="sm" />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                      Notes: {display.notes || 'Resolved'}
+                    </span>
+                    <StatusBadge status={alert.status} size="sm" />
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}

@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
-import 'package:adhocx_employee/services/mock_data_service.dart';
 import 'package:adhocx_employee/shared/components/components.dart';
+import 'package:adhocx_employee/shared/components/trip/trip_widgets.dart';
 import 'package:adhocx_employee/shared/illustrations/trip_illustrations.dart';
 import 'package:adhocx_employee/theme/app_spacing.dart';
 import 'package:adhocx_employee/theme/employee_palette.dart';
-import 'package:adhocx_employee/shared/components/trip/trip_widgets.dart';
 
 class TripBoardedScreen extends StatelessWidget {
   const TripBoardedScreen({super.key});
@@ -14,9 +13,14 @@ class TripBoardedScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return TripDataBuilder(
-      load: () => MockDataService.getTrip('boarded'),
-      builder: (context, trip) {
+      load: () => loadLiveTripSnapshot(context),
+      builder: (context, snapshot) {
         final p = EmployeePalette.of(context);
+        final next = (snapshot['nextTrip'] as Map<String, dynamic>?) ?? const {};
+        final officeDest = next['officeDestination'] as Map?;
+        final destination = officeDest?['name']?.toString() ??
+            officeDest?['addressText']?.toString() ??
+            'Destination';
 
         return TripStageScaffold(
           title: "Today's Pickup",
@@ -27,7 +31,7 @@ class TripBoardedScreen extends StatelessWidget {
             const SizedBox(height: AppSpacing.xxl),
             const TripHeadline(
               title: "You're on board!",
-              subtitle: 'Trip is in progress to your office.',
+              subtitle: 'Trip is in progress to your destination.',
             ),
             const SizedBox(height: AppSpacing.xxl + 4),
             const EmployeeStepTracker(currentStep: TripStep.boarded),
@@ -37,7 +41,7 @@ class TripBoardedScreen extends StatelessWidget {
               backgroundColor: p.surfaceElevated,
               child: TripDestinationTile(
                 label: 'Drop at',
-                value: trip['drop'] ?? 'HITEC City Office',
+                value: destination,
               ),
             ),
             const SizedBox(height: AppSpacing.xxxl + 4),

@@ -2,26 +2,48 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
 import 'package:adhocx_employee/shared/components/trip/trip_widgets.dart';
+import 'package:adhocx_employee/state/employee_data_provider.dart';
 import 'package:adhocx_employee/theme/app_colors.dart';
 import 'package:adhocx_employee/theme/app_radius.dart';
 import 'package:adhocx_employee/theme/app_spacing.dart';
 import 'package:adhocx_employee/theme/app_typography.dart';
 import 'package:adhocx_employee/theme/employee_palette.dart';
-import '../widgets/driver_widgets.dart';
 
-/// Screen 1: Assignment Notification (simulated phone lock screen).
-///
-/// The lock-screen wallpaper is a fixed dark brand gradient in both modes;
-/// the notification card follows the app theme.
+/// Assignment Notification preview backed by live notifications & next trip.
 class AssignmentNotificationScreen extends StatelessWidget {
   const AssignmentNotificationScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return TripDataBuilder(
-      load: () => loadAssignmentSection('notification'),
+      load: () async {
+        final data = maybeEmployeeData(context);
+        if (data == null) return const {};
+        final notifications = await data.loadNotifications();
+        final next = await data.loadNextTrip();
+        return {
+          if (notifications.isNotEmpty) 'notification': notifications.first,
+          if (next != null) 'nextTrip': next,
+        };
+      },
       builder: (context, data) {
         final p = EmployeePalette.of(context);
+        final notif = data['notification'] as Map?;
+        final next = data['nextTrip'] as Map?;
+        final now = DateTime.now();
+        final clockTime =
+            '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+        final dateLabel =
+            EmployeeDataProvider.formatDisplayDate(now.toIso8601String());
+        final driver = next?['driver'] as Map?;
+        final driverName = driver?['name']?.toString() ??
+            driver?['fullName']?.toString();
+        final title = notif?['title']?.toString() ?? 'Cab Assignment Update';
+        final message = notif?['message']?.toString() ??
+            (driverName != null
+                ? 'Your upcoming commute has been assigned to $driverName.'
+                : 'Tap to view your current cab assignment details.');
+
         void open() => context.push(AppRoutes.cabAssignedOverview);
 
         return Scaffold(
@@ -48,7 +70,7 @@ class AssignmentNotificationScreen extends StatelessWidget {
                       color: Colors.white.withAlpha(179), size: 20),
                   const SizedBox(height: AppSpacing.md),
                   Text(
-                    data['time'] ?? '8:10',
+                    clockTime,
                     style: AppTypography.display(
                       color: Colors.white,
                       fontSize: 72,
@@ -57,7 +79,7 @@ class AssignmentNotificationScreen extends StatelessWidget {
                     ).copyWith(letterSpacing: -2),
                   ),
                   Text(
-                    data['date'] ?? 'Tue, 09 Dec',
+                    dateLabel,
                     style: AppTypography.h3(
                       color: Colors.white.withAlpha(217),
                       fontWeight: FontWeight.w500,
@@ -65,10 +87,9 @@ class AssignmentNotificationScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: AppSpacing.huge),
                   Padding(
-                    padding:
-                        const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.pageHorizontal,
-                        ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.pageHorizontal,
+                    ),
                     child: Material(
                       color: p.surface,
                       borderRadius: AppRadius.borderXxl,
@@ -103,7 +124,7 @@ class AssignmentNotificationScreen extends StatelessWidget {
                                   const SizedBox(width: AppSpacing.sm),
                                   Expanded(
                                     child: Text(
-                                      data['app'] ?? 'AdhocX',
+                                      'AdhocX',
                                       style: AppTypography.small(
                                         color: p.textPrimary,
                                         fontWeight: FontWeight.w700,
@@ -117,7 +138,7 @@ class AssignmentNotificationScreen extends StatelessWidget {
                               ),
                               const SizedBox(height: AppSpacing.sm + 2),
                               Text(
-                                data['title'] ?? 'Cab Assigned',
+                                title,
                                 style: AppTypography.h4(
                                   color: p.textPrimary,
                                   fontSize: 15,
@@ -126,8 +147,7 @@ class AssignmentNotificationScreen extends StatelessWidget {
                               ),
                               const SizedBox(height: AppSpacing.xs),
                               Text(
-                                data['message'] ??
-                                    'Your login trip (8:15 AM) has been assigned to driver Suresh R.',
+                                message,
                                 style: AppTypography.small(
                                   color: p.textSecondary,
                                 ),

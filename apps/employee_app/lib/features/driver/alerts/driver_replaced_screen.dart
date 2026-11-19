@@ -8,31 +8,36 @@ import 'package:adhocx_employee/theme/app_colors.dart';
 import 'package:adhocx_employee/theme/app_spacing.dart';
 import 'package:adhocx_employee/theme/app_typography.dart';
 import 'package:adhocx_employee/theme/employee_palette.dart';
-import '../widgets/driver_widgets.dart';
 
-/// Screen 8: Driver Replaced
+/// Driver Replaced screen backed by live nextTrip + tracking APIs.
 class DriverReplacedScreen extends StatelessWidget {
   const DriverReplacedScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return TripDataBuilder(
-      load: () => loadAssignmentSection('reassigned_cab'),
-      builder: (context, data) {
+      load: () => loadLiveTripSnapshot(context),
+      builder: (context, snapshot) {
         final p = EmployeePalette.of(context);
-        final rating = (data['driverRating'] ?? 4.7).toDouble();
+        final next = (snapshot['nextTrip'] as Map<String, dynamic>?) ?? const {};
+        final tracking =
+            (snapshot['tracking'] as Map<String, dynamic>?) ?? const {};
+        final driver = (tracking['driver'] ?? next['driver']) as Map?;
+        final newDriverName = driver?['fullName']?.toString() ??
+            driver?['name']?.toString() ??
+            'Not yet assigned';
+        final rating = driver?['rating']?.toString();
 
         return EmployeeCenteredLayout(
           appBar: const EmployeeAppBar(),
           illustration: const DriverReplacedBadge(),
           illustrationGap: AppSpacing.xl,
           title: 'Driver Replaced',
-          message: 'Your cab has been replaced due to an operational reason.',
+          message: 'Your cab has been reassigned due to an operational update.',
           content: AppCard(
             width: double.infinity,
             child: Column(
               children: [
-                // Previous driver
                 Row(
                   children: [
                     CircleAvatar(
@@ -48,7 +53,7 @@ class DriverReplacedScreen extends StatelessWidget {
                           Text('Previous Driver',
                               style: AppTypography.caption(color: p.textMuted)),
                           Text(
-                            data['previousDriver'] ?? 'Suresh R',
+                            'Reassigned by Dispatch',
                             style: AppTypography.h4(
                               color: p.textSecondary,
                               fontSize: 15,
@@ -61,7 +66,6 @@ class DriverReplacedScreen extends StatelessWidget {
                   ],
                 ),
                 Divider(color: p.border, height: AppSpacing.xxl),
-                // New driver
                 Row(
                   children: [
                     CircleAvatar(
@@ -75,14 +79,14 @@ class DriverReplacedScreen extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'New Driver',
+                            'Assigned Driver',
                             style: AppTypography.caption(
                               color: p.accent,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
                           Text(
-                            data['driverName'] ?? 'Amit Kumar',
+                            newDriverName,
                             style: AppTypography.h4(
                               color: p.textPrimary,
                               fontWeight: FontWeight.w800,
@@ -91,16 +95,18 @@ class DriverReplacedScreen extends StatelessWidget {
                         ],
                       ),
                     ),
-                    const Icon(Icons.star_rounded,
-                        size: 16, color: AppColors.starAmber),
-                    const SizedBox(width: AppSpacing.xs),
-                    Text(
-                      '$rating',
-                      style: AppTypography.small(
-                        color: p.textPrimary,
-                        fontWeight: FontWeight.w700,
+                    if (rating != null) ...[
+                      const Icon(Icons.star_rounded,
+                          size: 16, color: AppColors.starAmber),
+                      const SizedBox(width: AppSpacing.xs),
+                      Text(
+                        rating,
+                        style: AppTypography.small(
+                          color: p.textPrimary,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ],

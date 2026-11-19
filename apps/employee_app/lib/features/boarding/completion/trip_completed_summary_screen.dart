@@ -5,12 +5,12 @@ import 'package:adhocx_employee/routes/app_routes.dart';
 import 'package:adhocx_employee/shared/components/components.dart';
 import 'package:adhocx_employee/shared/components/trip/trip_widgets.dart';
 import 'package:adhocx_employee/shared/illustrations/boarding_illustrations.dart';
+import 'package:adhocx_employee/state/employee_data_provider.dart';
 import 'package:adhocx_employee/theme/app_spacing.dart';
 import 'package:adhocx_employee/theme/app_typography.dart';
 import 'package:adhocx_employee/theme/employee_palette.dart';
-import '../widgets/boarding_widgets.dart';
 
-/// Screen 10: Trip Completed
+/// Trip Completed Summary backed by live trip data.
 class TripCompletedSummaryScreen extends StatefulWidget {
   final Map<String, dynamic>? tripData;
 
@@ -65,24 +65,42 @@ class _TripCompletedSummaryScreenState
   @override
   Widget build(BuildContext context) {
     return TripDataBuilder(
-      load: () => loadBoardingSection('trip_completed'),
+      load: () async => widget.tripData ?? await loadLiveLatestTrip(context),
       builder: (context, data) {
         final p = EmployeePalette.of(context);
+        final tripType = EmployeeDataProvider.formatDirectionLabel(
+          data['direction']?.toString(),
+        );
+        final pickupTime = EmployeeDataProvider.formatDisplayTime(
+          data['plannedEta']?.toString() ?? data['shiftTime']?.toString(),
+        );
+        final dropTime = EmployeeDataProvider.formatDisplayTime(
+          data['actualDepartureTime']?.toString() ??
+              data['actualArrivalTime']?.toString(),
+        );
+        final shiftDate = EmployeeDataProvider.formatDisplayDate(
+          data['shiftDate']?.toString(),
+        );
+        final destination = data['destinationAddress']?.toString() ??
+            (data['officeDestination'] is Map
+                ? (data['officeDestination'] as Map)['name']?.toString()
+                : null) ??
+            'Destination';
+
         final metrics = <(String, String)>[
-          ('Trip Type', data['tripType'] ?? 'Login (Pickup)'),
-          ('Pickup Time', data['pickupTime'] ?? '8:15 AM'),
-          ('Drop Time', data['dropTime'] ?? '9:02 AM'),
-          ('Duration', data['duration'] ?? '47 min'),
-          ('Distance', data['distance'] ?? '12.4 km'),
+          ('Trip Type', tripType),
+          ('Shift Date', shiftDate.isNotEmpty ? shiftDate : 'Today'),
+          ('Pickup Time', pickupTime.isNotEmpty ? pickupTime : 'Completed'),
+          ('Drop Time', dropTime.isNotEmpty ? dropTime : 'Completed'),
+          ('Destination', destination),
         ];
 
         return EmployeeCenteredLayout(
           appBar: const EmployeeAppBar(),
           illustration: const BoardingSuccessBadge(),
           illustrationGap: AppSpacing.xl,
-          title: data['title'] ?? 'Trip Completed!',
-          message:
-              data['subtitle'] ?? 'Your trip has been completed successfully.',
+          title: 'Trip Completed!',
+          message: 'Your trip has been completed successfully.',
           content: AppCard(
             width: double.infinity,
             child: Column(
@@ -100,11 +118,14 @@ class _TripCompletedSummaryScreenState
                           ),
                         ),
                       ),
-                      Text(
-                        value,
-                        style: AppTypography.bodyMedium(
-                          color: p.textPrimary,
-                          fontWeight: FontWeight.w700,
+                      Flexible(
+                        child: Text(
+                          value,
+                          textAlign: TextAlign.end,
+                          style: AppTypography.bodyMedium(
+                            color: p.textPrimary,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ),
                     ],
@@ -115,12 +136,10 @@ class _TripCompletedSummaryScreenState
           ),
           actions: [
             EmployeePrimaryButton(
-              // Leads to the safe-reach check (was mislabelled
-              // "View Trip Details").
               label: 'Continue',
               onPressed: () => context.push(
                 AppRoutes.safeReachConfirmation,
-                extra: widget.tripData,
+                extra: widget.tripData ?? data,
               ),
             ),
           ],

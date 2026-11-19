@@ -1,12 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:adhocx_employee/services/mock_data_service.dart';
 import 'package:adhocx_employee/shared/components/components.dart';
-import 'package:adhocx_employee/shared/components/trip/trip_widgets.dart';
 import 'package:adhocx_employee/theme/app_spacing.dart';
 
 /// Shared body for the live-tracking connectivity states (GPS unavailable,
-/// stale location, poor network, reconnecting). Title/message come from the
-/// mock `liveTracking.exceptions[exceptionKey]` with built-in fallbacks.
+/// stale location, poor network, reconnecting).
 class ConnectivityIssueView extends StatelessWidget {
   final String exceptionKey;
   final Widget illustration;
@@ -27,21 +24,14 @@ class ConnectivityIssueView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return TripDataBuilder(
-      load: () async {
-        final tracking = await MockDataService.getLiveTracking();
-        final exceptions = tracking['exceptions'] as Map<String, dynamic>?;
-        return exceptions?[exceptionKey] as Map<String, dynamic>?;
-      },
-      builder: (context, data) => EmployeeCenteredLayout(
-        appBar: const EmployeeAppBar(),
-        illustration: illustration,
-        illustrationGap: AppSpacing.xxl,
-        title: data['title'] ?? fallbackTitle,
-        message: data['message'] ?? fallbackMessage,
-        content: content,
-        actions: actions,
-      ),
+    return EmployeeCenteredLayout(
+      appBar: const EmployeeAppBar(),
+      illustration: illustration,
+      illustrationGap: AppSpacing.xxl,
+      title: fallbackTitle,
+      message: fallbackMessage,
+      content: content,
+      actions: actions,
     );
   }
 }

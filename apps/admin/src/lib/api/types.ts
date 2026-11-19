@@ -11,6 +11,8 @@ export interface AdminMetrics {
   pendingSettlements: number;
 }
 
+export type CorporateTenantStatus = "ACTIVE" | "SUSPENDED" | "TERMINATED";
+
 export interface CorporateTenantListItem {
   id: string;
   code: string;
@@ -31,7 +33,7 @@ export interface CorporateTenantListItem {
   primaryContactPhone?: string | null;
   billingAddress?: string | null;
   billingSameAsRegistered: boolean;
-  status: "ACTIVE" | "SUSPENDED" | "INACTIVE" | string;
+  status: CorporateTenantStatus | string;
   createdAt: string;
   updatedAt?: string;
   _count?: {
@@ -142,9 +144,9 @@ export interface CorporateDepartmentItem {
 export interface CorporateDepartmentInput {
   code: string;
   name: string;
-  departmentHead?: string;
-  officeId?: string;
-  description?: string;
+  departmentHead?: string | null;
+  officeId?: string | null;
+  description?: string | null;
   isActive?: boolean;
 }
 
@@ -166,7 +168,7 @@ export interface CorporateTransportZoneInput {
   officeId: string;
   code: string;
   name: string;
-  description?: string;
+  description?: string | null;
   serviceArea: string;
   pickupLocations: string[];
   dropLocations: string[];

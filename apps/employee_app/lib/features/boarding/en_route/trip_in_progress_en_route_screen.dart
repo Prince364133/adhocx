@@ -7,20 +7,30 @@ import 'package:adhocx_employee/shared/illustrations/tracking_illustrations.dart
 import 'package:adhocx_employee/theme/app_spacing.dart';
 import 'package:adhocx_employee/theme/app_typography.dart';
 import 'package:adhocx_employee/theme/employee_palette.dart';
-import '../widgets/boarding_widgets.dart';
 
-/// Screen 8: Trip In Progress (En Route Office)
+/// Trip In Progress (En Route) backed by live tracking + nextTrip APIs.
 class TripInProgressEnRouteScreen extends StatelessWidget {
   const TripInProgressEnRouteScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return TripDataBuilder(
-      load: () => loadBoardingSection('trip_in_progress'),
-      builder: (context, data) {
+      load: () => loadLiveTripSnapshot(context),
+      builder: (context, snapshot) {
         final p = EmployeePalette.of(context);
-        final eta = data['eta'] ?? '24 min';
-        final distance = data['distance'] ?? '12.4 km';
+        final next = (snapshot['nextTrip'] as Map<String, dynamic>?) ?? const {};
+        final tracking =
+            (snapshot['tracking'] as Map<String, dynamic>?) ?? const {};
+        final officeDest = next['officeDestination'] as Map?;
+        final destination = officeDest?['name']?.toString() ??
+            officeDest?['addressText']?.toString() ??
+            'Destination';
+        final etaMins = tracking['estimatedArrivalMinutes'];
+        final distMeters = tracking['distanceToPickupMeters'];
+        final eta = etaMins != null ? '$etaMins min' : 'Updating';
+        final distance = distMeters is num
+            ? '${(distMeters / 1000).toStringAsFixed(1)} km'
+            : 'Live';
 
         return Scaffold(
           backgroundColor: p.background,
@@ -36,13 +46,13 @@ class TripInProgressEnRouteScreen extends StatelessWidget {
                     ),
                     child: Column(
                       children: [
-                        EmployeeStatusBadge(
-                          label: data['title'] ?? 'Trip In Progress',
+                        const EmployeeStatusBadge(
+                          label: 'Trip In Progress',
                           variant: BadgeVariant.inProgress,
                         ),
                         const SizedBox(height: AppSpacing.lg),
                         Text(
-                          data['subtitle'] ?? "You're on your way to the office.",
+                          "You're on your way to $destination.",
                           textAlign: TextAlign.center,
                           style: AppTypography.h4(
                             color: p.textPrimary,
@@ -58,13 +68,13 @@ class TripInProgressEnRouteScreen extends StatelessWidget {
                             children: [
                               TripDestinationTile(
                                 label: 'Destination',
-                                value: data['destination'] ?? 'HITEC City Office',
+                                value: destination,
                                 icon: Icons.business_rounded,
                               ),
                               Divider(color: p.border, height: AppSpacing.xxl),
                               TripMetricRow(
                                 icon: Icons.access_time_rounded,
-                                label: 'ETA to Office',
+                                label: 'ETA',
                                 value: '$eta • $distance',
                               ),
                             ],

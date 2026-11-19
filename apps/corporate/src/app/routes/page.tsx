@@ -25,6 +25,23 @@ import { useSession } from '../../lib/auth/SessionContext';
 import { Button } from '../../components/common/Button';
 import { StatusBadge } from '../../components/common/StatusBadge';
 
+function formatShiftDate(value?: string | null): string {
+  if (!value) return '—';
+  const isoDay = value.slice(0, 10);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(isoDay)) {
+    const parsed = new Date(`${isoDay}T00:00:00`);
+    if (!Number.isNaN(parsed.getTime())) {
+      return new Intl.DateTimeFormat('en-IN', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      }).format(parsed);
+    }
+    return isoDay;
+  }
+  return value;
+}
+
 function formatIstTime(iso?: string | null): string {
   if (!iso) return '—';
   const d = new Date(iso);
@@ -500,7 +517,7 @@ export default function CorporateRoutesPage() {
                     <span>{route.office?.name || '—'}</span>
                   </div>
                   <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>
-                    {route.direction} • {route.shiftDate} ({route.shiftTime} IST)
+                    {route.direction} • {formatShiftDate(route.shiftDate)} ({route.shiftTime} IST)
                   </div>
                 </div>
 

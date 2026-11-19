@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   Download,
@@ -31,8 +31,9 @@ function formatPaiseToRupees(paise: string | number): string {
 
 function InvoiceDetailsContent() {
   const { tenantId: activeTenantId } = useSession();
+  const params = useParams();
   const searchParams = useSearchParams();
-  const queryId = searchParams.get('id');
+  const queryId = (Array.isArray(params?.id) ? params.id[0] : params?.id) || searchParams.get('id');
 
   const [loading, setLoading] = useState(true);
   const [invoice, setInvoice] = useState<InvoiceDetail | null>(null);

@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ConflictException,
   Logger,
   Optional,
   ServiceUnavailableException,
@@ -10,6 +11,7 @@ import {
 import {
   AdminDriverQueryDto,
   AdminVendorQueryDto,
+  CreateVendorDto,
   VerifyDriverKycDto,
   RejectDriverKycDto,
   SuspendDriverDto,
@@ -17,6 +19,7 @@ import {
   VerifyVendorDto,
   RejectVendorDto,
   VerificationStatus,
+  UserRole,
   validateVerificationTransition,
 } from '@adhocx/contracts';
 import { UserStatus as PrismaUserStatus } from '@prisma/client';
@@ -331,6 +334,25 @@ export class AdminService {
         .catch((err) => this.logger.warn(`Driver KYC approval notification notice: ${err.message}`));
     }
 
+    // Unlock driver referral if this driver was referred by another driver partner
+    try {
+      const referral = await this.db.driverReferral.findUnique({
+        where: { refereeDriverId: id },
+      });
+      if (referral && (referral.status as string) === 'PENDING_VERIFICATION') {
+        await this.db.driverReferral.update({
+          where: { id: referral.id },
+          data: {
+            status: 'UNLOCKED_READY_TO_CLAIM' as any,
+            refereeVerifiedAt: new Date(),
+          },
+        });
+        this.logger.log(`Unlocked referral ${referral.id} for referee driver ${id}`);
+      }
+    } catch (refErr: any) {
+      this.logger.warn(`Failed to update referral status on driver verification: ${refErr?.message || refErr}`);
+    }
+
     this.logger.log(`Driver ${id} verified by admin ${adminId}`);
     return updated;
   }
@@ -635,6 +657,92 @@ export class AdminService {
       hasNextPage: page * limit < total,
       hasPrevPage: page > 1,
     };
+  }
+
+  /**
+   * Manually onboard and create a new Vendor account from the Admin portal.
+   */
+  async createVendor(adminId: string, dto: CreateVendorDto) {
+    const rawPhone = dto.phone ? dto.phone.trim() : '';
+    const digits = rawPhone.replace(/\D/g, '');
+    let clean10 = '';
+    if (digits.length === 10 && /^[6-9]\d{9}$/.test(digits)) {
+      clean10 = digits;
+    } else if (digits.length === 12 && digits.startsWith('91') && /^91[6-9]\d{9}$/.test(digits)) {
+      clean10 = digits.substring(2);
+    } else if (digits.length === 11 && digits.startsWith('0') && /^0[6-9]\d{9}$/.test(digits)) {
+      clean10 = digits.substring(1);
+    }
+
+    if (!clean10) {
+      throw new BadRequestException('A valid 10-digit Indian phone number is required.');
+    }
+    const phoneE164 = `+91${clean10}`;
+    await assertPhoneAvailable(this.db, phoneE164);
+
+    let effectiveEmail: string | undefined = undefined;
+    if (dto.email && dto.email.trim()) {
+      const emailLower = dto.email.trim().toLowerCase();
+      const existingEmail = await this.db.user.findFirst({
+        where: { email: { equals: emailLower, mode: 'insensitive' } },
+      });
+      if (existingEmail) {
+        throw new ConflictException(`Email ${emailLower} is already registered under role ${existingEmail.role}.`);
+      }
+      effectiveEmail = emailLower;
+    }
+
+    const verificationStatus = dto.verificationStatus || VerificationStatus.VERIFIED;
+    const now = new Date();
+
+    const result = await this.db.$transaction(
+      async (tx) => {
+        // 1. Create User with role VENDOR
+        const user = await tx.user.create({
+          data: {
+            phone: phoneE164,
+            email: effectiveEmail,
+            fullName: dto.fullName.trim(),
+            role: UserRole.VENDOR as any,
+            status: 'ACTIVE',
+          },
+        });
+
+        // 2. Create Vendor Profile
+        const vendor = await tx.vendor.create({
+          data: {
+            userId: user.id,
+            organizationName: dto.organizationName.trim(),
+            fullName: dto.fullName.trim(),
+            phone: phoneE164,
+            gstNumber: dto.gstNumber?.trim() || undefined,
+            address: dto.address?.trim() || (dto.city ? dto.city.trim() : undefined),
+            verificationStatus: verificationStatus as any,
+            approvedAt: verificationStatus === VerificationStatus.VERIFIED ? now : undefined,
+          },
+          include: { user: true },
+        });
+
+        return vendor;
+      },
+      { timeout: 30000, maxWait: 10000 },
+    );
+
+    await this.audit.log({
+      userId: adminId,
+      action: 'ADMIN_VENDOR_CREATED',
+      entityType: 'VENDOR',
+      entityId: result.id,
+      metadata: {
+        organizationName: dto.organizationName,
+        phone: phoneE164,
+        email: effectiveEmail,
+        verificationStatus,
+      },
+    });
+
+    this.logger.log(`Admin ${adminId} manually onboarded vendor ${result.organizationName} (${result.id})`);
+    return result;
   }
 
   /**

@@ -32,19 +32,20 @@ export interface RouteStop {
   corporateName: string;
   pickupLocation: string;
   deliveryLocation: string;
-  latitude: number;
-  longitude: number;
-  distanceKm: number;
-  estimatedTravelTimeMins: number;
-  actualTravelTimeMins?: number | null;
-  scheduledTime: string;
-  arrivalTime: string;
-  departureTime: string;
+  latitude: number | null;
+  longitude: number | null;
+  distanceKm: number | null;
+  actualTravelTimeMins: number | null;
+  scheduledTime: string | null;
+  arrivalTime: string | null;
+  departureTime: string | null;
   orderStatus: "COMPLETED" | "IN_PROGRESS" | "PENDING" | "CANCELLED";
   orderAmount: number;
   driverEarnings: number;
   date: string;
   day: string;
+  year: number;
+  monthIndex: number;
   passengerCount?: number;
 }
 
@@ -66,35 +67,40 @@ const STATUS_OPTIONS = [
   "CANCELLED",
 ] as const;
 
-// Default corridor coordinates for Cyberabad / Hyderabad tech parks
-const CORRIDOR_BOUNDS = {
-  minLat: 17.408,
-  maxLat: 17.465,
-  minLng: 78.338,
-  maxLng: 78.398,
-};
-
 const formatCurrency = (amt: number) =>
   "₹" + Math.round(amt).toLocaleString("en-IN");
 
-function haversineDistanceKm(
-  lat1: number,
-  lon1: number,
-  lat2: number,
-  lon2: number,
-) {
-  if (!lat1 || !lon1 || !lat2 || !lon2) return 0;
-  const R = 6371;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLon = ((lon2 - lon1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return Math.round(R * c * 10) / 10;
+function formatTimeOrNull(iso?: string | null): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleTimeString("en-IN", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function toFiniteNumber(value: unknown): number | null {
+  if (value === null || value === undefined || value === "") return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function normalizeStopStatus(
+  status?: string | null,
+): RouteStop["orderStatus"] {
+  const upper = String(status || "").toUpperCase();
+  if (upper === "COMPLETED" || upper === "FULFILLED") return "COMPLETED";
+  if (
+    upper === "IN_PROGRESS" ||
+    upper === "STARTED" ||
+    upper === "ARRIVED" ||
+    upper === "EN_ROUTE"
+  ) {
+    return "IN_PROGRESS";
+  }
+  if (upper === "CANCELLED" || upper === "NO_SHOW") return "CANCELLED";
+  return "PENDING";
 }
 
 function RouteEarningsContent() {
@@ -115,7 +121,8 @@ function RouteEarningsContent() {
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [corporateFilter, setCorporateFilter] = useState<string>("ALL");
   const [dayFilter, setDayFilter] = useState<string>("ALL");
-  const [yearFilter, setYearFilter] = useState<number>(2026);
+  const currentYear = new Date().getFullYear();
+  const [yearFilter, setYearFilter] = useState<number>(currentYear);
   const [historyTab, setHistoryTab] = useState<"DAILY" | "MONTHLY" | "YEARLY">(
     "DAILY",
   );
@@ -190,245 +197,117 @@ function RouteEarningsContent() {
     return drivers.find((d) => d.id === selectedDriverId) || null;
   }, [driverDetail, drivers, selectedDriverId]);
 
-  // Extract real route stops from DB records (commercial trips & corporate routes)
-  // Never fabricates mock corporate stops when data does not exist
+  // Extract real route stops strictly from API trip records
   const rawStops: RouteStop[] = useMemo(() => {
     if (!currentDriver) return [];
 
     const actualTrips: any[] = Array.isArray((currentDriver as any).trips)
       ? (currentDriver as any).trips
       : [];
-    const corporateRoutes: any[] = Array.isArray(
-      (currentDriver as any).corporateRoutes,
-    )
-      ? (currentDriver as any).corporateRoutes
-      : [];
 
-    const stops: RouteStop[] = [];
+    if (actualTrips.length === 0) return [];
 
-    // 1. Process real corporate routes if assigned
-    corporateRoutes.forEach((route: any) => {
-      const tenant = route.tenant || {};
-      const office = route.office || {};
-      const corpName = tenant.companyName || "Corporate Fleet";
-      const shiftDate = new Date(
-        route.shiftDate || route.createdAt || Date.now(),
-      );
-      const dateStr = shiftDate.toLocaleDateString("en-IN", {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-      });
-      const dayStr = shiftDate
-        .toLocaleDateString("en-IN", { weekday: "long" })
-        .toUpperCase();
-
-      const routeStops: any[] = Array.isArray(route.stops) ? route.stops : [];
-      routeStops.forEach((s: any) => {
-        const pLat = Number(s.latitude || 0);
-        const pLng = Number(s.longitude || 0);
-        const isDelivery = s.stopType === "DROP" || s.stopType === "DELIVERY";
-        const distKm = Math.round((route.estDistanceMeters || 0) / 1000);
-        const estMins =
-          Math.round((route.estDurationSeconds || 0) / 60) || 20;
-
-        const actualMins =
-          s.actualArrivalTime && s.actualDepartureTime
-            ? Math.max(
-                1,
-                Math.round(
-                  (new Date(s.actualDepartureTime).getTime() -
-                    new Date(s.actualArrivalTime).getTime()) /
-                    60000,
-                ),
-              )
-            : null;
-
-        const schedTime = s.plannedEta
-          ? new Date(s.plannedEta).toLocaleTimeString("en-IN", {
-              hour: "2-digit",
-              minute: "2-digit",
-            })
-          : "—";
-
-        const arrTime = s.actualArrivalTime
-          ? new Date(s.actualArrivalTime).toLocaleTimeString("en-IN", {
-              hour: "2-digit",
-              minute: "2-digit",
-            })
-          : "—";
-
-        const depTime = s.actualDepartureTime
-          ? new Date(s.actualDepartureTime).toLocaleTimeString("en-IN", {
-              hour: "2-digit",
-              minute: "2-digit",
-            })
-          : "—";
-
-        stops.push({
-          id: s.id || `corp_${s.stopSequence}`,
-          stopNumber: stops.length + 1,
-          type: isDelivery ? "DELIVERY" : "PICKUP",
-          corporateName: corpName,
-          pickupLocation:
-            s.addressText ||
-            (s.employeeName
-              ? `Pickup: ${s.employeeName}`
-              : "Corporate Pickup Point"),
-          deliveryLocation:
-            office.address || office.name || "Corporate Office Hub",
-          latitude: pLat,
-          longitude: pLng,
-          distanceKm: distKm,
-          estimatedTravelTimeMins: estMins,
-          actualTravelTimeMins: actualMins,
-          scheduledTime: schedTime,
-          arrivalTime: arrTime,
-          departureTime: depTime,
-          orderStatus:
-            (s.status as any) || (route.status as any) || "PENDING",
-          orderAmount: 0,
-          driverEarnings: 0,
-          date: dateStr,
-          day: dayStr,
-          passengerCount: 1,
-        });
-      });
-    });
-
-    // 2. Process real commercial trips
-    actualTrips.forEach((trip: any) => {
+    return actualTrips.map((trip: any, idx: number) => {
       const req = trip.requirement || {};
       const vendor = trip.vendor || req.vendor || {};
       const corpName =
         vendor.organizationName ||
         vendor.companyName ||
         vendor.contactPerson ||
-        "Client Commercial Dispatch";
+        "—";
 
-      const tripDate = new Date(
-        trip.reportingTime || trip.createdAt || Date.now(),
-      );
-      const dateStr = tripDate.toLocaleDateString("en-IN", {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-      });
-      const dayStr = tripDate
-        .toLocaleDateString("en-IN", { weekday: "long" })
-        .toUpperCase();
+      const rawDate =
+        trip.completedAt ||
+        trip.startedAt ||
+        trip.reportingTime ||
+        trip.createdAt;
+      const parsedDate = rawDate ? new Date(rawDate) : null;
+      const validDate =
+        parsedDate && !Number.isNaN(parsedDate.getTime()) ? parsedDate : null;
 
-      const pLat = Number(req.pickupLat || trip.pickupLat || 0);
-      const pLng = Number(req.pickupLng || trip.pickupLng || 0);
-      const dLat = Number(req.dropLat || trip.dropLat || 0);
-      const dLng = Number(req.dropLng || trip.dropLng || 0);
-
-      const dbDist = Number(req.distanceKm || trip.distanceKm || 0);
-      const calcDist =
-        pLat && dLat ? haversineDistanceKm(pLat, pLng, dLat, dLng) : 0;
-      const distanceKm = dbDist > 0 ? dbDist : calcDist;
-
-      const earnings = Number(
-        trip.totalDriverEarnings || trip.driverRate || 0,
-      );
-      const orderAmt = Number(req.totalAmount || earnings);
-
-      const actualTravelMins =
-        trip.completedAt && trip.startedAt
-          ? Math.max(
-              1,
-              Math.round(
-                (new Date(trip.completedAt).getTime() -
-                  new Date(trip.startedAt).getTime()) /
-                  60000,
-              ),
-            )
-          : null;
-
-      const schedTime = trip.reportingTime
-        ? new Date(trip.reportingTime).toLocaleTimeString("en-IN", {
-            hour: "2-digit",
-            minute: "2-digit",
+      const dateStr = validDate
+        ? validDate.toLocaleDateString("en-IN", {
+            day: "numeric",
+            month: "short",
+            year: "numeric",
           })
         : "—";
+      const dayStr = validDate
+        ? validDate
+            .toLocaleDateString("en-IN", { weekday: "long" })
+            .toUpperCase()
+        : "";
 
-      const arrTime = trip.startedAt
-        ? new Date(trip.startedAt).toLocaleTimeString("en-IN", {
-            hour: "2-digit",
-            minute: "2-digit",
-          })
-        : "—";
+      const lat =
+        toFiniteNumber(req.pickupLat) ?? toFiniteNumber(trip.pickupLat);
+      const lng =
+        toFiniteNumber(req.pickupLng) ?? toFiniteNumber(trip.pickupLng);
 
-      const depTime = trip.completedAt
-        ? new Date(trip.completedAt).toLocaleTimeString("en-IN", {
-            hour: "2-digit",
-            minute: "2-digit",
-          })
-        : "—";
+      const directDistanceKm =
+        toFiniteNumber(trip.actualDistanceKm) ??
+        toFiniteNumber(trip.distanceKm) ??
+        toFiniteNumber(req.estimatedDistanceKm);
+      const distanceMeters =
+        toFiniteNumber(trip.distanceMeters) ??
+        toFiniteNumber(req.distanceMeters) ??
+        toFiniteNumber(req.pricing?.distanceM);
+      const distanceKm =
+        directDistanceKm !== null
+          ? Math.round(directDistanceKm * 10) / 10
+          : distanceMeters !== null
+            ? Math.round((distanceMeters / 1000) * 10) / 10
+            : null;
 
-      // Pickup Stop
-      stops.push({
-        id: `${trip.id}_pickup`,
-        stopNumber: stops.length + 1,
-        type: "PICKUP",
+      let actualTravelTimeMins: number | null = null;
+      if (trip.startedAt && trip.completedAt) {
+        const startMs = new Date(trip.startedAt).getTime();
+        const endMs = new Date(trip.completedAt).getTime();
+        if (
+          Number.isFinite(startMs) &&
+          Number.isFinite(endMs) &&
+          endMs >= startMs
+        ) {
+          actualTravelTimeMins = Math.round((endMs - startMs) / 60000);
+        }
+      }
+
+      const earnings = Number(trip.totalDriverEarnings ?? trip.driverRate ?? 0);
+      const orderAmt = Number(req.totalAmount ?? 0);
+
+      return {
+        id: String(trip.id || `trip_${idx}`),
+        stopNumber: idx + 1,
+        type: "PICKUP" as const,
         corporateName: corpName,
-        pickupLocation:
-          trip.pickupAddress || req.pickupAddress || "Pickup Point",
-        deliveryLocation:
-          trip.dropAddress || req.dropAddress || "Destination",
-        latitude: pLat,
-        longitude: pLng,
+        pickupLocation: trip.pickupAddress || req.pickupAddress || "—",
+        deliveryLocation: trip.dropAddress || req.dropAddress || "—",
+        latitude: lat,
+        longitude: lng,
         distanceKm,
-        estimatedTravelTimeMins:
-          distanceKm > 0 ? Math.round(distanceKm * 2.2) : 20,
-        actualTravelTimeMins: actualTravelMins,
-        scheduledTime: schedTime,
-        arrivalTime: arrTime,
-        departureTime: depTime,
-        orderStatus: (trip.status as any) || "COMPLETED",
-        orderAmount: orderAmt,
-        driverEarnings: earnings,
+        actualTravelTimeMins,
+        scheduledTime: formatTimeOrNull(trip.reportingTime || req.reportingTime),
+        arrivalTime: formatTimeOrNull(trip.startedAt),
+        departureTime: formatTimeOrNull(trip.completedAt),
+        orderStatus: normalizeStopStatus(trip.status),
+        orderAmount: Number.isFinite(orderAmt) ? orderAmt : 0,
+        driverEarnings: Number.isFinite(earnings) ? earnings : 0,
         date: dateStr,
         day: dayStr,
-        passengerCount: req.quantity || 1,
-      });
-
-      // Delivery Stop if destination exists
-      if (trip.dropAddress || req.dropAddress || dLat !== 0) {
-        stops.push({
-          id: `${trip.id}_delivery`,
-          stopNumber: stops.length + 1,
-          type: "DELIVERY",
-          corporateName: corpName,
-          pickupLocation:
-            trip.pickupAddress || req.pickupAddress || "Pickup Point",
-          deliveryLocation:
-            trip.dropAddress || req.dropAddress || "Destination",
-          latitude: dLat,
-          longitude: dLng,
-          distanceKm: 0,
-          estimatedTravelTimeMins: 0,
-          actualTravelTimeMins: null,
-          scheduledTime: depTime !== "—" ? depTime : schedTime,
-          arrivalTime: depTime,
-          departureTime: depTime,
-          orderStatus: (trip.status as any) || "COMPLETED",
-          orderAmount: 0,
-          driverEarnings: 0,
-          date: dateStr,
-          day: dayStr,
-          passengerCount: req.quantity || 1,
-        });
-      }
+        year: validDate ? validDate.getFullYear() : 0,
+        monthIndex: validDate ? validDate.getMonth() : -1,
+        passengerCount: req.quantity ?? undefined,
+      };
     });
-
-    return stops;
   }, [currentDriver]);
 
   // Unique corporate names for filter dropdown
   const uniqueCorporates = useMemo(() => {
     const set = new Set<string>();
-    rawStops.forEach((s) => set.add(s.corporateName));
+    rawStops.forEach((s) => {
+      if (s.corporateName && s.corporateName !== "—") {
+        set.add(s.corporateName);
+      }
+    });
     return Array.from(set);
   }, [rawStops]);
 
@@ -452,41 +331,37 @@ function RouteEarningsContent() {
     });
   }, [rawStops, statusFilter, corporateFilter, dayFilter, searchQuery]);
 
-  // Summary Metrics strictly from real data
+  // Summary Metrics (strictly from real stops)
   const summaryMetrics = useMemo(() => {
     const totalOrders = filteredStops.length;
     const completedTrips = filteredStops.filter(
       (s) => s.orderStatus === "COMPLETED",
     ).length;
     const totalDistance = filteredStops.reduce(
-      (sum, s) => sum + s.distanceKm,
+      (sum, s) => sum + (s.distanceKm ?? 0),
       0,
     );
     const totalEarnings = filteredStops.reduce(
       (sum, s) => sum + s.driverEarnings,
       0,
     );
-    const totalEstMins = filteredStops.reduce(
-      (sum, s) => sum + (s.actualTravelTimeMins || s.estimatedTravelTimeMins),
+    const totalActualMins = filteredStops.reduce(
+      (sum, s) => sum + (s.actualTravelTimeMins ?? 0),
       0,
     );
-    const activeHours = (totalEstMins / 60).toFixed(1);
+    const activeHours = (totalActualMins / 60).toFixed(1);
 
     return {
       totalOrders,
       completedTrips,
-      totalDistance: Math.round(totalDistance),
+      totalDistance: Math.round(totalDistance * 10) / 10,
       totalEarnings,
       activeHours,
     };
   }, [filteredStops]);
 
-  // Monthly Analytics for Performance Graph - computed purely from real trips
+  // Real monthly analytics aggregated from fetched trips for yearFilter
   const monthlyPerformance = useMemo(() => {
-    const actualTrips: any[] = Array.isArray((currentDriver as any)?.trips)
-      ? (currentDriver as any).trips
-      : [];
-
     const months = [
       "Jan",
       "Feb",
@@ -501,136 +376,110 @@ function RouteEarningsContent() {
       "Nov",
       "Dec",
     ];
-
     return months.map((monthName, idx) => {
-      const tripsThisMonth = actualTrips.filter((t) => {
-        const d = new Date(t.completedAt || t.startedAt || t.createdAt);
-        return d.getFullYear() === yearFilter && d.getMonth() === idx;
-      });
-
-      const completed = tripsThisMonth.filter(
-        (t) => t.status === "COMPLETED",
-      ).length;
-
-      const earnings = tripsThisMonth
-        .filter((t) => t.status === "COMPLETED")
-        .reduce(
-          (sum, t) => sum + Number(t.totalDriverEarnings || t.driverRate || 0),
-          0,
-        );
-
-      const distance = tripsThisMonth.reduce(
-        (sum, t) =>
-          sum + Number(t.requirement?.distanceKm || t.distanceKm || 0),
-        0,
+      const monthStops = rawStops.filter(
+        (s) => s.year === yearFilter && s.monthIndex === idx,
       );
-
+      const earnings = monthStops.reduce((sum, s) => sum + s.driverEarnings, 0);
+      const distance =
+        Math.round(
+          monthStops.reduce((sum, s) => sum + (s.distanceKm ?? 0), 0) * 10,
+        ) / 10;
+      const completed = monthStops.filter(
+        (s) => s.orderStatus === "COMPLETED",
+      ).length;
       return {
         month: `${monthName} ${yearFilter}`,
         monthShort: monthName,
-        totalOrders: tripsThisMonth.length,
-        completedOrders: completed,
+        orders: monthStops.length,
+        completed,
         earnings,
-        distance: Math.round(distance),
+        distance,
       };
     });
-  }, [currentDriver, yearFilter]);
+  }, [rawStops, yearFilter]);
 
-  // Yearly performance aggregates
+  const availableYears = useMemo(() => {
+    const years = new Set<number>([currentYear, currentYear - 1]);
+    rawStops.forEach((s) => {
+      if (s.year > 0) years.add(s.year);
+    });
+    return Array.from(years).sort((a, b) => b - a);
+  }, [rawStops, currentYear]);
+
   const yearlyPerformance = useMemo(() => {
-    const actualTrips: any[] = Array.isArray((currentDriver as any)?.trips)
-      ? (currentDriver as any).trips
-      : [];
-
-    return [2026, 2025, 2024].map((yr) => {
-      const tripsThisYear = actualTrips.filter((t) => {
-        const d = new Date(t.createdAt);
-        return d.getFullYear() === yr;
-      });
-
-      const completed = tripsThisYear.filter(
-        (t) => t.status === "COMPLETED",
+    return availableYears.map((yr) => {
+      const yrStops = rawStops.filter((s) => s.year === yr);
+      const earnings = yrStops.reduce((sum, s) => sum + s.driverEarnings, 0);
+      const distance =
+        Math.round(
+          yrStops.reduce((sum, s) => sum + (s.distanceKm ?? 0), 0) * 10,
+        ) / 10;
+      const completed = yrStops.filter(
+        (s) => s.orderStatus === "COMPLETED",
       ).length;
-
-      const earnings = tripsThisYear
-        .filter((t) => t.status === "COMPLETED")
-        .reduce(
-          (sum, t) => sum + Number(t.totalDriverEarnings || t.driverRate || 0),
-          0,
-        );
-
-      const distance = tripsThisYear.reduce(
-        (sum, t) =>
-          sum + Number(t.requirement?.distanceKm || t.distanceKm || 0),
-        0,
-      );
-
       return {
         year: yr,
-        totalOrders: tripsThisYear.length,
-        completedOrders: completed,
+        orders: yrStops.length,
+        completed,
         earnings,
-        distance: Math.round(distance),
+        distance,
       };
     });
+  }, [rawStops, availableYears]);
+
+  // Stops that have valid GPS coordinates
+  const mappableStops = useMemo(
+    () =>
+      filteredStops.filter(
+        (s): s is RouteStop & { latitude: number; longitude: number } =>
+          s.latitude !== null && s.longitude !== null,
+      ),
+    [filteredStops],
+  );
+
+  const liveGpsPoint = useMemo(() => {
+    const lat = toFiniteNumber(currentDriver?.currentLat);
+    const lng = toFiniteNumber(currentDriver?.currentLng);
+    if (lat === null || lng === null) return null;
+    return { lat, lng };
   }, [currentDriver]);
 
-  // Valid geographic stops with non-zero coordinates
-  const validGeoStops = useMemo(() => {
-    return filteredStops.filter(
-      (s) =>
-        s.latitude != null &&
-        s.longitude != null &&
-        Math.abs(s.latitude) > 0.1 &&
-        Math.abs(s.longitude) > 0.1,
-    );
-  }, [filteredStops]);
-
-  // Dynamic bounding box for SVG viewport
+  // Project latitude/longitude dynamically from real coordinates
   const mapWidth = 620;
   const mapHeight = 420;
-  const mapPadding = 50;
+  const mapPadding = 45;
 
   const mapBounds = useMemo(() => {
-    const lats: number[] = validGeoStops.map((s) => s.latitude);
-    const lngs: number[] = validGeoStops.map((s) => s.longitude);
+    const pts: Array<{ lat: number; lng: number }> = mappableStops.map((s) => ({
+      lat: s.latitude,
+      lng: s.longitude,
+    }));
+    if (liveGpsPoint) pts.push(liveGpsPoint);
+    if (pts.length === 0) return null;
 
-    if (
-      currentDriver?.currentLat != null &&
-      currentDriver?.currentLng != null &&
-      Math.abs(Number(currentDriver.currentLat)) > 0.1 &&
-      Math.abs(Number(currentDriver.currentLng)) > 0.1
-    ) {
-      lats.push(Number(currentDriver.currentLat));
-      lngs.push(Number(currentDriver.currentLng));
-    }
+    let minLat = Math.min(...pts.map((p) => p.lat));
+    let maxLat = Math.max(...pts.map((p) => p.lat));
+    let minLng = Math.min(...pts.map((p) => p.lng));
+    let maxLng = Math.max(...pts.map((p) => p.lng));
 
-    if (lats.length === 0) {
-      return CORRIDOR_BOUNDS;
-    }
+    const latSpan = maxLat - minLat;
+    const lngSpan = maxLng - minLng;
+    const latPad = latSpan > 0 ? latSpan * 0.15 : 0.01;
+    const lngPad = lngSpan > 0 ? lngSpan * 0.15 : 0.01;
 
-    const minLat = Math.min(...lats);
-    const maxLat = Math.max(...lats);
-    const minLng = Math.min(...lngs);
-    const maxLng = Math.max(...lngs);
+    minLat -= latPad;
+    maxLat += latPad;
+    minLng -= lngPad;
+    maxLng += lngPad;
 
-    const latSpan = Math.max(0.012, (maxLat - minLat) * 1.3);
-    const lngSpan = Math.max(0.012, (maxLng - minLng) * 1.3);
-    const centerLat = (minLat + maxLat) / 2;
-    const centerLng = (minLng + maxLng) / 2;
-
-    return {
-      minLat: centerLat - latSpan / 2,
-      maxLat: centerLat + latSpan / 2,
-      minLng: centerLng - lngSpan / 2,
-      maxLng: centerLng + lngSpan / 2,
-    };
-  }, [validGeoStops, currentDriver]);
+    return { minLat, maxLat, minLng, maxLng };
+  }, [mappableStops, liveGpsPoint]);
 
   const projectCoords = (lat: number, lng: number) => {
-    const latSpan = mapBounds.maxLat - mapBounds.minLat || 0.001;
-    const lngSpan = mapBounds.maxLng - mapBounds.minLng || 0.001;
-
+    if (!mapBounds) {
+      return { x: mapWidth / 2, y: mapHeight / 2 };
+    }
     const clampedLat = Math.max(
       mapBounds.minLat,
       Math.min(mapBounds.maxLat, lat),
@@ -642,61 +491,25 @@ function RouteEarningsContent() {
 
     const x =
       mapPadding +
-      ((clampedLng - mapBounds.minLng) / lngSpan) *
+      ((clampedLng - mapBounds.minLng) /
+        (mapBounds.maxLng - mapBounds.minLng || 1)) *
         (mapWidth - mapPadding * 2);
 
     const y =
       mapHeight -
       mapPadding -
-      ((clampedLat - mapBounds.minLat) / latSpan) *
+      ((clampedLat - mapBounds.minLat) /
+        (mapBounds.maxLat - mapBounds.minLat || 1)) *
         (mapHeight - mapPadding * 2);
 
     return { x, y };
   };
 
-  // Driver Live Marker Coordinates - only computed when actual GPS coordinates exist
+  // Driver Live Marker Coordinates (real GPS only)
   const driverLiveCoords = useMemo(() => {
-    if (
-      currentDriver?.currentLat != null &&
-      currentDriver?.currentLng != null &&
-      Math.abs(Number(currentDriver.currentLat)) > 0.1 &&
-      Math.abs(Number(currentDriver.currentLng)) > 0.1
-    ) {
-      return projectCoords(
-        Number(currentDriver.currentLat),
-        Number(currentDriver.currentLng),
-      );
-    }
-    return null;
-  }, [currentDriver, mapBounds]);
-
-  // Telemetry status
-  const hasGps = Boolean(
-    currentDriver?.currentLat != null &&
-      currentDriver?.currentLng != null &&
-      Math.abs(Number(currentDriver.currentLat)) > 0.1 &&
-      Math.abs(Number(currentDriver.currentLng)) > 0.1,
-  );
-  const isOnline =
-    currentDriver?.availabilityStatus === "ONLINE" ||
-    currentDriver?.availabilityStatus === "AVAILABLE";
-
-  // Chart max bounds calculation
-  const maxEarnVal = Math.max(
-    ...monthlyPerformance.map((m) => m.earnings),
-    0,
-  );
-  const maxDistVal = Math.max(
-    ...monthlyPerformance.map((m) => m.distance),
-    0,
-  );
-  const chartMaxEarnings =
-    maxEarnVal > 0 ? Math.ceil(maxEarnVal / 5000) * 5000 : 12000;
-  const chartMaxDistance =
-    maxDistVal > 0 ? Math.ceil(maxDistVal / 50) * 50 : 200;
-  const hasTrajectoryData = monthlyPerformance.some(
-    (m) => m.earnings > 0 || m.distance > 0,
-  );
+    if (!liveGpsPoint || !mapBounds) return null;
+    return projectCoords(liveGpsPoint.lat, liveGpsPoint.lng);
+  }, [liveGpsPoint, mapBounds]);
 
   // Pan and Zoom Event Handlers
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -781,7 +594,7 @@ function RouteEarningsContent() {
         </div>
       </div>
 
-      {/* Driver Identity Card & Real Telemetry Banner */}
+      {/* Driver Identity Card & Live Telemetry Banner */}
       {currentDriver && (
         <div
           className="bg-surface border rounded-lg shadow-xs flex items-center justify-between flex-wrap gap-relaxed"
@@ -810,65 +623,33 @@ function RouteEarningsContent() {
                 >
                   {currentDriver.fullName}
                 </h2>
-
-                {/* Real GPS Telemetry Status */}
-                {isOnline && hasGps ? (
+                <span
+                  className={`inline-flex items-center rounded-full font-bold gap-tight text-label ${
+                    liveGpsPoint
+                      ? "bg-success-subtle text-success"
+                      : "bg-surface-elevated text-muted"
+                  }`}
+                  style={{
+                    padding: "0.15rem 0.55rem",
+                    border: `1px solid ${
+                      liveGpsPoint
+                        ? "var(--color-success-border)"
+                        : "var(--border-light)"
+                    }`,
+                  }}
+                >
                   <span
-                    className="inline-flex items-center rounded-full font-bold bg-success-subtle text-success gap-tight text-label"
+                    className="rounded-full"
                     style={{
-                      padding: "0.15rem 0.55rem",
-                      border: "1px solid var(--color-success-border)",
+                      width: "7px",
+                      height: "7px",
+                      background: liveGpsPoint
+                        ? "var(--color-success)"
+                        : "var(--text-muted)",
                     }}
-                  >
-                    <span
-                      className="rounded-full"
-                      style={{
-                        width: "7px",
-                        height: "7px",
-                        background: "var(--color-success)",
-                      }}
-                    />
-                    Live Tracking Active
-                  </span>
-                ) : hasGps ? (
-                  <span
-                    className="inline-flex items-center rounded-full font-bold bg-info-subtle text-info gap-tight text-label"
-                    style={{
-                      padding: "0.15rem 0.55rem",
-                      border: "1px solid var(--color-info-border)",
-                    }}
-                  >
-                    <span
-                      className="rounded-full"
-                      style={{
-                        width: "7px",
-                        height: "7px",
-                        background: "var(--color-info)",
-                      }}
-                    />
-                    GPS Location Cached
-                  </span>
-                ) : (
-                  <span
-                    className="inline-flex items-center rounded-full font-bold gap-tight text-label text-muted"
-                    style={{
-                      padding: "0.15rem 0.55rem",
-                      background: "var(--bg-surface-elevated)",
-                      border: "1px solid var(--border)",
-                    }}
-                  >
-                    <span
-                      className="rounded-full"
-                      style={{
-                        width: "7px",
-                        height: "7px",
-                        background: "var(--text-muted)",
-                      }}
-                    />
-                    GPS Offline
-                  </span>
-                )}
-
+                  />
+                  {liveGpsPoint ? "Live GPS Active" : "No Live GPS"}
+                </span>
                 <StatusBadge
                   status={currentDriver.verificationStatus}
                   size="sm"
@@ -896,10 +677,9 @@ function RouteEarningsContent() {
                 <div className="flex items-center gap-1">
                   <Star size={13} fill="#F59E0B" color="#F59E0B" />
                   <span className="font-bold">
-                    {(currentDriver.averageRating ?? 5.0).toFixed(1)}
-                  </span>
-                  <span className="text-muted text-caption">
-                    ({currentDriver.ratingCount ?? 0} reviews)
+                    {currentDriver.averageRating != null
+                      ? currentDriver.averageRating.toFixed(1)
+                      : "—"}
                   </span>
                 </div>
               </div>
@@ -924,7 +704,7 @@ function RouteEarningsContent() {
           {
             label: "Orders",
             value: summaryMetrics.totalOrders,
-            subtext: "Assigned route stops",
+            subtext: "Assigned corporate stops",
             tone: "primary",
             icon: <Package size={15} />,
           },
@@ -1075,7 +855,7 @@ function RouteEarningsContent() {
           marginBottom: "1.75rem",
         }}
       >
-        {/* LEFT: Large Interactive Route Map */}
+        {/* LEFT: Large Interactive Route Map (Matching Image 2) */}
         <div
           className="bg-surface border rounded-xl p-5 shadow-sm flex flex-col relative"
           style={{ minHeight: "520px" }}
@@ -1097,7 +877,7 @@ function RouteEarningsContent() {
               </div>
             </div>
 
-            {/* Map Controls */}
+            {/* Map Controls (+ / - zoom, reset view) */}
             <div className="flex items-center gap-tight">
               <button
                 type="button"
@@ -1214,11 +994,11 @@ function RouteEarningsContent() {
               />
 
               {/* Connecting Active Route Polyline */}
-              {validGeoStops.length > 1 && (
+              {mappableStops.length > 1 && (
                 <>
                   {/* Glowing Underlay */}
                   <path
-                    d={validGeoStops
+                    d={mappableStops
                       .map((s, idx) => {
                         const pt = projectCoords(s.latitude, s.longitude);
                         return `${idx === 0 ? "M" : "L"} ${pt.x} ${pt.y}`;
@@ -1234,7 +1014,7 @@ function RouteEarningsContent() {
 
                   {/* Core Route Line */}
                   <path
-                    d={validGeoStops
+                    d={mappableStops
                       .map((s, idx) => {
                         const pt = projectCoords(s.latitude, s.longitude);
                         return `${idx === 0 ? "M" : "L"} ${pt.x} ${pt.y}`;
@@ -1250,11 +1030,12 @@ function RouteEarningsContent() {
                 </>
               )}
 
-              {/* Driver Live Marker with Pulsating Halo - only when real live coordinates exist */}
+              {/* Driver Live Marker with Pulsating Halo */}
               {driverLiveCoords && (
                 <g
                   transform={`translate(${driverLiveCoords.x}, ${driverLiveCoords.y})`}
                 >
+                  {/* Pulsating live radar ring */}
                   <circle r="22" fill="rgba(var(--brand-primary-rgb), 0.25)">
                     <animate
                       attributeName="r"
@@ -1289,7 +1070,7 @@ function RouteEarningsContent() {
               )}
 
               {/* Corporate Pickup & Delivery Markers */}
-              {validGeoStops.map((stop) => {
+              {mappableStops.map((stop) => {
                 const pt = projectCoords(stop.latitude, stop.longitude);
                 const isSelected = selectedStopId === stop.id;
                 const isHovered = hoveredStopId === stop.id;
@@ -1328,7 +1109,7 @@ function RouteEarningsContent() {
                       style={{ transition: "all 0.15s ease" }}
                     />
 
-                    {/* Marker Label */}
+                    {/* Marker Label (Stop Number or Flag) */}
                     <text
                       y="4"
                       textAnchor="middle"
@@ -1355,38 +1136,19 @@ function RouteEarningsContent() {
               })}
             </svg>
 
-            {/* Empty state overlay when no route coordinates or live GPS exist */}
-            {validGeoStops.length === 0 && !driverLiveCoords && (
+            {mappableStops.length === 0 && !driverLiveCoords && (
               <div
-                className="absolute inset-0 flex flex-col items-center justify-center text-center p-6"
-                style={{
-                  background: "rgba(11, 19, 43, 0.88)",
-                  backdropFilter: "blur(2px)",
-                  zIndex: 10,
-                }}
+                className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 pointer-events-none"
+                style={{ color: "#94A3B8" }}
               >
-                <div
-                  className="rounded-full flex items-center justify-center mb-3"
-                  style={{
-                    width: "52px",
-                    height: "52px",
-                    background: "rgba(255, 255, 255, 0.08)",
-                    border: "1px solid rgba(255, 255, 255, 0.15)",
-                    color: "var(--brand-lavender)",
-                  }}
-                >
-                  <Route size={24} />
+                <Route size={28} style={{ opacity: 0.5, marginBottom: "0.5rem" }} />
+                <div className="font-bold text-base" style={{ color: "#E2E8F0" }}>
+                  No route GPS telemetry recorded
                 </div>
-                <div className="font-extrabold text-white text-md mb-1">
-                  No Route or GPS Coordinates Available
-                </div>
-                <div
-                  className="text-xs text-muted max-w-sm"
-                  style={{ lineHeight: "1.5" }}
-                >
-                  This driver has no active or historical route stops and no
-                  broadcasted GPS coordinates. Real-time path telemetry will
-                  render once trips are dispatched.
+                <div className="text-sm mt-1">
+                  {rawStops.length === 0
+                    ? "This driver has no completed or assigned trips with GPS coordinates yet."
+                    : "None of the matching trips include latitude/longitude coordinates."}
                 </div>
               </div>
             )}
@@ -1440,14 +1202,18 @@ function RouteEarningsContent() {
 
                 <div className="flex items-center gap-5 text-base">
                   <div>
-                    <span style={{ color: "#94A3B8" }}>ETA: </span>
+                    <span style={{ color: "#94A3B8" }}>Scheduled: </span>
                     <strong style={{ color: "#34D399" }}>
-                      {activeFocusedStop.scheduledTime}
+                      {activeFocusedStop.scheduledTime || "—"}
                     </strong>
                   </div>
                   <div>
                     <span style={{ color: "#94A3B8" }}>Distance: </span>
-                    <strong>{activeFocusedStop.distanceKm} km</strong>
+                    <strong>
+                      {activeFocusedStop.distanceKm != null
+                        ? `${activeFocusedStop.distanceKm} km`
+                        : "—"}
+                    </strong>
                   </div>
                   <div>
                     <span style={{ color: "#94A3B8" }}>Payout: </span>
@@ -1472,7 +1238,7 @@ function RouteEarningsContent() {
           </div>
         </div>
 
-        {/* RIGHT: Route Information Table & Detailed Stops */}
+        {/* RIGHT: Route Information Table & Detailed Stops (Matching Image 2) */}
         <div
           className="bg-surface border rounded-xl p-5 shadow-sm flex flex-col"
           style={{ maxHeight: "560px" }}
@@ -1501,7 +1267,7 @@ function RouteEarningsContent() {
             </span>
           </div>
 
-          {/* Scrollable Stops List */}
+          {/* Scrollable Stops List (Matching visual style of Image 2) */}
           <div className="overflow-y-auto flex-1 pr-1">
             {filteredStops.length > 0 ? (
               <div className="flex flex-col gap-3">
@@ -1524,6 +1290,7 @@ function RouteEarningsContent() {
                         transition: "all 0.15s ease",
                       }}
                     >
+                      {/* Stop Title & Time (Image 2 style: "1. Corporate A - Pickup · 10:30 AM") */}
                       <div className="flex items-center justify-between mb-tight">
                         <div className="font-extrabold text-primary text-value">
                           {stop.stopNumber}. {stop.corporateName}
@@ -1551,8 +1318,8 @@ function RouteEarningsContent() {
                       </div>
 
                       <div className="text-base text-secondary font-semibold mb-2">
-                        {isDelivery ? "Delivery" : "Pickup"} •{" "}
-                        {stop.scheduledTime}
+                        {isDelivery ? "Delivery" : "Trip"} •{" "}
+                        {stop.scheduledTime || "—"}
                       </div>
 
                       {/* Locations */}
@@ -1570,7 +1337,7 @@ function RouteEarningsContent() {
                         </div>
                       </div>
 
-                      {/* Metric Badges */}
+                      {/* Detailed Metric Badges */}
                       <div
                         className="grid gap-2 pt-2 border-t border-subtle text-sm"
                         style={{ gridTemplateColumns: "repeat(3, 1fr)" }}
@@ -1578,15 +1345,17 @@ function RouteEarningsContent() {
                         <div>
                           <div className="text-muted">Distance</div>
                           <div className="font-bold text-primary">
-                            {stop.distanceKm} km
+                            {stop.distanceKm != null
+                              ? `${stop.distanceKm} km`
+                              : "—"}
                           </div>
                         </div>
                         <div>
                           <div className="text-muted">Actual Time</div>
                           <div className="font-bold text-primary">
-                            {stop.actualTravelTimeMins
+                            {stop.actualTravelTimeMins != null
                               ? `${stop.actualTravelTimeMins}m`
-                              : `${stop.estimatedTravelTimeMins}m (est)`}
+                              : "—"}
                           </div>
                         </div>
                         <div className="text-right">
@@ -1601,25 +1370,10 @@ function RouteEarningsContent() {
                 })}
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center text-center py-16 px-6 text-muted h-full">
-                <div
-                  className="rounded-full flex items-center justify-center mb-3"
-                  style={{
-                    width: "48px",
-                    height: "48px",
-                    background: "var(--bg-surface-elevated)",
-                    border: "1px solid var(--border)",
-                  }}
-                >
-                  <Package size={22} className="text-secondary" />
-                </div>
-                <div className="font-bold text-primary text-base mb-1">
-                  No Route Stops Assigned
-                </div>
-                <div className="text-xs text-muted max-w-xs">
-                  No corporate stops or trip records found for this driver in
-                  the database.
-                </div>
+              <div className="py-12 px-6 text-center text-muted text-md">
+                {rawStops.length === 0
+                  ? "No trips have been recorded for this driver yet."
+                  : "No stops match the selected filter criteria."}
               </div>
             )}
           </div>
@@ -1667,7 +1421,9 @@ function RouteEarningsContent() {
         </div>
 
         {/* 2-Column Section: Table on Left + Monthly Trajectory Graph on Right */}
-        <div className="driver-earnings-analysis-grid grid gap-6">
+        <div
+          className="driver-earnings-analysis-grid grid gap-6"
+        >
           {/* Performance Table */}
           <div className="overflow-x-auto">
             <table
@@ -1680,11 +1436,7 @@ function RouteEarningsContent() {
                     className="font-bold"
                     style={{ padding: "0.6rem 0.75rem" }}
                   >
-                    {historyTab === "DAILY"
-                      ? "Period / Date"
-                      : historyTab === "MONTHLY"
-                        ? "Month"
-                        : "Year"}
+                    Period / Date
                   </th>
                   <th
                     className="font-bold text-center"
@@ -1713,90 +1465,86 @@ function RouteEarningsContent() {
                 </tr>
               </thead>
               <tbody>
-                {historyTab === "DAILY" && (
-                  <>
-                    {filteredStops.length > 0 ? (
-                      filteredStops.map((stop, idx) => (
-                        <tr
-                          key={idx}
-                          className="border-b border-subtle"
-                          style={{
-                            background:
-                              idx % 2 === 0 ? "transparent" : "var(--bg-base)",
-                          }}
+                {historyTab === "DAILY" &&
+                  (filteredStops.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={5}
+                        className="text-center text-muted"
+                        style={{ padding: "2rem 0.75rem" }}
+                      >
+                        {rawStops.length === 0
+                          ? "No trip records available for this driver."
+                          : "No trips match the active filters."}
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredStops.map((stop, idx) => (
+                      <tr
+                        key={stop.id}
+                        className="border-b border-subtle"
+                        style={{
+                          background:
+                            idx % 2 === 0 ? "transparent" : "var(--bg-base)",
+                        }}
+                      >
+                        <td
+                          className="font-semibold text-primary"
+                          style={{ padding: "0.65rem 0.75rem" }}
                         >
-                          <td
-                            className="font-semibold text-primary"
-                            style={{ padding: "0.65rem 0.75rem" }}
-                          >
-                            {stop.date}{" "}
+                          {stop.date}{" "}
+                          {stop.day && (
                             <span className="text-muted text-caption">
                               ({stop.day})
                             </span>
-                          </td>
-                          <td
-                            className="text-center text-secondary"
-                            style={{ padding: "0.65rem 0.75rem" }}
-                          >
-                            {stop.distanceKm} km
-                          </td>
-                          <td
-                            className="text-center"
-                            style={{ padding: "0.65rem 0.75rem" }}
-                          >
-                            1
-                          </td>
-                          <td
-                            className="text-center"
-                            style={{ padding: "0.65rem 0.75rem" }}
-                          >
-                            <span
-                              className="rounded-full font-bold text-sm"
-                              style={{
-                                padding: "0.15rem 0.45rem",
-                                background:
-                                  stop.orderStatus === "COMPLETED"
-                                    ? "var(--color-success-bg)"
-                                    : "transparent",
-                                color:
-                                  stop.orderStatus === "COMPLETED"
-                                    ? "var(--color-success)"
-                                    : "var(--text-muted)",
-                              }}
-                            >
-                              {stop.orderStatus === "COMPLETED" ? "1" : "0"}
-                            </span>
-                          </td>
-                          <td
-                            className="text-right font-bold text-success"
-                            style={{ padding: "0.65rem 0.75rem" }}
-                          >
-                            {formatCurrency(stop.driverEarnings)}
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
+                          )}
+                        </td>
                         <td
-                          colSpan={5}
-                          className="py-10 text-center text-muted"
+                          className="text-center text-secondary"
+                          style={{ padding: "0.65rem 0.75rem" }}
                         >
-                          <div className="font-bold text-secondary text-sm mb-1">
-                            No Trip Records Found
-                          </div>
-                          <div className="text-caption text-muted">
-                            Zero trip records available for this driver.
-                          </div>
+                          {stop.distanceKm != null ? `${stop.distanceKm} km` : "—"}
+                        </td>
+                        <td
+                          className="text-center"
+                          style={{ padding: "0.65rem 0.75rem" }}
+                        >
+                          1
+                        </td>
+                        <td
+                          className="text-center"
+                          style={{ padding: "0.65rem 0.75rem" }}
+                        >
+                          <span
+                            className="rounded-full font-bold text-sm"
+                            style={{
+                              padding: "0.15rem 0.45rem",
+                              background:
+                                stop.orderStatus === "COMPLETED"
+                                  ? "var(--color-success-bg)"
+                                  : "transparent",
+                              color:
+                                stop.orderStatus === "COMPLETED"
+                                  ? "var(--color-success)"
+                                  : "var(--text-muted)",
+                            }}
+                          >
+                            {stop.orderStatus === "COMPLETED" ? "1" : "0"}
+                          </span>
+                        </td>
+                        <td
+                          className="text-right font-bold text-success"
+                          style={{ padding: "0.65rem 0.75rem" }}
+                        >
+                          {formatCurrency(stop.driverEarnings)}
                         </td>
                       </tr>
-                    )}
-                  </>
-                )}
-
+                    ))
+                  ))}
                 {historyTab === "MONTHLY" &&
-                  monthlyPerformance.map((row, idx) => (
+                  monthlyPerformance.map((m, idx) => (
                     <tr
-                      key={idx}
+                      key={m.month}
                       className="border-b border-subtle"
                       style={{
                         background:
@@ -1807,54 +1555,38 @@ function RouteEarningsContent() {
                         className="font-semibold text-primary"
                         style={{ padding: "0.65rem 0.75rem" }}
                       >
-                        {row.month}
+                        {m.month}
                       </td>
                       <td
                         className="text-center text-secondary"
                         style={{ padding: "0.65rem 0.75rem" }}
                       >
-                        {row.distance} km
+                        {m.distance} km
                       </td>
                       <td
                         className="text-center"
                         style={{ padding: "0.65rem 0.75rem" }}
                       >
-                        {row.totalOrders}
+                        {m.orders}
                       </td>
                       <td
                         className="text-center"
                         style={{ padding: "0.65rem 0.75rem" }}
                       >
-                        <span
-                          className="rounded-full font-bold text-sm"
-                          style={{
-                            padding: "0.15rem 0.45rem",
-                            background:
-                              row.completedOrders > 0
-                                ? "var(--color-success-bg)"
-                                : "transparent",
-                            color:
-                              row.completedOrders > 0
-                                ? "var(--color-success)"
-                                : "var(--text-muted)",
-                          }}
-                        >
-                          {row.completedOrders}
-                        </span>
+                        {m.completed}
                       </td>
                       <td
                         className="text-right font-bold text-success"
                         style={{ padding: "0.65rem 0.75rem" }}
                       >
-                        {formatCurrency(row.earnings)}
+                        {formatCurrency(m.earnings)}
                       </td>
                     </tr>
                   ))}
-
                 {historyTab === "YEARLY" &&
-                  yearlyPerformance.map((row, idx) => (
+                  yearlyPerformance.map((y, idx) => (
                     <tr
-                      key={idx}
+                      key={y.year}
                       className="border-b border-subtle"
                       style={{
                         background:
@@ -1862,49 +1594,34 @@ function RouteEarningsContent() {
                       }}
                     >
                       <td
-                        className="font-bold text-primary"
+                        className="font-semibold text-primary"
                         style={{ padding: "0.65rem 0.75rem" }}
                       >
-                        {row.year}
+                        {y.year}
                       </td>
                       <td
                         className="text-center text-secondary"
                         style={{ padding: "0.65rem 0.75rem" }}
                       >
-                        {row.distance} km
+                        {y.distance} km
                       </td>
                       <td
                         className="text-center"
                         style={{ padding: "0.65rem 0.75rem" }}
                       >
-                        {row.totalOrders}
+                        {y.orders}
                       </td>
                       <td
                         className="text-center"
                         style={{ padding: "0.65rem 0.75rem" }}
                       >
-                        <span
-                          className="rounded-full font-bold text-sm"
-                          style={{
-                            padding: "0.15rem 0.45rem",
-                            background:
-                              row.completedOrders > 0
-                                ? "var(--color-success-bg)"
-                                : "transparent",
-                            color:
-                              row.completedOrders > 0
-                                ? "var(--color-success)"
-                                : "var(--text-muted)",
-                          }}
-                        >
-                          {row.completedOrders}
-                        </span>
+                        {y.completed}
                       </td>
                       <td
                         className="text-right font-bold text-success"
                         style={{ padding: "0.65rem 0.75rem" }}
                       >
-                        {formatCurrency(row.earnings)}
+                        {formatCurrency(y.earnings)}
                       </td>
                     </tr>
                   ))}
@@ -1922,7 +1639,7 @@ function RouteEarningsContent() {
                 Earnings & Distance Trajectory ({yearFilter})
               </span>
               <div className="flex gap-tight">
-                {[2026, 2025].map((yr) => (
+                {availableYears.map((yr) => (
                   <button
                     key={yr}
                     onClick={() => setYearFilter(yr)}
@@ -1944,198 +1661,178 @@ function RouteEarningsContent() {
             </div>
 
             {/* SVG Chart */}
-            <div
-              className="flex-1 relative w-full"
-              style={{ minHeight: "180px" }}
-            >
-              <svg
-                viewBox="0 0 460 180"
-                className="w-full h-full"
-                style={{ overflow: "visible" }}
-              >
-                <defs>
-                  <linearGradient id="earnBarGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop
-                      offset="0%"
-                      stopColor="var(--text-brand)"
-                      stopOpacity="0.85"
-                    />
-                    <stop
-                      offset="100%"
-                      stopColor="var(--brand-purple-text)"
-                      stopOpacity="0.25"
-                    />
-                  </linearGradient>
-                </defs>
+            {(() => {
+              const maxEarnings = Math.max(
+                ...monthlyPerformance.map((m) => m.earnings),
+                0,
+              );
+              const maxDistance = Math.max(
+                ...monthlyPerformance.map((m) => m.distance),
+                0,
+              );
+              const earningsScaleMax = maxEarnings > 0 ? maxEarnings : 1000;
+              const distanceScaleMax = maxDistance > 0 ? maxDistance : 100;
+              const hasAnyYearData = maxEarnings > 0 || maxDistance > 0;
 
-                {/* Gridlines */}
-                {[0, 0.5, 1].map((pct, idx) => {
-                  const y = 150 - pct * 120;
-                  const val = Math.round(chartMaxEarnings * pct);
-                  return (
-                    <g key={idx}>
-                      <line
-                        x1="35"
-                        y1={y}
-                        x2="435"
-                        y2={y}
-                        stroke="var(--border)"
-                        strokeDasharray="3 3"
+              return (
+                <div
+                  className="flex-1 relative w-full"
+                  style={{ minHeight: "180px" }}
+                >
+                  <svg
+                    viewBox="0 0 460 180"
+                    className="w-full h-full"
+                    style={{ overflow: "visible" }}
+                  >
+                    <defs>
+                      <linearGradient id="earnBarGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="var(--text-brand)" stopOpacity="0.85" />
+                        <stop
+                          offset="100%"
+                          stopColor="var(--brand-purple-text)"
+                          stopOpacity="0.25"
+                        />
+                      </linearGradient>
+                    </defs>
+
+                    {/* Gridlines */}
+                    {[0, 0.5, 1].map((pct, idx) => {
+                      const y = 150 - pct * 120;
+                      const labelVal = Math.round(pct * earningsScaleMax);
+                      return (
+                        <g key={idx}>
+                          <line
+                            x1="35"
+                            y1={y}
+                            x2="435"
+                            y2={y}
+                            stroke="var(--border)"
+                            strokeDasharray="3 3"
+                          />
+                          <text
+                            x="30"
+                            y={y + 3}
+                            textAnchor="end"
+                            fontSize="8.5"
+                            fill="var(--text-muted)"
+                          >
+                            {labelVal >= 1000
+                              ? `₹${Math.round(labelVal / 1000)}k`
+                              : `₹${labelVal}`}
+                          </text>
+                        </g>
+                      );
+                    })}
+
+                    {/* Bars for Earnings */}
+                    {monthlyPerformance.map((m, idx) => {
+                      const colW = (400 - 35) / 12;
+                      const x = 45 + idx * colW;
+                      const barH =
+                        m.earnings > 0
+                          ? Math.max(3, (m.earnings / earningsScaleMax) * 120)
+                          : 0;
+                      const y = 150 - barH;
+                      const isHovered = hoveredGraphPoint === idx;
+
+                      return (
+                        <g
+                          key={idx}
+                          onMouseEnter={() => setHoveredGraphPoint(idx)}
+                          onMouseLeave={() => setHoveredGraphPoint(null)}
+                          className="cursor-pointer"
+                        >
+                          {barH > 0 && (
+                            <rect
+                              x={x}
+                              y={y}
+                              width="12"
+                              height={barH}
+                              rx="2"
+                              fill={
+                                isHovered
+                                  ? "var(--brand-orange)"
+                                  : "url(#earnBarGrad)"
+                              }
+                            />
+                          )}
+                          <text
+                            x={x + 6}
+                            y="165"
+                            textAnchor="middle"
+                            fontSize="8"
+                            fill="var(--text-muted)"
+                          >
+                            {m.monthShort}
+                          </text>
+                        </g>
+                      );
+                    })}
+
+                    {/* Line for Distance (km) */}
+                    {hasAnyYearData && (
+                      <path
+                        d={monthlyPerformance
+                          .map((m, idx) => {
+                            const colW = (400 - 35) / 12;
+                            const x = 45 + idx * colW + 6;
+                            const y =
+                              150 - (m.distance / distanceScaleMax) * 120;
+                            return `${idx === 0 ? "M" : "L"} ${x} ${y}`;
+                          })
+                          .join(" ")}
+                        fill="none"
+                        stroke="#FF5F09"
+                        strokeWidth="2"
+                        strokeLinecap="round"
                       />
-                      <text
-                        x="30"
-                        y={y + 3}
-                        textAnchor="end"
-                        fontSize="8.5"
-                        fill="var(--text-muted)"
-                      >
-                        {val >= 1000 ? `₹${Math.round(val / 1000)}k` : `₹${val}`}
-                      </text>
-                    </g>
-                  );
-                })}
-
-                {/* Bars for Earnings */}
-                {monthlyPerformance.map((m, idx) => {
-                  const colW = (400 - 35) / 12;
-                  const x = 45 + idx * colW;
-                  const barH =
-                    hasTrajectoryData && m.earnings > 0
-                      ? Math.max(
-                          3,
-                          (m.earnings / chartMaxEarnings) * 120,
-                        )
-                      : 0;
-                  const y = 150 - barH;
-                  const isHovered = hoveredGraphPoint === idx;
-
-                  return (
-                    <g
-                      key={idx}
-                      onMouseEnter={() => setHoveredGraphPoint(idx)}
-                      onMouseLeave={() => setHoveredGraphPoint(null)}
-                      className="cursor-pointer"
-                    >
-                      {barH > 0 ? (
-                        <rect
-                          x={x}
-                          y={y}
-                          width="12"
-                          height={barH}
-                          rx="2"
-                          fill={
-                            isHovered
-                              ? "var(--brand-orange)"
-                              : "url(#earnBarGrad)"
-                          }
-                        />
-                      ) : (
-                        <rect
-                          x={x}
-                          y={148}
-                          width="12"
-                          height="2"
-                          rx="1"
-                          fill="var(--border)"
-                        />
-                      )}
-                      <text
-                        x={x + 6}
-                        y="165"
-                        textAnchor="middle"
-                        fontSize="8"
-                        fill="var(--text-muted)"
-                      >
-                        {m.monthShort}
-                      </text>
-                    </g>
-                  );
-                })}
-
-                {/* Line for Distance (km) */}
-                {hasTrajectoryData && (
-                  <path
-                    d={monthlyPerformance
-                      .map((m, idx) => {
-                        const colW = (400 - 35) / 12;
-                        const x = 45 + idx * colW + 6;
-                        const y =
-                          150 - (m.distance / chartMaxDistance) * 120;
-                        return `${idx === 0 ? "M" : "L"} ${x} ${y}`;
-                      })
-                      .join(" ")}
-                    fill="none"
-                    stroke="#FF5F09"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                  />
-                )}
-              </svg>
-
-              {/* Empty state overlay when no monthly trajectory activity exists */}
-              {!hasTrajectoryData && (
-                <div
-                  className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center p-4 rounded-lg"
-                  style={{
-                    background:
-                      "rgba(var(--bg-surface-rgb, 255, 255, 255), 0.7)",
-                    backdropFilter: "blur(1.5px)",
-                  }}
-                >
-                  <span className="text-sm font-bold text-primary mb-1">
-                    No Operational Activity in {yearFilter}
-                  </span>
-                  <span className="text-caption text-muted max-w-xs">
-                    Monthly earnings and distance telemetry will update
-                    automatically when trips are completed.
-                  </span>
-                </div>
-              )}
-
-              {/* Tooltip */}
-              {hoveredGraphPoint !== null && (
-                <div
-                  className="absolute rounded-md pointer-events-none text-label"
-                  style={{
-                    top: "10px",
-                    right: "10px",
-                    background: "var(--text-primary)",
-                    color: "#ffffff",
-                    padding: "0.45rem 0.75rem",
-                    lineHeight: "1.4",
-                  }}
-                >
-                  <div className="font-extrabold">
-                    {monthlyPerformance[hoveredGraphPoint].month}
-                  </div>
-                  <div>
-                    Earnings:{" "}
-                    {formatCurrency(
-                      monthlyPerformance[hoveredGraphPoint].earnings,
                     )}
-                  </div>
-                  <div>
-                    Distance: {monthlyPerformance[hoveredGraphPoint].distance}{" "}
-                    km
-                  </div>
-                  <div>
-                    Orders:{" "}
-                    {monthlyPerformance[hoveredGraphPoint].totalOrders}
-                  </div>
+                  </svg>
+
+                  {!hasAnyYearData && (
+                    <div className="text-center text-muted text-sm mt-1">
+                      No trip earnings or distance recorded for {yearFilter}.
+                    </div>
+                  )}
+
+                  {/* Tooltip */}
+                  {hoveredGraphPoint !== null && (
+                    <div
+                      className="absolute rounded-md pointer-events-none text-label"
+                      style={{
+                        top: "10px",
+                        right: "10px",
+                        background: "var(--text-primary)",
+                        color: "#ffffff",
+                        padding: "0.45rem 0.75rem",
+                        lineHeight: "1.4",
+                      }}
+                    >
+                      <div className="font-extrabold">
+                        {monthlyPerformance[hoveredGraphPoint].month}
+                      </div>
+                      <div>
+                        Earnings:{" "}
+                        {formatCurrency(
+                          monthlyPerformance[hoveredGraphPoint].earnings,
+                        )}
+                      </div>
+                      <div>
+                        Distance:{" "}
+                        {monthlyPerformance[hoveredGraphPoint].distance} km
+                      </div>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
+              );
+            })()}
 
             {/* Legend */}
             <div className="flex items-center justify-center gap-6 mt-2 text-secondary text-label">
               <div className="flex items-center gap-tight">
                 <span
                   className="bg-brand"
-                  style={{
-                    width: "10px",
-                    height: "10px",
-                    borderRadius: "2px",
-                  }}
+                  style={{ width: "10px", height: "10px", borderRadius: "2px" }}
                 />
                 <span>Monthly Driver Earnings (₹)</span>
               </div>

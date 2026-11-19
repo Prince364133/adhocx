@@ -1,26 +1,55 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
-import 'package:adhocx_employee/services/mock_data_service.dart';
 import 'package:adhocx_employee/shared/components/components.dart';
 import 'package:adhocx_employee/shared/components/trip/trip_widgets.dart';
+import 'package:adhocx_employee/state/employee_data_provider.dart';
 import 'package:adhocx_employee/theme/app_colors.dart';
 import 'package:adhocx_employee/theme/app_spacing.dart';
 import 'package:adhocx_employee/theme/app_typography.dart';
 import 'package:adhocx_employee/theme/employee_palette.dart';
 
-/// Screen 2: Cab Assigned Overview
+/// Cab Assigned Overview backed by live nextTrip + tracking APIs.
 class CabAssignedOverviewScreen extends StatelessWidget {
   const CabAssignedOverviewScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return TripDataBuilder(
-      load: MockDataService.getDriverAssignment,
-      builder: (context, assignment) {
+      load: () => loadLiveTripSnapshot(context),
+      builder: (context, snapshot) {
         final p = EmployeePalette.of(context);
-        final driver = assignment['driver'] as Map<String, dynamic>?;
-        final vehicle = assignment['vehicle'] as Map<String, dynamic>?;
+        final next = (snapshot['nextTrip'] as Map<String, dynamic>?) ?? const {};
+        final tracking =
+            (snapshot['tracking'] as Map<String, dynamic>?) ?? const {};
+        final driver = (tracking['driver'] ?? next['driver']) as Map?;
+        final vehicle = (tracking['vehicle'] ?? next['vehicle']) as Map?;
+        final stops = next['routeStops'] is List ? next['routeStops'] as List : const [];
+
+        final pickupTime = EmployeeDataProvider.formatDisplayTime(
+          next['plannedEta']?.toString() ?? next['shiftTime']?.toString(),
+        );
+        final directionLabel = EmployeeDataProvider.formatDirectionLabel(
+          next['direction']?.toString(),
+        );
+        final pickupLoc = next['pickupLocation'] is Map
+            ? (next['pickupLocation'] as Map)['addressText']?.toString() ?? 'Pickup'
+            : 'Pickup';
+        final officeDest = next['officeDestination'] is Map
+            ? (next['officeDestination'] as Map)['name']?.toString() ?? 'Office'
+            : 'Office';
+
+        final driverName = driver?['fullName']?.toString() ??
+            driver?['name']?.toString() ??
+            'Not yet assigned';
+        final driverRating = driver?['rating']?.toString() ?? 'Verified';
+        final vehicleModel = vehicle?['model']?.toString() ??
+            vehicle?['vehicleType']?.toString() ??
+            'Vehicle pending';
+        final plate = vehicle?['registrationNumber']?.toString() ??
+            vehicle?['plateNumber']?.toString() ??
+            'Pending';
+        final etaMins = tracking['estimatedArrivalMinutes'];
 
         return Scaffold(
           backgroundColor: p.background,
@@ -39,9 +68,9 @@ class CabAssignedOverviewScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Center(
+                  Center(
                     child: EmployeeStatusBadge(
-                      label: 'Assigned',
+                      label: (next['routeStatus'] ?? 'Assigned').toString(),
                       variant: BadgeVariant.approved,
                     ),
                   ),
@@ -57,7 +86,9 @@ class CabAssignedOverviewScreen extends StatelessWidget {
                             const SizedBox(width: AppSpacing.sm),
                             Expanded(
                               child: Text(
-                                '8:15 AM • Login Trip',
+                                pickupTime.isNotEmpty
+                                    ? '$pickupTime • $directionLabel'
+                                    : directionLabel,
                                 style: AppTypography.bodyMedium(
                                   color: p.textPrimary,
                                   fontWeight: FontWeight.w700,
@@ -80,7 +111,7 @@ class CabAssignedOverviewScreen extends StatelessWidget {
                             const SizedBox(width: AppSpacing.sm + 2),
                             Expanded(
                               child: Text(
-                                'Home → HITEC City Office',
+                                '$pickupLoc → $officeDest',
                                 style: AppTypography.small(
                                   color: p.textSecondary,
                                   fontWeight: FontWeight.w600,
@@ -93,12 +124,11 @@ class CabAssignedOverviewScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: AppSpacing.lg),
-                  // Driver (tap row → details; phone → contact sheet)
                   InkWell(
                     onTap: () => context.push(AppRoutes.driverDetails),
                     child: TripDriverRow(
-                      name: driver?['name'] ?? 'Suresh R',
-                      rating: '${(driver?['rating'] ?? 4.8).toDouble()}',
+                      name: driverName,
+                      rating: driverRating,
                       avatarRadius: 26,
                     ),
                   ),
@@ -106,10 +136,11 @@ class CabAssignedOverviewScreen extends StatelessWidget {
                   InkWell(
                     onTap: () => context.push(AppRoutes.vehicleDetails),
                     child: TripVehicleCard(
-                      model: vehicle?['model'] ?? 'Maruti Ertiga',
-                      plate: vehicle?['plateNumber'] ?? 'TS09UB7845',
-                      details:
-                          '${vehicle?['color'] ?? 'White'} • ${vehicle?['seating'] ?? '7 Seater'}',
+                      model: vehicleModel,
+                      plate: plate,
+                      details: vehicle?['category']?.toString() ??
+                          vehicle?['vehicleType']?.toString() ??
+                          'Corporate Cab',
                     ),
                   ),
                   const SizedBox(height: AppSpacing.lg),
@@ -123,7 +154,9 @@ class CabAssignedOverviewScreen extends StatelessWidget {
                         const SizedBox(width: AppSpacing.md),
                         Expanded(
                           child: Text(
-                            'View Pickup Sequence (4 stops)',
+                            stops.isNotEmpty
+                                ? 'View Pickup Sequence (${stops.length} stop${stops.length == 1 ? '' : 's'})'
+                                : 'View Pickup Sequence',
                             style: AppTypography.small(
                               color: p.accent,
                               fontWeight: FontWeight.w600,
@@ -143,7 +176,11 @@ class CabAssignedOverviewScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: AppSpacing.lg),
                   Text(
-                    'Pickup in 25 min  •  ETA 8:15 AM',
+                    etaMins != null
+                        ? 'Pickup in ~$etaMins min${pickupTime.isNotEmpty ? '  •  ETA $pickupTime' : ''}'
+                        : (pickupTime.isNotEmpty
+                            ? 'Scheduled ETA $pickupTime'
+                            : 'Live ETA will appear when cab starts'),
                     textAlign: TextAlign.center,
                     style: AppTypography.caption(
                       color: p.textMuted,

@@ -1,14 +1,68 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
 import 'package:adhocx_employee/shared/components/components.dart';
+import 'package:adhocx_employee/state/employee_data_provider.dart';
 import 'package:adhocx_employee/theme/app_colors.dart';
 import 'package:adhocx_employee/theme/app_radius.dart';
 import 'package:adhocx_employee/theme/app_spacing.dart';
 import 'package:adhocx_employee/theme/app_typography.dart';
 import 'package:adhocx_employee/theme/employee_palette.dart';
 
-/// Loads mock trip data once and shows the shared loading screen meanwhile.
+/// Safely resolves [EmployeeDataProvider] when available in the widget tree.
+EmployeeDataProvider? maybeEmployeeData(BuildContext context) {
+  try {
+    return context.read<EmployeeDataProvider>();
+  } catch (_) {
+    return null;
+  }
+}
+
+/// Loads live active/next trip plus live tracking (if an active trip exists).
+Future<Map<String, dynamic>> loadLiveTripSnapshot(
+  BuildContext context, {
+  bool force = false,
+}) async {
+  final data = maybeEmployeeData(context);
+  if (data == null) return const {};
+  final nextTrip =
+      await data.loadNextTrip(force: force) ?? const <String, dynamic>{};
+  Map<String, dynamic>? tracking;
+  if (nextTrip['hasActiveTrip'] == true) {
+    final id = nextTrip['stopId']?.toString() ?? nextTrip['routeId']?.toString();
+    if (id != null && id.isNotEmpty) {
+      tracking = await data.loadTracking(tripOrStopId: id, force: force);
+    }
+  }
+  return {
+    'nextTrip': nextTrip,
+    if (tracking != null) 'tracking': tracking,
+  };
+}
+
+/// Loads the most recent completed trip from history, falling back to active trip.
+Future<Map<String, dynamic>> loadLiveLatestTrip(BuildContext context) async {
+  final data = maybeEmployeeData(context);
+  if (data == null) return const {};
+  final history = await data.loadTripsHistory(limit: 10);
+  if (history.isNotEmpty) {
+    final completed = history.firstWhere(
+      (t) =>
+          (t['routeStatus'] ?? t['status'] ?? '').toString().toUpperCase() ==
+          'COMPLETED',
+      orElse: () => history.first,
+    );
+    return completed;
+  }
+  final nextTrip = await data.loadNextTrip();
+  if (nextTrip != null && nextTrip['hasActiveTrip'] == true) {
+    return nextTrip;
+  }
+  return const {};
+}
+
+/// Loads live trip data once and shows the shared loading screen meanwhile.
 class TripDataBuilder extends StatefulWidget {
   final Future<Map<String, dynamic>?> Function() load;
   final Widget Function(BuildContext context, Map<String, dynamic> data)
@@ -687,11 +741,16 @@ class TripMetricRow extends StatelessWidget {
           ),
         ),
         const SizedBox(width: AppSpacing.sm),
-        Text(
-          value,
-          style: AppTypography.bodyMedium(
-            color: p.textPrimary,
-            fontWeight: FontWeight.w700,
+        Flexible(
+          child: Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.end,
+            style: AppTypography.bodyMedium(
+              color: p.textPrimary,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ),
       ],

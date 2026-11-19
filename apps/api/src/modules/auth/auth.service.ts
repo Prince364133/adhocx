@@ -28,7 +28,9 @@ import { RedisService } from '../../redis/redis.service';
 import { resolveJwtSecret } from '../../config/auth.config';
 import { NotificationsService } from '../notifications/notifications.service';
 import { LocationsService } from '../locations/locations.service';
-import { getPhoneVariants, assertPhoneAvailable, sanitizeRealName, isPlaceholderName } from '../../common';
+import { ReferralsService } from '../drivers/referrals/referrals.service';
+import { generateDriverReferralCode } from '../drivers/referrals/referral-code.util';
+import { getPhoneVariants, normalizeIndianPhone, assertPhoneAvailable, sanitizeRealName, isPlaceholderName } from '../../common';
 import { isLocalTestOtpEnabled } from './test-otp.policy';
 
 @Injectable()
@@ -42,6 +44,7 @@ export class AuthService implements OnModuleInit {
     private readonly redis: RedisService,
     private readonly notifications: NotificationsService,
     @Optional() private readonly locations?: LocationsService,
+    @Optional() private readonly referralsService?: ReferralsService,
   ) {}
 
   async onModuleInit() {
@@ -492,8 +495,14 @@ export class AuthService implements OnModuleInit {
     }
 
     let existingUser: any = null;
-    // If explicit login or password recovery (isRegister === false), verify user exists and matches role
-    if (dto.isRegister === false) {
+    const requestedRoleUpper = dto.role?.toUpperCase();
+    const isPortalOrEmployeeLogin =
+      dto.isRegister !== true &&
+      (requestedRoleUpper === 'EMPLOYEE' ||
+        requestedRoleUpper === 'CORPORATE_ADMIN' ||
+        requestedRoleUpper === 'CORPORATE_MANAGER');
+    // If explicit login / password recovery (isRegister === false) or corporate/employee login, verify user exists and matches role
+    if (dto.isRegister === false || isPortalOrEmployeeLogin) {
       try {
         if (isEmail) {
           existingUser = await this.db.user.findFirst({
@@ -520,10 +529,19 @@ export class AuthService implements OnModuleInit {
             },
           });
           if (tenant) {
+            const candidateEmail = (isEmail ? value : tenant.primaryContactEmail || '').trim().toLowerCase();
+            let safeTenantEmail: string | undefined;
+            if (candidateEmail && candidateEmail.includes('@')) {
+              const emailClash = await this.db.user.findFirst({
+                where: { email: { equals: candidateEmail, mode: 'insensitive' } },
+                select: { id: true },
+              });
+              if (!emailClash) safeTenantEmail = candidateEmail;
+            }
             existingUser = await this.db.user.create({
               data: {
                 phone: !isEmail ? value : (tenant.primaryContactPhone || undefined),
-                email: isEmail ? value : (tenant.primaryContactEmail || undefined),
+                ...(safeTenantEmail ? { email: safeTenantEmail } : {}),
                 fullName: tenant.primaryContactName || `${tenant.name} Administrator`,
                 role: UserRole.CORPORATE_ADMIN,
                 corporateRole: 'CORP_SUPER_ADMIN',
@@ -539,8 +557,72 @@ export class AuthService implements OnModuleInit {
         }
       }
 
+      // Fallback: Check if there is an active CorporateEmployee matching this phone number or email
+      if (!existingUser && typeof (this.db as any).corporateEmployee?.findFirst === 'function') {
+        try {
+          const employee = await this.db.corporateEmployee.findFirst({
+            where: {
+              isActive: true,
+              tenant: { status: 'ACTIVE' },
+              OR: [
+                ...(phoneVariants && phoneVariants.length > 0 ? [{ phoneNumber: { in: phoneVariants } }] : []),
+                ...(!isEmail ? [{ phoneNumber: value }] : []),
+                ...(isEmail ? [{ email: { equals: value, mode: 'insensitive' as const } }] : []),
+              ],
+            },
+            select: {
+              id: true,
+              tenantId: true,
+              employeeCode: true,
+              fullName: true,
+              phoneNumber: true,
+              email: true,
+              userId: true,
+            },
+          });
+          if (employee) {
+            if (employee.userId) {
+              existingUser = await this.db.user.findUnique({ where: { id: employee.userId } });
+            } else {
+              const normalizedEmpPhone = !isEmail ? value : (normalizeIndianPhone(employee.phoneNumber) || undefined);
+              const rawEmpEmail = (isEmail ? value : employee.email || '').trim().toLowerCase();
+              let safeEmail: string | undefined;
+              if (rawEmpEmail && rawEmpEmail.includes('@') && !rawEmpEmail.endsWith('@roster.corporate.local')) {
+                const emailClash = await this.db.user.findFirst({
+                  where: { email: { equals: rawEmpEmail, mode: 'insensitive' } },
+                  select: { id: true },
+                });
+                if (!emailClash) safeEmail = rawEmpEmail;
+              }
+              existingUser = await this.db.user.create({
+                data: {
+                  phone: normalizedEmpPhone,
+                  ...(safeEmail ? { email: safeEmail } : {}),
+                  fullName: employee.fullName || undefined,
+                  role: UserRole.EMPLOYEE as any,
+                  corporateTenantId: employee.tenantId,
+                  status: 'ACTIVE',
+                },
+              });
+              await this.db.corporateEmployee.update({
+                where: { id: employee.id },
+                data: { userId: existingUser.id },
+              });
+              this.logger.log(
+                `Auto-provisioned corporate employee user ${existingUser.id} (${value}) for employee ${employee.employeeCode}`,
+              );
+            }
+          }
+        } catch (empProvErr: any) {
+          this.logger.warn(`Could not auto-provision corporate employee user for ${value}: ${empProvErr.message}`);
+        }
+      }
+
       if (!existingUser) {
         throw new BadRequestException('No account found with this email or mobile number. Please check your details or sign up.');
+      }
+      if (existingUser.status === 'SUSPENDED' || existingUser.status === 'DEACTIVATED' || existingUser.status === 'BANNED') {
+        throw new ForbiddenException('Your account has been suspended or deactivated. Please contact support.');
       }
     }
 
@@ -695,6 +777,23 @@ export class AuthService implements OnModuleInit {
           );
         }
       } else {
+        if (dto.isRegister === false) {
+          throw new BadRequestException(
+            'No account found with this email or mobile number. Please verify your registered contact details.',
+          );
+        }
+        const blockedSelfRegisterRoles = new Set<string>([
+          UserRole.ADMIN,
+          UserRole.OPS,
+          UserRole.CORPORATE_ADMIN,
+          UserRole.CORPORATE_MANAGER,
+          UserRole.EMPLOYEE,
+        ]);
+        if (blockedSelfRegisterRoles.has(assignedRole)) {
+          throw new ForbiddenException(
+            `Self-registration is not allowed for ${assignedRole} accounts. Please contact your organization administrator.`,
+          );
+        }
         // Create new user with real phone (if provided) and real email (if provided)
         const effectivePhone = rawPhone
           ? this.normalizeIdentifier(rawPhone).value
@@ -732,6 +831,7 @@ export class AuthService implements OnModuleInit {
                       phone: effectivePhone || undefined,
                       verificationStatus: 'PENDING',
                       availabilityStatus: 'OFFLINE',
+                      referralCode: generateDriverReferralCode(),
                     },
                   }
                 : undefined,
@@ -751,9 +851,21 @@ export class AuthService implements OnModuleInit {
         });
 
         this.logger.log(`Created new user via OTP: ${user.id} (${user.phone ?? user.email}) with role ${user.role}`);
+
+        if (assignedRole === UserRole.DRIVER && user.driver && dto.referralCode && this.referralsService) {
+          try {
+            await this.referralsService.linkReferralOnSignup(user.driver.id, dto.referralCode);
+          } catch (refErr: any) {
+            this.logger.warn(`Referral linking on OTP signup skipped: ${refErr?.message || refErr}`);
+          }
+        }
       }
     } catch (dbErr: any) {
-      if (dbErr instanceof ConflictException || dbErr instanceof ForbiddenException) {
+      if (
+        dbErr instanceof ConflictException ||
+        dbErr instanceof ForbiddenException ||
+        dbErr instanceof BadRequestException
+      ) {
         throw dbErr;
       }
       this.logger.error(`Database error in verifyOtp: ${dbErr.message}`, dbErr.stack);
@@ -761,6 +873,7 @@ export class AuthService implements OnModuleInit {
     }
 
     user = await this.linkCorporateTenantContact(user);
+    user = await this.linkCorporateEmployeeUser(user);
 
     await this.verifyAccountActiveAndClearStaleRevocation(user);
 
@@ -768,35 +881,107 @@ export class AuthService implements OnModuleInit {
   }
 
   /**
+   * Links an authenticated EMPLOYEE user to their matching unlinked CorporateEmployee record
+   * (e.g. uploaded via CSV/roster before first OTP login). Never modifies non-EMPLOYEE roles.
+   */
+  private async linkCorporateEmployeeUser(user: any): Promise<any> {
+    if (!user || user.role !== UserRole.EMPLOYEE) return user;
+    if (typeof (this.db as any).corporateEmployee?.findUnique !== 'function') return user;
+    try {
+      const linked = await this.db.corporateEmployee.findUnique({
+        where: { userId: user.id },
+        select: { id: true, tenantId: true },
+      });
+      if (linked) {
+        if (!user.corporateTenantId) {
+          return await this.db.user.update({
+            where: { id: user.id },
+            data: { corporateTenantId: linked.tenantId },
+            include: { vendor: true, driver: true },
+          });
+        }
+        return user;
+      }
+
+      const phoneNorm = user.phone ? this.normalizeIdentifier(user.phone) : null;
+      const matchOr = [
+        ...(phoneNorm?.phoneVariants ? [{ phoneNumber: { in: phoneNorm.phoneVariants } }] : []),
+        ...(user.phone ? [{ phoneNumber: user.phone }] : []),
+        ...(user.email ? [{ email: { equals: user.email, mode: 'insensitive' as const } }] : []),
+      ];
+      if (matchOr.length === 0) return user;
+
+      const employee = await this.db.corporateEmployee.findFirst({
+        where: {
+          isActive: true,
+          userId: null,
+          tenant: { status: 'ACTIVE' },
+          OR: matchOr,
+        },
+        select: { id: true, tenantId: true, fullName: true },
+      });
+      if (!employee) return user;
+
+      await this.db.corporateEmployee.update({
+        where: { id: employee.id },
+        data: { userId: user.id },
+      });
+
+      const updatedUser = await this.db.user.update({
+        where: { id: user.id },
+        data: {
+          corporateTenantId: employee.tenantId,
+          ...(!user.fullName && employee.fullName ? { fullName: employee.fullName } : {}),
+        },
+        include: { vendor: true, driver: true },
+      });
+      this.logger.log(`Linked EMPLOYEE user ${user.id} to CorporateEmployee ${employee.id} (tenant ${employee.tenantId})`);
+      return updatedUser;
+    } catch (err: any) {
+      this.logger.warn(`Failed to link EMPLOYEE user ${user?.id} to CorporateEmployee: ${err?.message ?? err}`);
+      return user;
+    }
+  }
+
+  /**
    * Google & Apple Social Auth (Pre-Verified Identity, Skips OTP)
    */
   async socialAuth(dto: SocialAuthDto): Promise<AuthResponseDto> {
-    let email = dto.email.trim().toLowerCase();
+    let email: string;
     let fullName = dto.fullName;
     const provider = dto.provider;
 
-    // If Google idToken is provided, verify against Google OAuth Client ID
-    if (provider === 'GOOGLE' && dto.idToken) {
-      try {
-        const googleClientId =
-          this.configService.get<string>('GOOGLE_CLIENT_ID') || process.env.GOOGLE_CLIENT_ID;
-        if (googleClientId) {
-          const { OAuth2Client } = await import('google-auth-library');
-          const client = new OAuth2Client(googleClientId);
-          const ticket = await client.verifyIdToken({
-            idToken: dto.idToken,
-            audience: googleClientId,
-          });
-          const payload = ticket.getPayload();
-          if (payload?.email) {
-            email = payload.email.toLowerCase();
-            fullName = payload.name || fullName;
-            this.logger.log(`✅ [GOOGLE OAUTH VERIFIED] Token validated for ${email} (${fullName})`);
-          }
-        }
-      } catch (oauthErr: any) {
-        this.logger.warn(`⚠️ [GOOGLE OAUTH TOKEN VERIFICATION NOTICE] ${oauthErr.message}. Accepting verified social payload.`);
+    // Require verified identity token for Google OAuth (fail closed in production/when configured)
+    if (provider === 'GOOGLE') {
+      const googleClientId =
+        this.configService.get<string>('GOOGLE_CLIENT_ID') || process.env.GOOGLE_CLIENT_ID;
+      if (!dto.idToken) {
+        throw new UnauthorizedException('Google identity token (idToken) is required.');
       }
+      if (!googleClientId) {
+        throw new UnauthorizedException('Google OAuth is not configured on the server.');
+      }
+      try {
+        const { OAuth2Client } = await import('google-auth-library');
+        const client = new OAuth2Client(googleClientId);
+        const ticket = await client.verifyIdToken({
+          idToken: dto.idToken,
+          audience: googleClientId,
+        });
+        const payload = ticket.getPayload();
+        if (!payload?.email || payload.email_verified !== true) {
+          throw new UnauthorizedException('Google identity token does not contain a verified email.');
+        }
+        email = payload.email.toLowerCase();
+        fullName = payload.name || fullName;
+        this.logger.log(`✅ [GOOGLE OAUTH VERIFIED] Token validated for ${email} (${fullName})`);
+      } catch (oauthErr: any) {
+        if (oauthErr instanceof UnauthorizedException) throw oauthErr;
+        this.logger.warn(`⚠️ [GOOGLE OAUTH REJECTED] ${oauthErr.message}`);
+        throw new UnauthorizedException('Invalid or expired Google identity token.');
+      }
+    } else {
+      throw new UnauthorizedException('Only verified Google OAuth is supported for social sign-in.');
     }
 
     this.logger.log(`🔑 [SOCIAL AUTH - ${provider}] Authenticating verified user: ${email} (${fullName || 'User'})`);
@@ -813,6 +998,21 @@ export class AuthService implements OnModuleInit {
         });
 
         const assignedRole = this.mapUserRole(dto.role);
+        if (user && (user.role === UserRole.ADMIN || user.role === UserRole.OPS)) {
+          throw new ForbiddenException('Platform staff accounts cannot sign in via social auth.');
+        }
+        if (!user) {
+          const blockedSocialRoles = new Set<string>([
+            UserRole.ADMIN,
+            UserRole.OPS,
+            UserRole.CORPORATE_ADMIN,
+            UserRole.CORPORATE_MANAGER,
+            UserRole.EMPLOYEE,
+          ]);
+          if (blockedSocialRoles.has(assignedRole)) {
+            throw new ForbiddenException(`Self-registration via social auth is not allowed for ${assignedRole} accounts.`);
+          }
+        }
 
         if (user && dto.role && user.role !== assignedRole) {
           this.logger.log(`[SOCIAL AUTO-DETECT] Account already registered as ${user.role}. Automatically logging in as ${user.role}.`);
@@ -896,21 +1096,6 @@ export class AuthService implements OnModuleInit {
         this.logger.warn(`⚠️ [SOCIAL AUTH ATTEMPT ${retries}/${maxRetries} FAILED]: ${dbErr.message}`);
         if (retries >= maxRetries) {
           this.logger.error(`Database error in socialAuth after retries: ${dbErr.message}`, dbErr.stack);
-          // In development mode, construct in-memory session rather than failing
-          const isDev = this.configService.get<string>('app.nodeEnv') === 'development';
-          if (isDev) {
-            const assignedRole = this.mapUserRole(dto.role);
-            user = {
-              id: '5a91aadb-d7be-4199-a412-479c0a69271d',
-              email,
-              phone: '',
-              role: assignedRole as any,
-              fullName: fullName || 'Verified User',
-              driver: assignedRole === UserRole.DRIVER ? { verificationStatus: 'VERIFIED' } : undefined,
-              vendor: assignedRole === UserRole.VENDOR ? { verificationStatus: 'VERIFIED' } : undefined,
-            };
-            break;
-          }
           throw new BadRequestException('Database error authenticating social user.');
         }
         await new Promise((resolve) => setTimeout(resolve, 500 * retries));
@@ -918,6 +1103,7 @@ export class AuthService implements OnModuleInit {
     }
 
     user = await this.linkCorporateTenantContact(user);
+    user = await this.linkCorporateEmployeeUser(user);
 
     await this.verifyAccountActiveAndClearStaleRevocation(user);
 
@@ -926,12 +1112,14 @@ export class AuthService implements OnModuleInit {
 
   private async verifyAccountActiveAndClearStaleRevocation(user: any): Promise<void> {
     if (!user?.id) return;
-    const isSuspended =
+    const isInactive =
       user.status === 'SUSPENDED' ||
+      user.status === 'DEACTIVATED' ||
+      user.status === 'BANNED' ||
       user.driver?.verificationStatus === 'SUSPENDED' ||
       user.vendor?.verificationStatus === 'SUSPENDED';
-    if (isSuspended) {
-      throw new ForbiddenException('Your account has been suspended. Please contact AdhocX support.');
+    if (isInactive) {
+      throw new ForbiddenException('Your account has been suspended or deactivated. Please contact AdhocX support.');
     }
     // Clear any stale user_revoked key for active (non-suspended) accounts, including
     // KYC-rejected drivers/vendors so they can log in, see rejection feedback, and re-apply.
@@ -1112,13 +1300,14 @@ export class AuthService implements OnModuleInit {
   }
 
   private async generateAuthResponse(user: any): Promise<AuthResponseDto> {
+    const corporateClaims = await this.buildCorporateClaims(user);
     const tokenPayload = {
       jti: crypto.randomUUID(),
       id: user.id,
       phone: user.phone,
       email: user.email,
       role: user.role,
-      ...(await this.buildCorporateClaims(user)),
+      ...corporateClaims,
     };
 
     const accessSecret = this.configService.get<string>('auth.jwtAccessSecret') || resolveJwtSecret('access');
@@ -1163,7 +1352,13 @@ export class AuthService implements OnModuleInit {
     } else if (user.role === UserRole.VENDOR) {
       isApproved = user.vendor?.verificationStatus === 'VERIFIED';
       isOnboarded = hasVendorSubmission;
-    } else if (user.role === UserRole.ADMIN) {
+    } else if (
+      user.role === UserRole.ADMIN ||
+      user.role === UserRole.OPS ||
+      user.role === UserRole.CORPORATE_ADMIN ||
+      user.role === UserRole.CORPORATE_MANAGER ||
+      user.role === UserRole.EMPLOYEE
+    ) {
       isApproved = true;
       isOnboarded = true;
     }
@@ -1188,9 +1383,14 @@ export class AuthService implements OnModuleInit {
         isApproved,
         hasPassword,
         isOnboarded,
-        corporateTenantId: user?.corporateTenantId || undefined,
-        corporateRole: user?.corporateRole || undefined,
-        corporateOfficeIds: user?.corporateOfficeIds || undefined,
+        corporateTenantId: corporateClaims.corporateTenantId || user?.corporateTenantId || undefined,
+        corporateRole: corporateClaims.corporateRole || user?.corporateRole || undefined,
+        corporateOfficeIds:
+          corporateClaims.corporateOfficeIds ||
+          (Array.isArray(user?.corporateOfficeIds) && user.corporateOfficeIds.length > 0
+            ? user.corporateOfficeIds
+            : undefined),
+        corporateEmployeeId: corporateClaims.corporateEmployeeId || undefined,
         vendorProfile: user.vendor
           ? {
               id: user.vendor.id,
@@ -1224,7 +1424,14 @@ export class AuthService implements OnModuleInit {
   async logout(accessToken: string, userId?: string): Promise<void> {
     if (accessToken) {
       try {
-        await this.redis.blacklistToken(accessToken, 3600);
+        let ttlSeconds = 7 * 24 * 3600;
+        if (typeof (this.jwtService as any)?.decode === 'function') {
+          const decoded = (this.jwtService as any).decode(accessToken);
+          if (decoded && typeof decoded === 'object' && typeof decoded.exp === 'number') {
+            ttlSeconds = Math.max(60, Math.ceil(decoded.exp - Date.now() / 1000));
+          }
+        }
+        await this.redis.blacklistToken(accessToken, ttlSeconds);
       } catch (_) {}
     }
 
@@ -1337,6 +1544,14 @@ export class AuthService implements OnModuleInit {
         await tx.vendor.delete({ where: { id: vendorId } });
       }
 
+      // If user is a corporate employee, deactivate their CorporateEmployee record so OTP login won't re-provision them
+      if (user.role === UserRole.EMPLOYEE && typeof (tx as any).corporateEmployee?.updateMany === 'function') {
+        await tx.corporateEmployee.updateMany({
+          where: { userId },
+          data: { isActive: false, userId: null },
+        });
+      }
+
       // Clean up user-direct child records
       await tx.deviceToken.deleteMany({ where: { userId } });
       await tx.notification.deleteMany({ where: { userId } });
@@ -1385,15 +1600,22 @@ export class AuthService implements OnModuleInit {
       include: { vendor: true, driver: true },
     });
 
-    // Corporate claims are re-derived from the database on every refresh so a
+    if (!user) {
+      throw new UnauthorizedException('User account no longer exists.');
+    }
+    await this.verifyAccountActiveAndClearStaleRevocation(user);
+
+    // Corporate claims and role are re-derived from the database on every refresh so a
     // tenant re-assignment / employee unlink takes effect without re-login.
+    const effectiveRole = (user?.role || payload.role) as UserRole;
+    const corporateClaims = await this.buildCorporateClaims(user ? { ...user, role: effectiveRole } : null);
     const tokenPayload = {
       jti: crypto.randomUUID(),
       id: payload.id,
-      phone: payload.phone,
-      email: payload.email,
-      role: payload.role,
-      ...(await this.buildCorporateClaims(user ? { ...user, role: payload.role } : null)),
+      phone: user?.phone || payload.phone,
+      email: user?.email || payload.email,
+      role: effectiveRole,
+      ...corporateClaims,
     };
 
     const accessSecret = this.configService.get<string>('auth.jwtAccessSecret') || resolveJwtSecret('access');
@@ -1439,7 +1661,13 @@ export class AuthService implements OnModuleInit {
       } else if (user.role === UserRole.VENDOR) {
         isApproved = user.vendor?.verificationStatus === 'VERIFIED';
         isOnboarded = hasVendorSubmission;
-      } else if (user.role === UserRole.ADMIN) {
+      } else if (
+        user.role === UserRole.ADMIN ||
+        user.role === UserRole.OPS ||
+        user.role === UserRole.CORPORATE_ADMIN ||
+        user.role === UserRole.CORPORATE_MANAGER ||
+        user.role === UserRole.EMPLOYEE
+      ) {
         isApproved = true;
         isOnboarded = true;
       }
@@ -1463,15 +1691,20 @@ export class AuthService implements OnModuleInit {
         id: payload.id,
         phone: user?.phone || payload.phone || undefined,
         email: user?.email || payload.email || undefined,
-        role: payload.role as UserRole,
+        role: effectiveRole,
         fullName: user?.fullName || undefined,
         photoUrl: profilePhoto,
         isApproved,
         hasPassword,
         isOnboarded,
-        corporateTenantId: user?.corporateTenantId || undefined,
-        corporateRole: user?.corporateRole || undefined,
-        corporateOfficeIds: user?.corporateOfficeIds || undefined,
+        corporateTenantId: corporateClaims.corporateTenantId || user?.corporateTenantId || undefined,
+        corporateRole: corporateClaims.corporateRole || user?.corporateRole || undefined,
+        corporateOfficeIds:
+          corporateClaims.corporateOfficeIds ||
+          (Array.isArray(user?.corporateOfficeIds) && user.corporateOfficeIds.length > 0
+            ? user.corporateOfficeIds
+            : undefined),
+        corporateEmployeeId: corporateClaims.corporateEmployeeId || undefined,
         vendorProfile: user?.vendor
           ? {
               id: user.vendor.id,
@@ -1538,9 +1771,17 @@ export class AuthService implements OnModuleInit {
       isOnboarded = hasDriverSubmission;
     } else if (user.role === UserRole.VENDOR) {
       isOnboarded = hasVendorSubmission;
-    } else if (user.role === UserRole.ADMIN) {
+    } else if (
+      user.role === UserRole.ADMIN ||
+      user.role === UserRole.OPS ||
+      user.role === UserRole.CORPORATE_ADMIN ||
+      user.role === UserRole.CORPORATE_MANAGER ||
+      user.role === UserRole.EMPLOYEE
+    ) {
       isOnboarded = true;
     }
+
+    const corporateClaims = await this.buildCorporateClaims(user);
 
     if (hasVendorSubmission || hasDriverSubmission) {
       isOnboarded = true;
@@ -1585,6 +1826,10 @@ export class AuthService implements OnModuleInit {
       status: user.status,
       hasPassword,
       isOnboarded,
+      corporateTenantId: corporateClaims.corporateTenantId || user.corporateTenantId || undefined,
+      corporateRole: corporateClaims.corporateRole || user.corporateRole || undefined,
+      corporateOfficeIds: corporateClaims.corporateOfficeIds || (Array.isArray(user.corporateOfficeIds) && user.corporateOfficeIds.length > 0 ? user.corporateOfficeIds : undefined),
+      corporateEmployeeId: corporateClaims.corporateEmployeeId || undefined,
       vendorProfile: user.vendor
         ? {
             id: user.vendor.id,

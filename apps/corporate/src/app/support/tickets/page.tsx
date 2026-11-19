@@ -13,8 +13,7 @@ import { useSession } from '../../../lib/auth/SessionContext';
 import { RaiseTicketModal } from '../../../components/support/RaiseTicketModal';
 
 export default function SupportTicketListPage() {
-  const { tenantId } = useSession();
-  const activeTenantId = tenantId || '9d66820f-280c-400c-98dc-e021d0045b58';
+  const { tenantId, status: sessionStatus } = useSession();
 
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [loading, setLoading] = useState(true);
@@ -23,9 +22,15 @@ export default function SupportTicketListPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const loadData = () => {
+    if (sessionStatus === 'loading') return;
+    if (!tenantId) {
+      setTickets([]);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     supportApi
-      .list(activeTenantId, {})
+      .list(tenantId, {})
       .then((data) => {
         setTickets(Array.isArray(data) ? data : []);
       })
@@ -39,7 +44,7 @@ export default function SupportTicketListPage() {
 
   useEffect(() => {
     loadData();
-  }, [activeTenantId]);
+  }, [tenantId, sessionStatus]);
 
   const filteredTickets = tickets.filter((tkt) => {
     const q = searchTerm.toLowerCase();
@@ -257,12 +262,14 @@ export default function SupportTicketListPage() {
         )}
       </div>
 
-      <RaiseTicketModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        tenantId={activeTenantId}
-        onSuccess={() => loadData()}
-      />
+      {tenantId && (
+        <RaiseTicketModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          tenantId={tenantId}
+          onSuccess={() => loadData()}
+        />
+      )}
     </div>
   );
 }

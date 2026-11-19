@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   CalendarDays,
   CarFront,
@@ -12,326 +12,96 @@ import {
   FileImage,
   Headphones,
   MessageCircle,
+  RefreshCw,
   Search,
+  Send,
   UserRound,
   X,
 } from 'lucide-react';
 import { DonutChart, type DonutSegment } from '../../components/charts/DonutChart';
+import { supportApi } from '../../lib/api/corporate';
+import type { CorporateTicketMessage, SupportTicket } from '../../lib/api/types';
+import { useSession } from '../../lib/auth/SessionContext';
 import styles from './EmployeeSupport.module.css';
 
-type ComplaintCategory =
-  | 'Cab Not Arrived'
-  | 'Driver Behaviour'
-  | 'Vehicle Condition'
-  | 'Pickup Delay'
-  | 'Drop-off Issue'
-  | 'Other';
-type ComplaintStatus = 'Open' | 'In Progress' | 'Resolved';
-type DatePreset = '7' | '30' | '3m' | 'custom';
+type ComplaintStatusGroup = 'Open' | 'In Progress' | 'Resolved';
+type DatePreset = '7' | '30' | '3m' | 'all' | 'custom';
 
-interface ComplaintUpdate {
+interface NormalizedComplaint {
   id: string;
-  author: string;
-  role: string;
-  message: string;
-  createdAt: Date;
-}
-
-interface EmployeeComplaint {
-  id: string;
+  ticketNumber: string;
   employeeName: string;
-  employeeId: string;
-  category: ComplaintCategory;
-  tripId: string;
-  tripDate: Date;
-  tripTime: string;
-  tripDirection: 'Login' | 'Logout';
+  employeeCode: string;
+  employeePhone: string;
+  employeeEmail: string;
+  categoryRaw: string;
+  categoryLabel: string;
+  subject: string;
   description: string;
+  priority: string;
+  routeId: string | null;
   raisedAt: Date;
-  status: ComplaintStatus;
-  updates: ComplaintUpdate[];
-  attachments: string[];
+  statusRaw: string;
+  statusGroup: ComplaintStatusGroup;
+  resolutionNotes: string | null;
+  resolvedAt: Date | null;
+  attachments: NonNullable<SupportTicket['attachments']>;
+  raw: SupportTicket;
 }
 
-const CATEGORIES: ComplaintCategory[] = [
-  'Cab Not Arrived',
-  'Driver Behaviour',
-  'Vehicle Condition',
-  'Pickup Delay',
-  'Drop-off Issue',
-  'Other',
-];
-const STATUSES: ComplaintStatus[] = ['Open', 'In Progress', 'Resolved'];
+const STATUSES: ComplaintStatusGroup[] = ['Open', 'In Progress', 'Resolved'];
 const PAGE_SIZE = 8;
+const DONUT_COLORS = ['#5728B2', '#8B5CF6', '#0EA5E9', '#F59E0B', '#16A34A', '#EC4899', '#64748B'];
 
-function daysAgo(days: number, hour = 9, minute = 15): Date {
-  const date = new Date();
-  date.setHours(hour, minute, 0, 0);
-  date.setDate(date.getDate() - days);
-  return date;
+function formatCategoryLabel(raw?: string | null): string {
+  if (!raw) return 'General';
+  return raw
+    .replace(/_/g, ' ')
+    .toLowerCase()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
-function createSampleComplaints(): EmployeeComplaint[] {
-  const samples: Array<{
-    employeeName: string;
-    employeeId: string;
-    category: ComplaintCategory;
-    days: number;
-    status: ComplaintStatus;
-    description: string;
-    direction: 'Login' | 'Logout';
-    updates?: Array<{ author: string; role: string; message: string; daysAfter: number }>;
-    attachments?: string[];
-  }> = [
-    {
-      employeeName: 'Ananya Rao',
-      employeeId: 'ADX-1042',
-      category: 'Cab Not Arrived',
-      days: 1,
-      status: 'Open',
-      description: 'The cab had not reached the pickup point at the scheduled time.',
-      direction: 'Login',
-    },
-    {
-      employeeName: 'Rohan Mehta',
-      employeeId: 'ADX-0871',
-      category: 'Driver Behaviour',
-      days: 3,
-      status: 'In Progress',
-      description: 'The driver spoke rudely when asked to wait at the pickup location.',
-      direction: 'Logout',
-      updates: [
-        { author: 'AdhocX Support', role: 'Support update', message: 'We have received the complaint and are reviewing the trip details.', daysAfter: 0 },
-      ],
-    },
-    {
-      employeeName: 'Meera Nair',
-      employeeId: 'ADX-1130',
-      category: 'Vehicle Condition',
-      days: 6,
-      status: 'Resolved',
-      description: 'The rear seat area was not clean at the start of the trip.',
-      direction: 'Login',
-      updates: [
-        { author: 'AdhocX Support', role: 'Support update', message: 'The concern was shared with the relevant support team for review.', daysAfter: 0 },
-        { author: 'AdhocX Support', role: 'Resolution', message: 'The trip was reviewed and the vehicle-condition concern was addressed.', daysAfter: 1 },
-      ],
-      attachments: ['vehicle-condition.jpg'],
-    },
-    {
-      employeeName: 'Arjun Kapoor',
-      employeeId: 'ADX-0924',
-      category: 'Pickup Delay',
-      days: 9,
-      status: 'Open',
-      description: 'Pickup was delayed and the employee reached the office later than expected.',
-      direction: 'Login',
-    },
-    {
-      employeeName: 'Divya Shah',
-      employeeId: 'ADX-1216',
-      category: 'Drop-off Issue',
-      days: 13,
-      status: 'In Progress',
-      description: 'The drop-off point differed from the location shown in the trip details.',
-      direction: 'Logout',
-      updates: [
-        { author: 'AdhocX Support', role: 'Support update', message: 'The drop-off details are being checked against the trip record.', daysAfter: 0 },
-      ],
-    },
-    {
-      employeeName: 'Kabir Iyer',
-      employeeId: 'ADX-0762',
-      category: 'Other',
-      days: 19,
-      status: 'Resolved',
-      description: 'The employee could not identify the assigned cab at the pickup point.',
-      direction: 'Login',
-      updates: [
-        { author: 'AdhocX Support', role: 'Support update', message: 'We reviewed the pickup communication for this trip.', daysAfter: 1 },
-        { author: 'AdhocX Support', role: 'Resolution', message: 'The pickup details were clarified with the employee.', daysAfter: 2 },
-      ],
-    },
-    {
-      employeeName: 'Sana Khan',
-      employeeId: 'ADX-1348',
-      category: 'Driver Behaviour',
-      days: 28,
-      status: 'Resolved',
-      description: 'The driver did not follow the requested pickup instructions.',
-      direction: 'Login',
-      updates: [
-        { author: 'AdhocX Support', role: 'Resolution', message: 'The support team completed its review and recorded the outcome.', daysAfter: 2 },
-      ],
-    },
-    {
-      employeeName: 'Vikram Joshi',
-      employeeId: 'ADX-0618',
-      category: 'Pickup Delay',
-      days: 41,
-      status: 'Open',
-      description: 'The cab arrived after the scheduled pickup window.',
-      direction: 'Logout',
-    },
-    {
-      employeeName: 'Pooja Menon',
-      employeeId: 'ADX-0986',
-      category: 'Vehicle Condition',
-      days: 57,
-      status: 'Resolved',
-      description: 'The vehicle had an issue with the air conditioning during the commute.',
-      direction: 'Login',
-      updates: [
-        { author: 'AdhocX Support', role: 'Resolution', message: 'The feedback was reviewed and a resolution update was recorded.', daysAfter: 3 },
-      ],
-      attachments: ['dashboard-warning.jpg'],
-    },
-    {
-      employeeName: 'Neil Thomas',
-      employeeId: 'ADX-1432',
-      category: 'Drop-off Issue',
-      days: 74,
-      status: 'In Progress',
-      description: 'The trip ended before the employee reached the requested drop-off point.',
-      direction: 'Logout',
-      updates: [
-        { author: 'AdhocX Support', role: 'Support update', message: 'The case is under review by the support team.', daysAfter: 1 },
-      ],
-    },
-    {
-      employeeName: 'Ishita Das',
-      employeeId: 'ADX-1091',
-      category: 'Cab Not Arrived',
-      days: 96,
-      status: 'Resolved',
-      description: 'The employee waited at the pickup point but could not locate the cab.',
-      direction: 'Login',
-      updates: [
-        { author: 'AdhocX Support', role: 'Resolution', message: 'The trip outcome was confirmed and the case was closed.', daysAfter: 1 },
-      ],
-    },
-    {
-      employeeName: 'Dev Malhotra',
-      employeeId: 'ADX-1549',
-      category: 'Other',
-      days: 124,
-      status: 'Resolved',
-      description: 'The employee reported difficulty confirming the trip with the assigned cab.',
-      direction: 'Logout',
-      updates: [
-        { author: 'AdhocX Support', role: 'Resolution', message: 'The support team reviewed the report and shared the outcome.', daysAfter: 2 },
-      ],
-    },
-    {
-      employeeName: 'Aditi Bose',
-      employeeId: 'ADX-1175',
-      category: 'Pickup Delay',
-      days: 153,
-      status: 'Resolved',
-      description: 'Pickup was later than the planned time on the trip.',
-      direction: 'Login',
-      updates: [
-        { author: 'AdhocX Support', role: 'Resolution', message: 'The support review is complete.', daysAfter: 1 },
-      ],
-    },
-    {
-      employeeName: 'Rahul Sethi',
-      employeeId: 'ADX-0820',
-      category: 'Driver Behaviour',
-      days: 188,
-      status: 'Resolved',
-      description: 'The employee raised a concern about communication during the trip.',
-      direction: 'Logout',
-      updates: [
-        { author: 'AdhocX Support', role: 'Resolution', message: 'The concern was reviewed and the outcome recorded.', daysAfter: 2 },
-      ],
-    },
-    {
-      employeeName: 'Nisha Verma',
-      employeeId: 'ADX-1304',
-      category: 'Vehicle Condition',
-      days: 221,
-      status: 'Resolved',
-      description: 'The employee noted an issue with the condition of the assigned vehicle.',
-      direction: 'Login',
-      updates: [
-        { author: 'AdhocX Support', role: 'Resolution', message: 'The reported vehicle concern was reviewed by support.', daysAfter: 2 },
-      ],
-    },
-    {
-      employeeName: 'Karan Gill',
-      employeeId: 'ADX-0679',
-      category: 'Drop-off Issue',
-      days: 257,
-      status: 'Resolved',
-      description: 'The employee reported a discrepancy in the drop-off location.',
-      direction: 'Logout',
-      updates: [
-        { author: 'AdhocX Support', role: 'Resolution', message: 'The support team recorded the outcome after review.', daysAfter: 1 },
-      ],
-    },
-    {
-      employeeName: 'Tara Reddy',
-      employeeId: 'ADX-1622',
-      category: 'Cab Not Arrived',
-      days: 296,
-      status: 'Resolved',
-      description: 'The employee could not find the cab at the scheduled pickup point.',
-      direction: 'Login',
-      updates: [
-        { author: 'AdhocX Support', role: 'Resolution', message: 'The trip was reviewed and the support case was closed.', daysAfter: 1 },
-      ],
-    },
-    {
-      employeeName: 'Manav Bhat',
-      employeeId: 'ADX-0715',
-      category: 'Other',
-      days: 330,
-      status: 'Resolved',
-      description: 'The employee shared feedback about their commute experience.',
-      direction: 'Logout',
-      updates: [
-        { author: 'AdhocX Support', role: 'Resolution', message: 'The feedback was reviewed and recorded.', daysAfter: 2 },
-      ],
-    },
-  ];
+function mapStatusGroup(status?: string | null): ComplaintStatusGroup {
+  const normalized = (status || '').toUpperCase();
+  if (normalized === 'RESOLVED' || normalized === 'CLOSED') return 'Resolved';
+  if (
+    normalized === 'IN_PROGRESS' ||
+    normalized === 'ASSIGNED' ||
+    normalized === 'WAITING_FOR_CORPORATE'
+  ) {
+    return 'In Progress';
+  }
+  return 'Open';
+}
 
-  return samples.map((sample, index) => {
-    const raisedAt = daysAgo(sample.days, 8 + (index % 9), (index * 7) % 60);
-    return {
-      id: `ADX-CMP-${String(2401 + index).padStart(4, '0')}`,
-      employeeName: sample.employeeName,
-      employeeId: sample.employeeId,
-      category: sample.category,
-      tripId: `TRP-${String(78021 + index * 13).padStart(6, '0')}`,
-      tripDate: new Date(raisedAt),
-      tripTime: sample.direction === 'Login' ? '08:15 AM' : '06:30 PM',
-      tripDirection: sample.direction,
-      description: sample.description,
-      raisedAt,
-      status: sample.status,
-      updates: [
-        {
-          id: `update-${index}-received`,
-          author: 'AdhocX Support',
-          role: 'Complaint received',
-          message: 'The complaint was recorded and shared with the AdhocX Support team.',
-          createdAt: new Date(raisedAt),
-        },
-        ...(sample.updates ?? []).map((update, updateIndex) => ({
-          id: `update-${index}-${updateIndex}`,
-          author: update.author,
-          role: update.role,
-          message: update.message,
-          createdAt: new Date(raisedAt.getTime() + (update.daysAfter * 24 + 1) * 60 * 60 * 1000),
-        })),
-      ],
-      attachments: sample.attachments ?? [],
-    };
-  });
+function normalizeTicket(ticket: SupportTicket): NormalizedComplaint {
+  const raisedAt = new Date(ticket.createdAt);
+  const resolvedAt = ticket.resolvedAt ? new Date(ticket.resolvedAt) : null;
+  return {
+    id: ticket.id,
+    ticketNumber: ticket.ticketNumber || ticket.id.slice(0, 8).toUpperCase(),
+    employeeName: ticket.employee?.fullName || 'Employee',
+    employeeCode: ticket.employee?.employeeCode || ticket.employeeId?.slice(0, 8) || '—',
+    employeePhone: ticket.employee?.phoneNumber ?? ticket.employee?.phone ?? '',
+    employeeEmail: ticket.employee?.email || '',
+    categoryRaw: ticket.category || 'OTHER',
+    categoryLabel: formatCategoryLabel(ticket.category),
+    subject: ticket.subject || 'Untitled complaint',
+    description: ticket.description || '',
+    priority: ticket.priority || 'MEDIUM',
+    routeId: ticket.routeId || null,
+    raisedAt: Number.isNaN(raisedAt.getTime()) ? new Date() : raisedAt,
+    statusRaw: (ticket.status || 'OPEN').toUpperCase(),
+    statusGroup: mapStatusGroup(ticket.status),
+    resolutionNotes: ticket.resolutionNotes || null,
+    resolvedAt: resolvedAt && !Number.isNaN(resolvedAt.getTime()) ? resolvedAt : null,
+    attachments: ticket.attachments || [],
+    raw: ticket,
+  };
 }
 
 function formatDate(value: Date, options?: Intl.DateTimeFormatOptions): string {
+  if (Number.isNaN(value.getTime())) return '—';
   return new Intl.DateTimeFormat('en-IN', options ?? {
     day: '2-digit',
     month: 'short',
@@ -348,7 +118,7 @@ function monthLabel(date: Date): string {
   return new Intl.DateTimeFormat('en-IN', { month: 'short' }).format(date);
 }
 
-function buildTrend(complaints: EmployeeComplaint[], months: number) {
+function buildTrend(complaints: NormalizedComplaint[], months: number) {
   return Array.from({ length: months }, (_, index) => {
     const offset = months - index - 1;
     const start = getMonthStart(offset);
@@ -411,6 +181,7 @@ function ComplaintTrendChart({ data }: { data: Array<{ label: string; value: num
 }
 
 function getRangeStart(preset: DatePreset, customFrom: string): Date | null {
+  if (preset === 'all') return null;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   if (preset === 'custom') return customFrom ? new Date(`${customFrom}T00:00:00`) : null;
@@ -420,7 +191,7 @@ function getRangeStart(preset: DatePreset, customFrom: string): Date | null {
   return today;
 }
 
-function StatusBadge({ status }: { status: ComplaintStatus }) {
+function StatusBadge({ status }: { status: ComplaintStatusGroup }) {
   const className = status === 'Resolved'
     ? styles.statusResolved
     : status === 'In Progress'
@@ -429,10 +200,20 @@ function StatusBadge({ status }: { status: ComplaintStatus }) {
   return <span className={`${styles.statusBadge} ${className}`}>{status}</span>;
 }
 
+function employeeInitials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return 'EM';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+}
+
 export default function EmployeeSupportPage() {
-  const [complaints, setComplaints] = useState<EmployeeComplaint[] | null>(null);
+  const { tenantId, status: sessionStatus } = useSession();
+
+  const [complaints, setComplaints] = useState<NormalizedComplaint[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [retryKey, setRetryKey] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
+
   const [datePreset, setDatePreset] = useState<DatePreset>('30');
   const [customFrom, setCustomFrom] = useState('');
   const [customTo, setCustomTo] = useState('');
@@ -441,17 +222,62 @@ export default function EmployeeSupportPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [page, setPage] = useState(1);
   const [trendPeriod, setTrendPeriod] = useState(6);
-  const [selectedComplaint, setSelectedComplaint] = useState<EmployeeComplaint | null>(null);
+
+  const [selectedComplaint, setSelectedComplaint] = useState<NormalizedComplaint | null>(null);
+  const [drawerLoading, setDrawerLoading] = useState(false);
+  const [messages, setMessages] = useState<CorporateTicketMessage[]>([]);
+  const [replyText, setReplyText] = useState('');
+  const [sendingReply, setSendingReply] = useState(false);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [drawerFeedback, setDrawerFeedback] = useState<{ kind: 'success' | 'error'; message: string } | null>(null);
+
+  const loadComplaints = useCallback(async () => {
+    if (sessionStatus === 'loading') return;
+    if (!tenantId) {
+      setComplaints([]);
+      setLoadError('Sign in with a corporate account to view employee complaints.');
+      return;
+    }
+
+    setRefreshing(true);
+    setLoadError(null);
+    try {
+      const ticketsRes = await supportApi.list(tenantId, { limit: 200 });
+      const normalized = (Array.isArray(ticketsRes) ? ticketsRes : []).map(normalizeTicket);
+      setComplaints(normalized);
+      setSelectedComplaint((current) => {
+        if (!current) return null;
+        return normalized.find((item) => item.id === current.id) ?? current;
+      });
+    } catch (error) {
+      setComplaints([]);
+      setLoadError(error instanceof Error ? error.message : 'Unable to load employee complaints.');
+    } finally {
+      setRefreshing(false);
+    }
+  }, [sessionStatus, tenantId]);
 
   useEffect(() => {
+    void loadComplaints();
+  }, [loadComplaints]);
+
+  const openComplaintDrawer = useCallback(async (complaint: NormalizedComplaint) => {
+    setSelectedComplaint(complaint);
+    setDrawerFeedback(null);
+    setReplyText('');
+    setDrawerLoading(true);
     try {
-      setLoadError(null);
-      setComplaints(createSampleComplaints());
-    } catch (error) {
-      setComplaints(null);
-      setLoadError(error instanceof Error ? error.message : 'Preview complaints could not be loaded.');
+      const [detail, threadMessages] = await Promise.all([
+        supportApi.get(complaint.id).catch(() => complaint.raw),
+        supportApi.listMessages(complaint.id).catch(() => []),
+      ]);
+      const fresh = normalizeTicket(detail);
+      setSelectedComplaint(fresh);
+      setMessages(Array.isArray(threadMessages) ? threadMessages : []);
+    } finally {
+      setDrawerLoading(false);
     }
-  }, [retryKey]);
+  }, []);
 
   useEffect(() => {
     if (!selectedComplaint) return;
@@ -461,6 +287,67 @@ export default function EmployeeSupportPage() {
     window.addEventListener('keydown', closeOnEscape);
     return () => window.removeEventListener('keydown', closeOnEscape);
   }, [selectedComplaint]);
+
+  const handleSendReply = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!selectedComplaint || !replyText.trim()) return;
+
+    setSendingReply(true);
+    setDrawerFeedback(null);
+    try {
+      const sent = await supportApi.sendMessage(selectedComplaint.id, { message: replyText.trim() });
+      setMessages((prev) => [...prev, sent]);
+      setReplyText('');
+      setDrawerFeedback({ kind: 'success', message: 'Reply posted to ticket conversation.' });
+    } catch (error) {
+      setDrawerFeedback({
+        kind: 'error',
+        message: error instanceof Error ? error.message : 'Unable to send reply.',
+      });
+    } finally {
+      setSendingReply(false);
+    }
+  };
+
+  const handleUpdateStatus = async (nextStatus: 'IN_PROGRESS' | 'RESOLVED') => {
+    if (!selectedComplaint) return;
+
+    setUpdatingStatus(true);
+    setDrawerFeedback(null);
+    try {
+      const currentRawStatus = selectedComplaint.statusRaw;
+      const needsInProgressStep =
+        nextStatus === 'RESOLVED' &&
+        (currentRawStatus === 'OPEN' || currentRawStatus === 'ASSIGNED' || currentRawStatus === 'REOPENED');
+
+      if (needsInProgressStep) {
+        await supportApi.updateStatus(selectedComplaint.id, 'IN_PROGRESS');
+      }
+
+      const updatedTicket = await supportApi.updateStatus(
+        selectedComplaint.id,
+        nextStatus,
+        nextStatus === 'RESOLVED' ? 'Marked as resolved by Corporate Support.' : undefined,
+      );
+      const normalized = normalizeTicket(updatedTicket);
+      setSelectedComplaint(normalized);
+      setComplaints((prev) =>
+        prev ? prev.map((item) => (item.id === normalized.id ? normalized : item)) : prev,
+      );
+      setDrawerFeedback({
+        kind: 'success',
+        message: `Complaint marked as ${nextStatus === 'RESOLVED' ? 'Resolved' : 'In Progress'}.`,
+      });
+      void loadComplaints();
+    } catch (error) {
+      setDrawerFeedback({
+        kind: 'error',
+        message: error instanceof Error ? error.message : 'Unable to update complaint status.',
+      });
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
 
   const allComplaints = useMemo(() => complaints ?? [], [complaints]);
   const rangeError = datePreset === 'custom' && customFrom && customTo && customFrom > customTo
@@ -478,41 +365,59 @@ export default function EmployeeSupportPage() {
     });
   }, [allComplaints, datePreset, customFrom, customTo, rangeError]);
 
+  const availableCategories = useMemo(() => {
+    const labels = new Set<string>();
+    allComplaints.forEach((complaint) => labels.add(complaint.categoryLabel));
+    return Array.from(labels).sort((a, b) => a.localeCompare(b));
+  }, [allComplaints]);
+
   const filteredComplaints = useMemo(() => {
     const query = search.trim().toLocaleLowerCase();
-    return dateFilteredComplaints.filter((complaint) => {
-      const matchesSearch = !query || [
-        complaint.employeeName,
-        complaint.employeeId,
-        complaint.tripId,
-        complaint.id,
-      ].some((value) => value.toLocaleLowerCase().includes(query));
-      return matchesSearch
-        && (!categoryFilter || complaint.category === categoryFilter)
-        && (!statusFilter || complaint.status === statusFilter);
-    }).sort((a, b) => b.raisedAt.getTime() - a.raisedAt.getTime());
+    return dateFilteredComplaints
+      .filter((complaint) => {
+        const matchesSearch = !query || [
+          complaint.employeeName,
+          complaint.employeeCode,
+          complaint.ticketNumber,
+          complaint.subject,
+          complaint.description,
+          complaint.routeId || '',
+        ].some((value) => value.toLocaleLowerCase().includes(query));
+        return matchesSearch
+          && (!categoryFilter || complaint.categoryLabel === categoryFilter)
+          && (!statusFilter || complaint.statusGroup === statusFilter);
+      })
+      .sort((a, b) => b.raisedAt.getTime() - a.raisedAt.getTime());
   }, [dateFilteredComplaints, search, categoryFilter, statusFilter]);
 
   useEffect(() => setPage(1), [datePreset, customFrom, customTo, search, categoryFilter, statusFilter]);
 
-  const counts = useMemo(() => ({
-    total: dateFilteredComplaints.length,
-    open: dateFilteredComplaints.filter((complaint) => complaint.status === 'Open').length,
-    inProgress: dateFilteredComplaints.filter((complaint) => complaint.status === 'In Progress').length,
-    resolved: dateFilteredComplaints.filter((complaint) => complaint.status === 'Resolved').length,
-  }), [dateFilteredComplaints]);
-  const categorySegments: DonutSegment[] = CATEGORIES
-    .map((category, index) => {
-      const count = dateFilteredComplaints.filter((complaint) => complaint.category === category).length;
-      const colors = ['#5728B2', '#8B5CF6', '#0EA5E9', '#F59E0B', '#16A34A', '#64748B'];
-      return {
-        label: category,
+  const counts = useMemo(
+    () => ({
+      total: dateFilteredComplaints.length,
+      open: dateFilteredComplaints.filter((complaint) => complaint.statusGroup === 'Open').length,
+      inProgress: dateFilteredComplaints.filter((complaint) => complaint.statusGroup === 'In Progress').length,
+      resolved: dateFilteredComplaints.filter((complaint) => complaint.statusGroup === 'Resolved').length,
+    }),
+    [dateFilteredComplaints],
+  );
+
+  const categorySegments: DonutSegment[] = useMemo(() => {
+    const map = new Map<string, number>();
+    dateFilteredComplaints.forEach((complaint) => {
+      map.set(complaint.categoryLabel, (map.get(complaint.categoryLabel) ?? 0) + 1);
+    });
+    const total = dateFilteredComplaints.length;
+    return Array.from(map.entries())
+      .sort((a, b) => b[1] - a[1])
+      .map(([label, count], index) => ({
+        label,
         count,
-        pct: counts.total ? Math.round((count / counts.total) * 100) : 0,
-        color: colors[index],
-      };
-    })
-    .filter((segment) => segment.count > 0);
+        pct: total ? Math.round((count / total) * 100) : 0,
+        color: DONUT_COLORS[index % DONUT_COLORS.length],
+      }));
+  }, [dateFilteredComplaints]);
+
   const trendData = useMemo(
     () => buildTrend(allComplaints, trendPeriod),
     [allComplaints, trendPeriod],
@@ -525,10 +430,12 @@ export default function EmployeeSupportPage() {
       ? 'Last 30 Days'
       : datePreset === '3m'
         ? 'Last 3 Months'
-        : 'Custom Range';
+        : datePreset === 'all'
+          ? 'All Time'
+          : 'Custom Range';
 
-  function setCardStatus(status: ComplaintStatus | '') {
-    setStatusFilter((current) => current === status ? '' : status);
+  function setCardStatus(status: ComplaintStatusGroup | '') {
+    setStatusFilter((current) => (current === status ? '' : status));
   }
 
   return (
@@ -537,32 +444,37 @@ export default function EmployeeSupportPage() {
         <div>
           <div className={styles.eyebrow}>TRANSPORTATION <span>/</span> EMPLOYEE SUPPORT</div>
           <h1>Employee Support</h1>
-          <p>Monitor and track employee transportation complaints.</p>
+          <p>Monitor, respond to, and resolve live employee transportation support tickets.</p>
         </div>
-        <label className={styles.dateControl}>
-          <span><CalendarDays size={15} /> Reporting period</span>
-          <span className={styles.selectWrap}>
-            <select
-              aria-label="Complaint reporting period"
-              value={datePreset}
-              onChange={(event) => setDatePreset(event.target.value as DatePreset)}
-            >
-              <option value="7">Last 7 Days</option>
-              <option value="30">Last 30 Days</option>
-              <option value="3m">Last 3 Months</option>
-              <option value="custom">Custom Range</option>
-            </select>
-            <ChevronDown size={15} aria-hidden="true" />
-          </span>
-        </label>
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10, flexWrap: 'wrap' }}>
+          <label className={styles.dateControl}>
+            <span><CalendarDays size={15} /> Reporting period</span>
+            <span className={styles.selectWrap}>
+              <select
+                aria-label="Complaint reporting period"
+                value={datePreset}
+                onChange={(event) => setDatePreset(event.target.value as DatePreset)}
+              >
+                <option value="7">Last 7 Days</option>
+                <option value="30">Last 30 Days</option>
+                <option value="3m">Last 3 Months</option>
+                <option value="all">All Time</option>
+                <option value="custom">Custom Range</option>
+              </select>
+              <ChevronDown size={15} aria-hidden="true" />
+            </span>
+          </label>
+          <button
+            type="button"
+            className={styles.statusActionBtn}
+            onClick={() => void loadComplaints()}
+            disabled={refreshing}
+            style={{ minHeight: 36 }}
+          >
+            <RefreshCw size={14} className={refreshing ? 'spin' : ''} /> Refresh
+          </button>
+        </div>
       </header>
-
-      <div className={styles.previewNotice} role="status">
-        <CircleAlert size={17} aria-hidden="true" />
-        <span>
-          <strong>Sample data — preview only.</strong> The Employee App complaint form is not currently connected to the existing support-ticket service, so these records are illustrative and are not live company complaints.
-        </span>
-      </div>
 
       {datePreset === 'custom' && (
         <div className={styles.customRange} aria-label="Custom complaint date range">
@@ -581,7 +493,7 @@ export default function EmployeeSupportPage() {
       <section className={styles.summaryGrid} aria-label="Complaint summary">
         <button type="button" className={styles.summaryCard} aria-pressed={!statusFilter} onClick={() => setCardStatus('')}>
           <span className={`${styles.summaryIcon} ${styles.iconPurple}`}><MessageCircle size={18} /></span>
-          <span className={styles.summaryText}><span>Total Complaints</span><strong>{complaints === null ? '—' : counts.total}</strong></span>
+          <span className={styles.summaryText}><span>Total Tickets</span><strong>{complaints === null ? '—' : counts.total}</strong></span>
         </button>
         <button type="button" className={styles.summaryCard} aria-pressed={statusFilter === 'Open'} onClick={() => setCardStatus('Open')}>
           <span className={`${styles.summaryIcon} ${styles.iconAmber}`}><CircleAlert size={18} /></span>
@@ -600,8 +512,8 @@ export default function EmployeeSupportPage() {
       <section className={styles.panel} aria-labelledby="recent-complaints-heading">
         <div className={styles.panelHeading}>
           <div>
-            <h2 id="recent-complaints-heading">Recent Employee Complaints</h2>
-            <p>{dateRangeLabel} · {filteredComplaints.length} {filteredComplaints.length === 1 ? 'complaint' : 'complaints'}</p>
+            <h2 id="recent-complaints-heading">Employee Support Tickets</h2>
+            <p>{dateRangeLabel} · {filteredComplaints.length} {filteredComplaints.length === 1 ? 'ticket' : 'tickets'}</p>
           </div>
         </div>
 
@@ -611,7 +523,7 @@ export default function EmployeeSupportPage() {
             <input
               type="search"
               aria-label="Search employee complaints"
-              placeholder="Search employee, ID, trip or complaint..."
+              placeholder="Search employee, ticket #, subject, or route..."
               value={search}
               onChange={(event) => setSearch(event.target.value)}
             />
@@ -620,7 +532,9 @@ export default function EmployeeSupportPage() {
             <span className={styles.srOnly}>Filter by category</span>
             <select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)}>
               <option value="">All categories</option>
-              {CATEGORIES.map((category) => <option key={category} value={category}>{category}</option>)}
+              {availableCategories.map((category) => (
+                <option key={category} value={category}>{category}</option>
+              ))}
             </select>
             <ChevronDown size={15} aria-hidden="true" />
           </label>
@@ -638,10 +552,10 @@ export default function EmployeeSupportPage() {
           <table className={styles.table}>
             <thead>
               <tr>
-                <th>Complaint ID</th>
+                <th>Ticket #</th>
                 <th>Employee</th>
                 <th>Category</th>
-                <th>Trip Details</th>
+                <th>Subject &amp; Route</th>
                 <th>Raised On</th>
                 <th>Status</th>
                 <th><span className={styles.srOnly}>Actions</span></th>
@@ -649,14 +563,24 @@ export default function EmployeeSupportPage() {
             </thead>
             <tbody>
               {complaints === null ? (
-                <tr><td className={styles.stateCell} colSpan={7}>Loading sample preview…</td></tr>
+                <tr><td className={styles.stateCell} colSpan={7}>Loading employee support tickets…</td></tr>
               ) : loadError ? (
                 <tr>
                   <td className={styles.stateCell} colSpan={7}>
                     <div className={styles.errorState} role="alert">
-                      <strong>Could not load preview data</strong>
+                      <strong>Could not load employee tickets</strong>
                       <span>{loadError}</span>
-                      <button type="button" onClick={() => setRetryKey((key) => key + 1)}>Try again</button>
+                      <button type="button" onClick={() => void loadComplaints()}>Try again</button>
+                    </div>
+                  </td>
+                </tr>
+              ) : allComplaints.length === 0 ? (
+                <tr>
+                  <td className={styles.stateCell} colSpan={7}>
+                    <div className={styles.emptyState}>
+                      <Headphones size={22} />
+                      <strong>No employee complaints yet</strong>
+                      <span>When employees submit transport issues or complaints, they will appear here in real time.</span>
                     </div>
                   </td>
                 </tr>
@@ -665,13 +589,13 @@ export default function EmployeeSupportPage() {
                   <td className={styles.stateCell} colSpan={7}>
                     <div className={styles.emptyState}>
                       <Search size={22} />
-                      <strong>No complaints match these filters</strong>
+                      <strong>No tickets match these filters</strong>
                       <span>Change the date range or clear your search and filters.</span>
                       <button type="button" onClick={() => {
                         setSearch('');
                         setCategoryFilter('');
                         setStatusFilter('');
-                        setDatePreset('30');
+                        setDatePreset('all');
                         setCustomFrom('');
                         setCustomTo('');
                       }}>Clear filters</button>
@@ -680,25 +604,31 @@ export default function EmployeeSupportPage() {
                 </tr>
               ) : visibleComplaints.map((complaint) => (
                 <tr key={complaint.id}>
-                  <td className={styles.complaintId}>{complaint.id}</td>
+                  <td className={styles.complaintId}>#{complaint.ticketNumber}</td>
                   <td>
                     <div className={styles.employeeCell}>
-                      <span className={styles.avatar} aria-hidden="true">{complaint.employeeName.split(' ').map((part) => part[0]).join('').slice(0, 2)}</span>
-                      <span><strong>{complaint.employeeName}</strong><small>{complaint.employeeId}</small></span>
+                      <span className={styles.avatar} aria-hidden="true">{employeeInitials(complaint.employeeName)}</span>
+                      <span><strong>{complaint.employeeName}</strong><small>{complaint.employeeCode}</small></span>
                     </div>
                   </td>
-                  <td><span className={styles.categoryPill}>{complaint.category}</span></td>
+                  <td><span className={styles.categoryPill}>{complaint.categoryLabel}</span></td>
                   <td>
-                    <span className={styles.tripCell}><strong>{complaint.tripId}</strong><small>{complaint.tripDirection} · {formatDate(complaint.tripDate, { day: '2-digit', month: 'short' })}, {complaint.tripTime}</small></span>
+                    <span className={styles.tripCell}>
+                      <strong>{complaint.subject}</strong>
+                      <small>{complaint.routeId ? `Route ${complaint.routeId.slice(0, 8)}` : 'General commute ticket'}</small>
+                    </span>
                   </td>
-                  <td className={styles.dateCell}>{formatDate(complaint.raisedAt, { day: '2-digit', month: 'short', year: 'numeric' })}<small>{formatDate(complaint.raisedAt, { hour: '2-digit', minute: '2-digit' })}</small></td>
-                  <td><StatusBadge status={complaint.status} /></td>
+                  <td className={styles.dateCell}>
+                    {formatDate(complaint.raisedAt, { day: '2-digit', month: 'short', year: 'numeric' })}
+                    <small>{formatDate(complaint.raisedAt, { hour: '2-digit', minute: '2-digit' })}</small>
+                  </td>
+                  <td><StatusBadge status={complaint.statusGroup} /></td>
                   <td>
                     <button
                       type="button"
                       className={styles.viewButton}
-                      onClick={() => setSelectedComplaint(complaint)}
-                      aria-label={`View details for complaint ${complaint.id}`}
+                      onClick={() => void openComplaintDrawer(complaint)}
+                      aria-label={`View details for ticket ${complaint.ticketNumber}`}
                     >
                       <Eye size={15} /> View Details
                     </button>
@@ -726,7 +656,7 @@ export default function EmployeeSupportPage() {
           <div className={styles.panelHeading}>
             <div>
               <h2>Complaint Trends</h2>
-              <p>Monthly complaints over the selected reporting period</p>
+              <p>Monthly employee support volume over the selected window</p>
             </div>
             <label className={styles.selectWrap}>
               <span className={styles.srOnly}>Complaint trend period</span>
@@ -738,7 +668,7 @@ export default function EmployeeSupportPage() {
               <ChevronDown size={15} aria-hidden="true" />
             </label>
           </div>
-          {complaints === null ? <div className={styles.chartState}>Loading trend preview…</div>
+          {complaints === null ? <div className={styles.chartState}>Loading trend data…</div>
             : loadError ? <div className={styles.chartState} role="alert">{loadError}</div>
               : <ComplaintTrendChart data={trendData} />}
         </div>
@@ -750,12 +680,12 @@ export default function EmployeeSupportPage() {
               <p>Distribution for {dateRangeLabel.toLocaleLowerCase()}</p>
             </div>
           </div>
-          {complaints === null ? <div className={styles.chartState}>Loading category preview…</div>
+          {complaints === null ? <div className={styles.chartState}>Loading category data…</div>
             : loadError ? <div className={styles.chartState} role="alert">{loadError}</div>
-              : categorySegments.length === 0 ? <div className={styles.chartState}>No category data for this date range.</div>
+              : categorySegments.length === 0 ? <div className={styles.chartState}>No tickets recorded in this date range.</div>
                 : <DonutChart
-                    totalLabel="Complaints"
-                    totalValue={counts.total}
+                    totalLabel="Tickets"
+                    totalValue={dateFilteredComplaints.length}
                     segments={categorySegments}
                     size={174}
                     thickness={22}
@@ -765,64 +695,160 @@ export default function EmployeeSupportPage() {
 
       {selectedComplaint && (
         <div className={styles.drawerOverlay}>
-          <button type="button" className={styles.backdrop} aria-label="Close complaint details" onClick={() => setSelectedComplaint(null)} />
+          <button type="button" className={styles.backdrop} aria-label="Close ticket details" onClick={() => setSelectedComplaint(null)} />
           <aside className={styles.drawer} role="dialog" aria-modal="true" aria-labelledby="complaint-detail-title">
             <header className={styles.drawerHeader}>
               <div>
-                <span className={styles.drawerEyebrow}>EMPLOYEE COMPLAINT</span>
-                <h2 id="complaint-detail-title">{selectedComplaint.id}</h2>
-                <StatusBadge status={selectedComplaint.status} />
+                <span className={styles.drawerEyebrow}>EMPLOYEE SUPPORT TICKET</span>
+                <h2 id="complaint-detail-title">#{selectedComplaint.ticketNumber}</h2>
+                <StatusBadge status={selectedComplaint.statusGroup} />
               </div>
               <button type="button" className={styles.closeButton} aria-label="Close details" onClick={() => setSelectedComplaint(null)}><X size={19} /></button>
             </header>
             <div className={styles.drawerBody}>
+              {drawerFeedback && (
+                <div
+                  role={drawerFeedback.kind === 'error' ? 'alert' : 'status'}
+                  className={`${styles.feedbackBanner} ${drawerFeedback.kind === 'error' ? styles.feedbackError : styles.feedbackSuccess}`}
+                >
+                  <span>{drawerFeedback.message}</span>
+                  <button type="button" onClick={() => setDrawerFeedback(null)} aria-label="Dismiss message">×</button>
+                </div>
+              )}
+
               <section className={styles.detailSection}>
-                <h3>Complaint details</h3>
+                <h3>Ticket details</h3>
                 <div className={styles.detailGrid}>
                   <div className={styles.detailField}><span>Employee</span><strong><UserRound size={14} /> {selectedComplaint.employeeName}</strong></div>
-                  <div className={styles.detailField}><span>Employee ID</span><strong>{selectedComplaint.employeeId}</strong></div>
-                  <div className={styles.detailField}><span>Category</span><strong>{selectedComplaint.category}</strong></div>
+                  <div className={styles.detailField}><span>Employee ID</span><strong>{selectedComplaint.employeeCode}</strong></div>
+                  {selectedComplaint.employeePhone && (
+                    <div className={styles.detailField}><span>Phone</span><strong>{selectedComplaint.employeePhone}</strong></div>
+                  )}
+                  <div className={styles.detailField}><span>Category</span><strong>{selectedComplaint.categoryLabel}</strong></div>
                   <div className={styles.detailField}><span>Raised on</span><strong>{formatDate(selectedComplaint.raisedAt, { dateStyle: 'medium', timeStyle: 'short' })}</strong></div>
+                </div>
+                <div className={styles.detailField} style={{ marginBottom: 10 }}>
+                  <span>Subject</span>
+                  <strong>{selectedComplaint.subject}</strong>
                 </div>
                 <div className={styles.detailField}>
                   <span>Description</span>
-                  <p>{selectedComplaint.description}</p>
+                  <p>{selectedComplaint.description || 'No description provided.'}</p>
                 </div>
+
+                {selectedComplaint.statusRaw !== 'CLOSED' && (
+                  <div className={styles.statusActions}>
+                    {['OPEN', 'ASSIGNED', 'REOPENED', 'WAITING_FOR_CORPORATE'].includes(selectedComplaint.statusRaw) && (
+                      <button
+                        type="button"
+                        className={styles.statusActionBtn}
+                        disabled={updatingStatus}
+                        onClick={() => void handleUpdateStatus('IN_PROGRESS')}
+                      >
+                        <Clock3 size={14} /> {updatingStatus ? 'Updating…' : 'Mark In Progress'}
+                      </button>
+                    )}
+                    {selectedComplaint.statusRaw !== 'RESOLVED' && (
+                      <button
+                        type="button"
+                        className={`${styles.statusActionBtn} ${styles.statusActionResolve}`}
+                        disabled={updatingStatus}
+                        onClick={() => void handleUpdateStatus('RESOLVED')}
+                      >
+                        <CheckCircle2 size={14} /> {updatingStatus ? 'Updating…' : 'Mark Resolved'}
+                      </button>
+                    )}
+                  </div>
+                )}
               </section>
 
-              <section className={styles.detailSection}>
-                <h3>Associated trip</h3>
-                <div className={styles.tripDetail}>
-                  <span className={styles.tripIcon}><CarFront size={17} /></span>
-                  <span><strong>{selectedComplaint.tripId}</strong><small>{selectedComplaint.tripDirection} commute · {formatDate(selectedComplaint.tripDate, { dateStyle: 'medium' })} at {selectedComplaint.tripTime}</small></span>
-                </div>
-              </section>
+              {selectedComplaint.routeId && (
+                <section className={styles.detailSection}>
+                  <h3>Associated route</h3>
+                  <div className={styles.tripDetail}>
+                    <span className={styles.tripIcon}><CarFront size={17} /></span>
+                    <span>
+                      <strong>Route {selectedComplaint.routeId}</strong>
+                      <small>Linked to this employee support ticket</small>
+                    </span>
+                  </div>
+                </section>
+              )}
+
+              {selectedComplaint.resolutionNotes && (
+                <section className={styles.detailSection}>
+                  <h3>Resolution notes</h3>
+                  <div className={styles.detailField}>
+                    <p>{selectedComplaint.resolutionNotes}</p>
+                    {selectedComplaint.resolvedAt && (
+                      <span>Resolved on {formatDate(selectedComplaint.resolvedAt, { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                    )}
+                  </div>
+                </section>
+              )}
 
               <section className={styles.detailSection}>
-                <h3>AdhocX Support updates</h3>
-                <ol className={styles.timeline}>
-                  {selectedComplaint.updates.map((update) => (
-                    <li key={update.id}>
-                      <span className={styles.timelineDot} />
-                      <div>
-                        <div className={styles.timelineHeading}><strong>{update.role}</strong><time>{formatDate(update.createdAt, { dateStyle: 'medium', timeStyle: 'short' })}</time></div>
-                        <p>{update.message}</p>
-                        <small>{update.author}</small>
-                      </div>
-                    </li>
-                  ))}
-                </ol>
+                <h3>Conversation &amp; updates</h3>
+                {drawerLoading ? (
+                  <p className={styles.noAttachments}>Loading conversation history…</p>
+                ) : messages.length === 0 ? (
+                  <p className={styles.noAttachments}>No replies yet. Send a message below to update this ticket.</p>
+                ) : (
+                  <ol className={styles.timeline}>
+                    {messages.map((msg) => (
+                      <li key={msg.id}>
+                        <span className={styles.timelineDot} />
+                        <div>
+                          <div className={styles.timelineHeading}>
+                            <strong>{msg.senderName || msg.senderRole}</strong>
+                            <time>{formatDate(new Date(msg.createdAt), { dateStyle: 'medium', timeStyle: 'short' })}</time>
+                          </div>
+                          <p>{msg.message}</p>
+                          <small>{msg.senderRole}</small>
+                        </div>
+                      </li>
+                    ))}
+                  </ol>
+                )}
+
+                <form className={styles.replyForm} onSubmit={handleSendReply}>
+                  <textarea
+                    aria-label="Reply to ticket"
+                    placeholder="Write a reply or operational update..."
+                    value={replyText}
+                    onChange={(event) => setReplyText(event.target.value)}
+                    disabled={sendingReply}
+                  />
+                  <div className={styles.replyFormFooter}>
+                    <button
+                      type="submit"
+                      className={styles.primaryActionBtn}
+                      disabled={sendingReply || !replyText.trim()}
+                    >
+                      <Send size={14} /> {sendingReply ? 'Sending…' : 'Send Reply'}
+                    </button>
+                  </div>
+                </form>
               </section>
 
               <section className={styles.detailSection}>
                 <h3>Attachments</h3>
                 {selectedComplaint.attachments.length ? (
                   <ul className={styles.attachmentList}>
-                    {selectedComplaint.attachments.map((file) => <li key={file}><FileImage size={16} /><span>{file}</span><small>Sample</small></li>)}
+                    {selectedComplaint.attachments.map((file) => (
+                      <li key={file.id}>
+                        <FileImage size={16} />
+                        {file.url ? (
+                          <a href={file.url} target="_blank" rel="noreferrer">{file.fileName}</a>
+                        ) : (
+                          <span>{file.fileName}</span>
+                        )}
+                        <small>{file.fileSize ? `${Math.max(1, Math.round(file.fileSize / 1024))} KB` : file.fileType}</small>
+                      </li>
+                    ))}
                   </ul>
                 ) : <p className={styles.noAttachments}>No attachments provided.</p>}
               </section>
-              <p className={styles.readOnlyNote}><Headphones size={15} /> Complaint investigation and resolution are handled by AdhocX Support.</p>
             </div>
           </aside>
         </div>

@@ -14,8 +14,9 @@ import {
   KeyRound,
   RotateCcw,
 } from 'lucide-react';
-import { setSession } from '../../lib/auth/session';
+import { decodeToken, isPortalRole, setSession } from '../../lib/auth/session';
 import { authApi } from '../../lib/api/corporate';
+import type { AuthUser } from '../../lib/api/types';
 import { useSession } from '../../lib/auth/SessionContext';
 import { ThemeToggle } from '../../components/common/ThemeToggle';
 
@@ -65,6 +66,30 @@ function LoginContent() {
     setErrorMessage(null);
   };
 
+  const validateCorporateAccess = (accessToken: string, user?: AuthUser | null): { ok: true; role: string } | { ok: false; error: string } => {
+    const claims = decodeToken(accessToken);
+    const resolvedRole = (user?.role || claims?.role || '').trim();
+    const resolvedTenantId = (user?.corporateTenantId || claims?.corporateTenantId || '').trim();
+
+    if (!isPortalRole(resolvedRole)) {
+      return {
+        ok: false,
+        error: resolvedRole
+          ? `This account (${resolvedRole}) is not authorized for the Corporate Portal. Please sign in with a Corporate Admin or Corporate Manager account.`
+          : 'This account does not have a Corporate Portal role assigned. Please sign in with a Corporate Admin or Corporate Manager account.',
+      };
+    }
+
+    if (!resolvedTenantId) {
+      return {
+        ok: false,
+        error: 'This account is not linked to a Corporate Portal company yet. Please contact your AdhocX administrator to complete company provisioning.',
+      };
+    }
+
+    return { ok: true, role: resolvedRole };
+  };
+
   const applySessionAndRedirect = (
     token: string,
     user: { id: string; role: string; fullName: string; email: string; phone: string },
@@ -108,12 +133,17 @@ function LoginContent() {
     try {
       const res = await authApi.login(resolvedIdentifier, password);
       if (res && res.accessToken) {
+        const access = validateCorporateAccess(res.accessToken, res.user);
+        if (!access.ok) {
+          setErrorMessage(access.error);
+          return;
+        }
         applySessionAndRedirect(
           res.accessToken,
           {
             id: res.user?.id || '',
-            role: res.user?.role || 'CORPORATE_ADMIN',
-            fullName: res.user?.fullName || 'Corporate Administrator',
+            role: access.role,
+            fullName: res.user?.fullName || '',
             email: res.user?.email || (rawId.includes('@') ? rawId : ''),
             phone: res.user?.phone || (rawId.includes('@') ? '' : resolvedIdentifier),
           },
@@ -198,12 +228,17 @@ function LoginContent() {
       });
 
       if (res && res.accessToken) {
+        const access = validateCorporateAccess(res.accessToken, res.user);
+        if (!access.ok) {
+          setErrorMessage(access.error);
+          return;
+        }
         applySessionAndRedirect(
           res.accessToken,
           {
             id: res.user?.id || '',
-            role: res.user?.role || 'CORPORATE_ADMIN',
-            fullName: res.user?.fullName || 'Corporate Administrator',
+            role: access.role,
+            fullName: res.user?.fullName || '',
             email: res.user?.email || '',
             phone: res.user?.phone || phoneE164,
           },

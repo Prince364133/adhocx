@@ -19,6 +19,11 @@ abstract class EmployeeAuthRepository {
 
   /// Sign out current employee session.
   Future<void> signOut();
+
+  /// Permanently delete the authenticated account and clear local session.
+  Future<void> deleteAccount() async {
+    await signOut();
+  }
 }
 
 class InvalidOtpException implements Exception {

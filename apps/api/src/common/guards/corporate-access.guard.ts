@@ -19,6 +19,7 @@ import {
 import {
   CORPORATE_PERMISSION_KEY,
   CorporatePermission,
+  CorporateRole,
   corporateOfficeScope,
   corporateRoleHas,
   effectiveCorporateRole,
@@ -172,6 +173,12 @@ export class CorporateAccessGuard implements CanActivate {
       throw new ForbiddenException(`Corporate role ${corporateRole ?? 'NONE'} lacks permission ${permission}`);
     }
 
+    // READ_ONLY corporate accounts can read everything in scope and mutate nothing.
+    const method = String(request?.method ?? 'GET').toUpperCase();
+    if (corporateRole === CorporateRole.READ_ONLY && !['GET', 'HEAD', 'OPTIONS'].includes(method)) {
+      throw new ForbiddenException('Read-only corporate accounts cannot perform write operations');
+    }
+
     if (officeScope) {
       const body = request.body && typeof request.body === 'object' && !Buffer.isBuffer(request.body) ? request.body : undefined;
       for (const candidate of [request.params?.officeId, request.query?.officeId, body?.officeId]) {
@@ -251,6 +258,7 @@ export class CorporateAccessGuard implements CanActivate {
   ): Promise<ResolvedResource | null> {
     const routeAccessSelect = {
       tenantId: true,
+      officeId: true,
       driverId: true,
       tenant: { select: TENANT_SELECT },
       driver: { select: { userId: true } },
@@ -273,6 +281,7 @@ export class CorporateAccessGuard implements CanActivate {
         return {
           id: route.id,
           tenantId: route.tenantId,
+          officeId: route.officeId ?? null,
           tenant: route.tenant ?? null,
           routeDriverId: route.driverId,
           routeDriverUserId: route.driver?.userId ?? null,
@@ -291,6 +300,7 @@ export class CorporateAccessGuard implements CanActivate {
         return {
           id: stop.id,
           tenantId: stop.route?.tenantId ?? null,
+          officeId: stop.route?.officeId ?? null,
           tenant: stop.route?.tenant ?? null,
           routeDriverId: stop.route?.driverId ?? null,
           routeDriverUserId: stop.route?.driver?.userId ?? null,
@@ -306,6 +316,7 @@ export class CorporateAccessGuard implements CanActivate {
         return {
           id: alert.id,
           tenantId: alert.route?.tenantId ?? null,
+          officeId: alert.route?.officeId ?? null,
           tenant: alert.route?.tenant ?? null,
           routeDriverId: alert.route?.driverId ?? null,
           routeDriverUserId: alert.route?.driver?.userId ?? null,
@@ -314,18 +325,44 @@ export class CorporateAccessGuard implements CanActivate {
       case 'ticket': {
         const ticket: any = await this.db.corporateSupportTicket.findUnique({
           where: { id },
-          select: { id: true, tenantId: true, employeeId: true, tenant: { select: TENANT_SELECT } },
+          select: {
+            id: true,
+            tenantId: true,
+            employeeId: true,
+            tenant: { select: TENANT_SELECT },
+            employee: { select: { officeId: true } },
+          },
         });
         return ticket
-          ? { id: ticket.id, tenantId: ticket.tenantId, tenant: ticket.tenant ?? null, employeeId: ticket.employeeId }
+          ? {
+              id: ticket.id,
+              tenantId: ticket.tenantId,
+              officeId: ticket.employee?.officeId ?? null,
+              tenant: ticket.tenant ?? null,
+              employeeId: ticket.employeeId,
+            }
           : null;
       }
       case 'request': {
         const req: any = await this.db.corporateTransportRequest.findUnique({
           where: { id },
-          select: { id: true, tenantId: true, employeeId: true, tenant: { select: TENANT_SELECT } },
+          select: {
+            id: true,
+            tenantId: true,
+            employeeId: true,
+            tenant: { select: TENANT_SELECT },
+            employee: { select: { officeId: true } },
+          },
         });
-        return req ? { id: req.id, tenantId: req.tenantId, tenant: req.tenant ?? null, employeeId: req.employeeId } : null;
+        return req
+          ? {
+              id: req.id,
+              tenantId: req.tenantId,
+              officeId: req.employee?.officeId ?? null,
+              tenant: req.tenant ?? null,
+              employeeId: req.employeeId,
+            }
+          : null;
       }
       case 'roster':
         return this.tenantOwned(await this.db.corporateRoster.findUnique({ where: { id }, select: OFFICE_OWNED_SELECT }));

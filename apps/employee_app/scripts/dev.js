@@ -6,7 +6,6 @@ const http = require('http');
 const PORT = parseInt(process.env.PORT || '7005', 10);
 const RELOAD_PORT = parseInt(process.env.RELOAD_PORT || '7015', 10);
 const APP_DIR = path.resolve(__dirname, '..');
-const MOCK_DATA_PATH = path.join(APP_DIR, 'assets', 'data', 'mock_data.json');
 const LIB_DIR = path.join(APP_DIR, 'lib');
 const ASSETS_DIR = path.join(APP_DIR, 'assets');
 
@@ -292,14 +291,7 @@ if (flutterCmd) {
   startAppServer();
 }
 
-function getMockData() {
-  try {
-    if (fs.existsSync(MOCK_DATA_PATH)) {
-      return JSON.parse(fs.readFileSync(MOCK_DATA_PATH, 'utf-8'));
-    }
-  } catch (e) {
-    console.error('Error reading mock_data.json:', e);
-  }
+function getFallbackPreviewData() {
   return {};
 }
 
@@ -349,12 +341,6 @@ function startAppServer() {
       return;
     }
 
-    if (url.pathname === '/api/mock-data') {
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify(getMockData()));
-      return;
-    }
-
     if (staticRoot) {
       let relativePath = decodeURIComponent(url.pathname.replace(/^\/+/, ''));
       if (!relativePath || relativePath === '') relativePath = 'index.html';
@@ -369,7 +355,7 @@ function startAppServer() {
       }
     }
 
-    const html = generateAppHtml(getMockData());
+    const html = generateAppHtml(getFallbackPreviewData());
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
     res.end(html);
   });
@@ -378,7 +364,6 @@ function startAppServer() {
     console.log(`======================================================`);
     console.log(`ℹ️  ADHOCX STATIC FALLBACK PREVIEW RUNNING ON PORT ${PORT}`);
     console.log(`🌐 Fallback URL: http://localhost:${PORT}`);
-    console.log(`⚡ Mock Data:   Loaded from assets/data/mock_data.json`);
     console.log(`======================================================`);
   });
 
@@ -546,30 +531,22 @@ function generateAppHtml(mockData) {
     </div>
     <div class="app-bar">
       <div class="brand-logo">Adhoc<span>X</span></div>
-      <span class="badge">EMP10294</span>
+      <span class="badge">Preview</span>
     </div>
 
     <div class="content">
       <div style="margin-bottom:16px;">
-        <div style="font-size:12px;color:var(--muted);">Good Morning,</div>
-        <h2 style="font-size:20px;font-weight:800;">${emp.name || 'Ravi Kumar'}</h2>
-        <div style="font-size:12px;color:var(--muted);">${emp.organization || 'Estemporaneo Tech Pvt. Ltd.'}</div>
+        <div style="font-size:12px;color:var(--muted);">Welcome,</div>
+        <h2 style="font-size:20px;font-weight:800;">${emp.name || 'Employee Commuter'}</h2>
+        <div style="font-size:12px;color:var(--muted);">${emp.organization || 'Sign in via Flutter app for live data'}</div>
       </div>
 
       <div class="card" style="border-left:4px solid var(--primary);">
         <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
-          <span class="badge">Upcoming Pickup</span>
-          <span style="font-size:12px;font-weight:700;color:var(--primary);">ETA: ~6 MIN</span>
+          <span class="badge">Live Data Mode</span>
         </div>
-        <div style="font-weight:800;font-size:16px;margin-bottom:4px;">${up.type || 'Office Pickup (Login)'}</div>
-        <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">Scheduled: ${up.time || '8:15 AM'} • Home → HITEC City</div>
-
-        <div style="background:#F1F5F9;padding:12px;border-radius:12px;margin-bottom:14px;">
-          <div style="font-weight:700;font-size:14px;">${drv.name || 'Suresh R'} ★ ${drv.rating || '4.8'}</div>
-          <div style="font-size:12px;color:var(--muted);">${drv.vehicleModel || 'Maruti Ertiga'} • ${drv.vehicleNumber || 'TS09UB7845'}</div>
-        </div>
-
-        <button class="btn" onclick="alert('Viewing live route & assigned cab...')">View Live Route</button>
+        <div style="font-weight:800;font-size:16px;margin-bottom:4px;">${up.type || 'Run Flutter to connect to API'}</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">Install Flutter SDK to view live commute trips, schedule, and tracking.</div>
       </div>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">

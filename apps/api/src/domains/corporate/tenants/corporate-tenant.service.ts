@@ -8,6 +8,7 @@ import {
   Optional,
 } from '@nestjs/common';
 import { DatabaseService } from '../../../database/database.service';
+import { RedisService } from '../../../redis/redis.service';
 import { AuditService } from '../../../modules/audit/audit.service';
 import { H3Service } from '../../../modules/locations/h3.service';
 import { sanitizeRealName } from '../../../common/utils/name.util';
@@ -40,6 +41,7 @@ export class CorporateTenantService {
     private readonly audit: AuditService,
     private readonly h3Service: H3Service,
     @Optional() private readonly geocoder?: GoogleGeocodingAdapter,
+    @Optional() private readonly redis?: RedisService,
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -91,6 +93,19 @@ export class CorporateTenantService {
         },
       });
 
+      if (typeof (tx as any).corporateTenantPolicy?.create === 'function') {
+        await tx.corporateTenantPolicy.create({
+          data: {
+            tenantId: tenant.id,
+            version: 1,
+            effectiveFrom: new Date(),
+            createdById: actorUserId ?? null,
+            defaultVehicleCategory: 'SEDAN',
+            defaultCapacity: 4,
+          },
+        });
+      }
+
       let portalUser;
       if (portalAdmin) {
         await assertPhoneAvailable(tx, portalAdmin.phone);
@@ -125,7 +140,8 @@ export class CorporateTenantService {
       throw error;
     });
 
-    const { tenant, portalUser } = created;
+    const { tenant } = created;
+    let portalUser = created.portalUser;
 
     this.logger.log(
       `Created corporate tenant ${tenant.name} (${tenant.code})${portalUser ? ' with Corporate Super Admin access' : ''}`,
@@ -145,8 +161,6 @@ export class CorporateTenantService {
         });
 
         if (existingUser) {
-          // Never repurpose an account that already has another job on the platform (a driver
-          // would drop out of dispatch, a vendor would lose bookings, staff would lose access).
           const protectedRoles: string[] = [
             UserRole.ADMIN, UserRole.OPS, UserRole.DRIVER, UserRole.VENDOR, UserRole.EMPLOYEE, UserRole.CORPORATE_MANAGER,
           ];
@@ -156,7 +170,7 @@ export class CorporateTenantService {
               `Company phone ${normalizedPhone} belongs to existing ${existingUser.role} account ${existingUser.id}; not converting it to a corporate admin for ${tenant.name}`,
             );
           } else {
-            await this.db.user.update({
+            portalUser = await this.db.user.update({
               where: { id: existingUser.id },
               data: {
                 corporateTenantId: tenant.id,
@@ -171,7 +185,7 @@ export class CorporateTenantService {
             this.logger.log(`Linked existing user ${existingUser.id} (${normalizedPhone}) to tenant ${tenant.name} as CORP_SUPER_ADMIN`);
           }
         } else {
-          const newUser = await this.db.user.create({
+          portalUser = await this.db.user.create({
             data: {
               phone: normalizedPhone,
               email: dto.primaryContactEmail?.trim().toLowerCase() || undefined,
@@ -183,7 +197,7 @@ export class CorporateTenantService {
               status: 'ACTIVE',
             },
           });
-          this.logger.log(`Provisioned corporate admin user ${newUser.id} (${normalizedPhone}) for tenant ${tenant.name}`);
+          this.logger.log(`Provisioned corporate admin user ${portalUser.id} (${normalizedPhone}) for tenant ${tenant.name}`);
         }
       } catch (userErr: any) {
         this.logger.warn(`Could not provision corporate admin user for tenant ${tenant.code}: ${userErr.message}`);
@@ -191,24 +205,30 @@ export class CorporateTenantService {
     }
 
     // 2. Ensure initial primary campus/office exists for corporate operations
+    let hqOfficeCreated = false;
+    let hqOfficeWarning: string | undefined;
     try {
       const officeAddress =
         dto.registeredAddress?.trim() ||
         (dto.city ? `${dto.city.trim()}${dto.state ? `, ${dto.state.trim()}` : ''}` : `${tenant.name} Headquarters`);
       const officeCode = `${tenant.code}-HQ`.slice(0, 32);
-      // Locate the HQ from its address. If that is not possible the office is NOT created: an
-      // invented point would become every employee's drop/pickup. Admins add it under Offices.
-      const geocodeQuery = [dto.registeredAddress, dto.city, dto.state, dto.pinCode, dto.country || 'India']
-        .map((part) => part?.trim())
-        .filter(Boolean)
-        .join(', ');
-      const hq = await this.geocodeStrict(geocodeQuery);
-      const h3Res8 = this.h3Service.latLngToCell(hq.latitude, hq.longitude, 8);
+      let lat = dto.officeLatitude !== undefined ? Number(dto.officeLatitude) : NaN;
+      let lng = dto.officeLongitude !== undefined ? Number(dto.officeLongitude) : NaN;
+      if (!Number.isFinite(lat) || !Number.isFinite(lng) || (lat === 0 && lng === 0)) {
+        const geocodeQuery = [dto.registeredAddress, dto.city, dto.state, dto.pinCode, dto.country || 'India']
+          .map((part) => part?.trim())
+          .filter(Boolean)
+          .join(', ');
+        const hq = await this.geocodeStrict(geocodeQuery);
+        lat = hq.latitude;
+        lng = hq.longitude;
+      }
+      const h3Res8 = this.h3Service.latLngToCell(lat, lng, 8);
       await this.db.corporateOffice.create({
         data: {
           tenantId: tenant.id,
           code: officeCode,
-          name: `${tenant.name} HQ`,
+          name: dto.officeName?.trim() || `${tenant.name} HQ`,
           addressText: officeAddress,
           city: dto.city?.trim() || null,
           state: dto.state?.trim() || null,
@@ -217,14 +237,16 @@ export class CorporateTenantService {
           contactName: dto.primaryContactName?.trim() || null,
           contactEmail: dto.primaryContactEmail?.trim() || null,
           contactPhone: normalizedPhone || null,
-          latitude: hq.latitude,
-          longitude: hq.longitude,
+          latitude: lat,
+          longitude: lng,
           h3Res8Index: h3Res8,
           isActive: true,
         },
       });
+      hqOfficeCreated = true;
       this.logger.log(`Provisioned primary office ${officeCode} for tenant ${tenant.name}`);
     } catch (officeErr: any) {
+      hqOfficeWarning = `Primary HQ office could not be auto-geocoded (${officeErr.message}). Please add office coordinates under Offices before committing routes.`;
       this.logger.warn(`Could not create initial primary office for tenant ${tenant.code}: ${officeErr.message}`);
     }
 
@@ -233,7 +255,7 @@ export class CorporateTenantService {
       userId: actorUserId,
       entityId: tenant.id,
       entityType: 'CORPORATE_TENANT',
-      metadata: { code: tenant.code, name: tenant.name },
+      metadata: { code: tenant.code, name: tenant.name, hqOfficeCreated },
     });
 
     if (portalUser) {
@@ -253,6 +275,8 @@ export class CorporateTenantService {
 
     return {
       ...tenant,
+      hqOfficeCreated,
+      ...(hqOfficeWarning ? { hqOfficeWarning } : {}),
       ...(portalUser
         ? {
             portalAccess: {
@@ -265,14 +289,21 @@ export class CorporateTenantService {
     };
   }
 
-  async listTenants(query?: { search?: string; status?: CorporateTenantStatus; page?: number; limit?: number }) {
+  async listTenants(query?: {
+    search?: string;
+    status?: CorporateTenantStatus | string;
+    page?: number;
+    limit?: number;
+    minimal?: boolean;
+  }) {
     const page = Math.max(1, query?.page || 1);
     const limit = Math.min(100, Math.max(1, query?.limit || 20));
     const skip = (page - 1) * limit;
 
     const where: any = {};
     if (query?.status) {
-      where.status = query.status;
+      const normalizedStatus = String(query.status).trim().toUpperCase();
+      where.status = normalizedStatus === 'INACTIVE' ? 'TERMINATED' : normalizedStatus;
     }
     if (query?.search) {
       const s = query.search.trim();
@@ -331,14 +362,96 @@ export class CorporateTenantService {
       }),
     ]);
 
-    const items = rawItems.map((tenant: any) => ({
-      ...tenant,
-      offices: (tenant.offices ?? []).map((o: any) => ({
-        ...o,
-        latitude: Number(o.latitude),
-        longitude: Number(o.longitude),
-      })),
-    }));
+    const tenantIds = rawItems.map((t: any) => t.id);
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 86400_000);
+    const liveRoutes =
+      !query?.minimal && tenantIds.length > 0 && typeof (this.db as any).corporateRoute?.findMany === 'function'
+        ? await this.db.corporateRoute.findMany({
+            where: {
+              tenantId: { in: tenantIds },
+              shiftDate: { gte: thirtyDaysAgo },
+            },
+            select: {
+              tenantId: true,
+              status: true,
+              driverId: true,
+              assignedPassengerCount: true,
+              targetOfficeArrivalTime: true,
+              updatedAt: true,
+            },
+          })
+        : [];
+
+    const statsByTenant = new Map<
+      string,
+      {
+        activeCabsCount: number;
+        inTransitCount: number;
+        inTransitPassengersCount: number;
+        delayedCount: number;
+        unassignedCount: number;
+        completedCount: number;
+        onTimeCompletedCount: number;
+      }
+    >();
+
+    const now = Date.now();
+    for (const r of liveRoutes) {
+      const bucket = statsByTenant.get(r.tenantId) ?? {
+        activeCabsCount: 0,
+        inTransitCount: 0,
+        inTransitPassengersCount: 0,
+        delayedCount: 0,
+        unassignedCount: 0,
+        completedCount: 0,
+        onTimeCompletedCount: 0,
+      };
+      const status = String(r.status);
+      if (['PLANNED', 'DISPATCHING', 'ASSIGNED', 'IN_TRANSIT'].includes(status)) {
+        bucket.activeCabsCount += 1;
+      }
+      if (status === 'IN_TRANSIT') {
+        bucket.inTransitCount += 1;
+        bucket.inTransitPassengersCount += Number((r as any).assignedPassengerCount ?? 0);
+        if (r.targetOfficeArrivalTime && new Date(r.targetOfficeArrivalTime).getTime() + 10 * 60_000 < now) {
+          bucket.delayedCount += 1;
+        }
+      }
+      if ((status === 'PLANNED' || status === 'DISPATCHING') && !r.driverId) {
+        bucket.unassignedCount += 1;
+      }
+      if (status === 'COMPLETED') {
+        bucket.completedCount += 1;
+        if (
+          !r.targetOfficeArrivalTime ||
+          !r.updatedAt ||
+          new Date(r.updatedAt).getTime() <= new Date(r.targetOfficeArrivalTime).getTime() + 10 * 60_000
+        ) {
+          bucket.onTimeCompletedCount += 1;
+        }
+      }
+      statsByTenant.set(r.tenantId, bucket);
+    }
+
+    const items = rawItems.map((tenant: any) => {
+      const s = statsByTenant.get(tenant.id);
+      const onTimePunctualityPct =
+        s && s.completedCount > 0 ? Math.round((s.onTimeCompletedCount / s.completedCount) * 1000) / 10 : null;
+      return {
+        ...tenant,
+        activeCabsCount: s?.activeCabsCount ?? 0,
+        inTransitCount: s?.inTransitCount ?? 0,
+        inTransitPassengersCount: s?.inTransitPassengersCount ?? 0,
+        delayedCount: s?.delayedCount ?? 0,
+        unassignedCount: s?.unassignedCount ?? 0,
+        onTimePunctualityPct,
+        offices: (tenant.offices ?? []).map((o: any) => ({
+          ...o,
+          latitude: Number(o.latitude),
+          longitude: Number(o.longitude),
+        })),
+      };
+    });
 
     return {
       items,
@@ -401,6 +514,13 @@ export class CorporateTenantService {
   async updateTenant(tenantId: string, dto: UpdateCorporateTenantDto, actorUserId?: string) {
     const tenant = await this.getTenantById(tenantId);
 
+    const normalizedStatus =
+      dto.status !== undefined
+        ? String(dto.status).trim().toUpperCase() === 'INACTIVE'
+          ? 'TERMINATED'
+          : dto.status
+        : undefined;
+
     const updated = await this.db.corporateTenant.update({
       where: { id: tenantId },
       data: {
@@ -408,7 +528,7 @@ export class CorporateTenantService {
         ...(dto.legalEntityName !== undefined ? { legalEntityName: dto.legalEntityName.trim() } : {}),
         ...this.validateTenantProfile(dto),
         ...(dto.logoUrl !== undefined ? { logoUrl: dto.logoUrl?.trim() || null } : {}),
-        status: dto.status as any,
+        ...(normalizedStatus !== undefined ? { status: normalizedStatus as any } : {}),
       },
     });
 
@@ -733,6 +853,9 @@ export class CorporateTenantService {
 
     const h3Res8Index = this.h3Service.latLngToCell(lat, lng, 8);
 
+    const normalizedPhone = normalizeIndianPhone(dto.phoneNumber) || dto.phoneNumber.trim();
+    const cleanedEmail = dto.email.trim().toLowerCase();
+
     const employee = await this.db.$transaction(async (tx) => {
       const emp = await tx.corporateEmployee.create({
         data: {
@@ -740,8 +863,8 @@ export class CorporateTenantService {
           officeId: dto.officeId,
           employeeCode: dto.employeeCode.trim().toUpperCase(),
           fullName: dto.fullName.trim(),
-          email: dto.email.trim().toLowerCase(),
-          phoneNumber: dto.phoneNumber.trim(),
+          email: cleanedEmail,
+          phoneNumber: normalizedPhone,
           gender: dto.gender as any,
           department: dto.department?.trim() || null,
           costCenter: dto.costCenter?.trim() || null,
@@ -764,6 +887,12 @@ export class CorporateTenantService {
       return emp;
     });
 
+    await this.ensureEmployeeLoginAccount(employee.id, tenantId, {
+      fullName: employee.fullName,
+      phoneNumber: normalizedPhone,
+      email: cleanedEmail,
+    });
+
     await this.audit.log({
       action: 'CORPORATE_EMPLOYEE_CREATED',
       userId: actorUserId,
@@ -773,6 +902,77 @@ export class CorporateTenantService {
     });
 
     return this.getEmployeeById(tenantId, employee.id);
+  }
+
+  private async ensureEmployeeLoginAccount(
+    employeeId: string,
+    tenantId: string,
+    info: { fullName: string; phoneNumber?: string | null; email?: string | null },
+  ): Promise<void> {
+    const normalizedPhone = info.phoneNumber ? normalizeIndianPhone(info.phoneNumber) : null;
+    if (!normalizedPhone || normalizedPhone.replace(/\D/g, '').length < 10 || /^0+$/.test(normalizedPhone.replace(/\D/g, ''))) {
+      return;
+    }
+    const variants = getPhoneVariants(normalizedPhone);
+    const existingUser = await this.db.user.findFirst({
+      where: { phone: { in: variants.length > 0 ? variants : [normalizedPhone] } },
+      select: { id: true, role: true, corporateTenantId: true, status: true },
+    });
+
+    if (existingUser) {
+      if (existingUser.role === UserRole.EMPLOYEE) {
+        const alreadyLinked = await this.db.corporateEmployee.findUnique({
+          where: { userId: existingUser.id },
+          select: { id: true },
+        });
+        if (!alreadyLinked || alreadyLinked.id === employeeId) {
+          await this.db.corporateEmployee.update({
+            where: { id: employeeId },
+            data: { userId: existingUser.id },
+          });
+          await this.db.user.update({
+            where: { id: existingUser.id },
+            data: {
+              corporateTenantId: tenantId,
+              fullName: info.fullName || undefined,
+              status: 'ACTIVE',
+            },
+          });
+        }
+      } else {
+        this.logger.warn(
+          `Employee ${employeeId} phone ${normalizedPhone} belongs to ${existingUser.role} account ${existingUser.id}; skipping auto-link`,
+        );
+      }
+      return;
+    }
+
+    const rawEmail = (info.email || '').trim().toLowerCase();
+    let safeEmail: string | undefined;
+    if (rawEmail && EMAIL_PATTERN.test(rawEmail) && !rawEmail.endsWith('@roster.corporate.local')) {
+      const emailTaken = await this.db.user.findFirst({
+        where: { email: { equals: rawEmail, mode: 'insensitive' } },
+        select: { id: true },
+      });
+      if (!emailTaken) safeEmail = rawEmail;
+    }
+
+    const createdUser = await this.db.user.create({
+      data: {
+        phone: normalizedPhone,
+        ...(safeEmail ? { email: safeEmail } : {}),
+        fullName: info.fullName || undefined,
+        role: UserRole.EMPLOYEE as any,
+        corporateTenantId: tenantId,
+        status: 'ACTIVE',
+      },
+    });
+    if (createdUser?.id && typeof this.db.corporateEmployee?.update === 'function') {
+      await this.db.corporateEmployee.update({
+        where: { id: employeeId },
+        data: { userId: createdUser.id },
+      });
+    }
   }
 
   async listEmployees(
@@ -913,7 +1113,7 @@ export class CorporateTenantService {
     actorUserId?: string,
     officeScope?: string[] | null,
   ) {
-    await this.getEmployeeById(tenantId, employeeId, officeScope);
+    const existing = await this.getEmployeeById(tenantId, employeeId, officeScope);
 
     if (dto.officeId) {
       const office = await this.db.corporateOffice.findFirst({
@@ -924,12 +1124,71 @@ export class CorporateTenantService {
       }
     }
 
+    const normalizedPhone =
+      dto.phoneNumber !== undefined
+        ? normalizeIndianPhone(dto.phoneNumber) || dto.phoneNumber.trim()
+        : undefined;
+    const cleanedEmail = dto.email !== undefined ? dto.email.trim().toLowerCase() : undefined;
+
+    if (normalizedPhone && existing.userId) {
+      const variants = getPhoneVariants(normalizedPhone);
+      const phoneClash = await this.db.user.findFirst({
+        where: {
+          phone: { in: variants.length > 0 ? variants : [normalizedPhone] },
+          id: { not: existing.userId },
+        },
+        select: { id: true, role: true },
+      });
+      if (phoneClash) {
+        throw new ConflictException(
+          `Phone number ${normalizedPhone} is already registered to another ${phoneClash.role} account`,
+        );
+      }
+    }
+
+    const currentDefaultAddress = (
+      existing.locations?.find((l: any) => l.isDefault)?.addressText ??
+      existing.locations?.[0]?.addressText ??
+      ''
+    ).trim().toLowerCase();
+    const nextAddressTrimmed = dto.homeAddress !== undefined ? dto.homeAddress.trim() : '';
+    const addressChanged =
+      Boolean(nextAddressTrimmed) &&
+      (nextAddressTrimmed.toLowerCase() !== currentDefaultAddress ||
+        (dto.latitude !== undefined && dto.longitude !== undefined));
+
+    if (addressChanged) {
+      let lat = dto.latitude !== undefined ? Number(dto.latitude) : 0;
+      let lng = dto.longitude !== undefined ? Number(dto.longitude) : 0;
+      if (!lat || !lng || isNaN(lat) || isNaN(lng)) {
+        const resolved = await this.geocodeStrict(nextAddressTrimmed);
+        lat = resolved.latitude;
+        lng = resolved.longitude;
+      }
+      const h3Res8Index = this.h3Service.latLngToCell(lat, lng, 8);
+      await this.db.corporateEmployeeLocation.updateMany({
+        where: { employeeId, isDefault: true },
+        data: { isDefault: false },
+      });
+      await this.db.corporateEmployeeLocation.create({
+        data: {
+          employeeId,
+          addressText: nextAddressTrimmed,
+          landmark: dto.landmark?.trim() || null,
+          latitude: lat,
+          longitude: lng,
+          h3Res8Index,
+          isDefault: true,
+        },
+      });
+    }
+
     const updated = await this.db.corporateEmployee.update({
       where: { id: employeeId },
       data: {
         fullName: dto.fullName !== undefined ? dto.fullName.trim() : undefined,
-        email: dto.email !== undefined ? dto.email.trim().toLowerCase() : undefined,
-        phoneNumber: dto.phoneNumber !== undefined ? dto.phoneNumber.trim() : undefined,
+        email: cleanedEmail,
+        phoneNumber: normalizedPhone,
         gender: dto.gender as any,
         officeId: dto.officeId,
         department: dto.department !== undefined ? dto.department.trim() : undefined,
@@ -938,9 +1197,40 @@ export class CorporateTenantService {
       },
       include: {
         office: true,
-        locations: true,
+        locations: { orderBy: { createdAt: 'desc' } },
       },
     });
+
+    if (updated.userId) {
+      const userPatch: Record<string, any> = {};
+      if (dto.fullName !== undefined) userPatch.fullName = dto.fullName.trim();
+      if (normalizedPhone !== undefined) userPatch.phone = normalizedPhone;
+      if (cleanedEmail !== undefined && EMAIL_PATTERN.test(cleanedEmail) && !cleanedEmail.endsWith('@roster.corporate.local')) {
+        const emailClash = await this.db.user.findFirst({
+          where: { email: { equals: cleanedEmail, mode: 'insensitive' }, id: { not: updated.userId } },
+          select: { id: true },
+        });
+        if (!emailClash) userPatch.email = cleanedEmail;
+      }
+      if (dto.isActive !== undefined) {
+        userPatch.status = dto.isActive ? 'ACTIVE' : 'SUSPENDED';
+      }
+      if (Object.keys(userPatch).length > 0) {
+        await this.db.user.update({
+          where: { id: updated.userId },
+          data: userPatch,
+        });
+        if (dto.isActive === false && typeof this.redis?.revokeUserSessions === 'function') {
+          await this.redis.revokeUserSessions(updated.userId).catch(() => undefined);
+        }
+      }
+    } else if (updated.isActive) {
+      await this.ensureEmployeeLoginAccount(updated.id, tenantId, {
+        fullName: updated.fullName,
+        phoneNumber: updated.phoneNumber,
+        email: updated.email,
+      });
+    }
 
     await this.audit.log({
       action: 'CORPORATE_EMPLOYEE_UPDATED',
@@ -951,6 +1241,242 @@ export class CorporateTenantService {
     });
 
     return updated;
+  }
+
+  async deleteEmployee(
+    tenantId: string,
+    employeeId: string,
+    actorUserId?: string,
+    officeScope?: string[] | null,
+  ) {
+    const existing = await this.getEmployeeById(tenantId, employeeId, officeScope);
+
+    const activeInTransitStops = await this.db.corporateRouteStop.count({
+      where: {
+        employeeId,
+        status: { in: ['PENDING', 'ARRIVED', 'BOARDED'] as any },
+        route: { status: 'IN_TRANSIT' as any },
+      },
+    });
+    if (activeInTransitStops > 0) {
+      throw new ConflictException(
+        'Cannot delete or deactivate an employee while they are on an active IN_TRANSIT route.',
+      );
+    }
+
+    const [historicalStopsCount, ticketsCount, completedReqsCount, feedbackCount, rosterEntriesCount] = await Promise.all([
+      this.db.corporateRouteStop.count({
+        where: {
+          employeeId,
+          status: { in: ['BOARDED', 'NO_SHOW'] as any },
+        },
+      }),
+      this.db.corporateSupportTicket.count({
+        where: { employeeId },
+      }),
+      typeof (this.db as any).corporateTransportRequest?.count === 'function'
+        ? this.db.corporateTransportRequest.count({
+            where: { employeeId, status: { in: ['COMPLETED', 'IN_PROGRESS'] as any } },
+          })
+        : Promise.resolve(0),
+      typeof (this.db as any).corporateTripFeedback?.count === 'function'
+        ? (this.db as any).corporateTripFeedback.count({ where: { employeeId } })
+        : Promise.resolve(0),
+      typeof (this.db as any).corporateRosterEntry?.count === 'function'
+        ? (this.db as any).corporateRosterEntry.count({ where: { employeeId } })
+        : Promise.resolve(0),
+    ]);
+
+    if (
+      historicalStopsCount > 0 ||
+      ticketsCount > 0 ||
+      completedReqsCount > 0 ||
+      feedbackCount > 0 ||
+      rosterEntriesCount > 0
+    ) {
+      await this.db.$transaction(async (tx) => {
+        // Re-verify IN_TRANSIT inside transaction to avoid TOCTOU race while boarding
+        if (typeof (tx as any).corporateRouteStop?.count === 'function') {
+          const txInTransit = await tx.corporateRouteStop.count({
+            where: {
+              employeeId,
+              status: { in: ['PENDING', 'ARRIVED', 'BOARDED'] as any },
+              route: { status: 'IN_TRANSIT' as any },
+            },
+          });
+          if (txInTransit > 0) {
+            throw new ConflictException(
+              'Cannot delete or deactivate an employee while they are on an active IN_TRANSIT route.',
+            );
+          }
+        }
+
+        await tx.corporateEmployee.update({
+          where: { id: employeeId },
+          data: { isActive: false },
+        });
+
+        const openStops =
+          typeof (tx as any).corporateRouteStop?.findMany === 'function'
+            ? await tx.corporateRouteStop.findMany({
+                where: {
+                  employeeId,
+                  status: { in: ['PENDING', 'ARRIVED'] as any },
+                },
+                select: { id: true, routeId: true },
+              })
+            : [];
+        const affectedRouteIds = Array.from(new Set(openStops.map((s: any) => s.routeId)));
+
+        await tx.corporateRouteStop.updateMany({
+          where: {
+            employeeId,
+            status: { in: ['PENDING', 'ARRIVED'] as any },
+          },
+          data: { status: 'CANCELLED' as any },
+        });
+
+        for (const rId of affectedRouteIds) {
+          if (typeof (tx as any).corporateRouteStop?.count === 'function' && typeof (tx as any).corporateRoute?.update === 'function') {
+            const activePassengerCount = await tx.corporateRouteStop.count({
+              where: {
+                routeId: rId,
+                employeeId: { not: null },
+                status: { not: 'CANCELLED' as any },
+              },
+            });
+            await tx.corporateRoute.update({
+              where: { id: rId },
+              data: { assignedPassengerCount: activePassengerCount },
+            });
+          }
+        }
+
+        await tx.corporateTransportRequest.updateMany({
+          where: {
+            employeeId,
+            status: { in: ['APPROVED', 'PLANNED', 'ASSIGNED'] as any },
+          },
+          data: { status: 'CANCELLED' as any },
+        });
+        if (existing.userId) {
+          await tx.user.update({
+            where: { id: existing.userId },
+            data: { status: 'SUSPENDED' },
+          });
+        }
+      });
+
+      if (existing.userId && typeof this.redis?.revokeUserSessions === 'function') {
+        await this.redis.revokeUserSessions(existing.userId).catch(() => undefined);
+      }
+
+      await this.audit.log({
+        action: 'CORPORATE_EMPLOYEE_DEACTIVATED',
+        userId: actorUserId,
+        entityId: employeeId,
+        entityType: 'CORPORATE_EMPLOYEE',
+        metadata: {
+          tenantId,
+          reason: 'historical_records_present',
+          historicalStopsCount,
+          ticketsCount,
+          completedReqsCount,
+          feedbackCount,
+          rosterEntriesCount,
+        },
+      });
+
+      return {
+        id: employeeId,
+        deleted: false,
+        deactivated: true,
+        message: 'Employee has historical trip or support records and was deactivated instead of hard-deleted.',
+      };
+    }
+
+    await this.db.$transaction(async (tx) => {
+      if (typeof (tx as any).corporateRouteStop?.count === 'function') {
+        const txInTransit = await tx.corporateRouteStop.count({
+          where: {
+            employeeId,
+            status: { in: ['PENDING', 'ARRIVED', 'BOARDED'] as any },
+            route: { status: 'IN_TRANSIT' as any },
+          },
+        });
+        if (txInTransit > 0) {
+          throw new ConflictException(
+            'Cannot delete or deactivate an employee while they are on an active IN_TRANSIT route.',
+          );
+        }
+      }
+
+      const pendingStops = await tx.corporateRouteStop.findMany({
+        where: { employeeId },
+        select: { routeId: true },
+      });
+      const affectedRouteIds = Array.from(new Set(pendingStops.map((s) => s.routeId)));
+
+      await tx.corporateRouteStop.deleteMany({ where: { employeeId } });
+      await tx.corporateTransportRequest.deleteMany({ where: { employeeId } });
+      await tx.corporateEmployeeLocation.deleteMany({ where: { employeeId } });
+      await tx.corporateEmployee.delete({ where: { id: employeeId } });
+
+      for (const rId of affectedRouteIds) {
+        const remaining = await tx.corporateRouteStop.findMany({
+          where: { routeId: rId },
+          orderBy: { stopSequence: 'asc' },
+        });
+        for (let i = 0; i < remaining.length; i++) {
+          if (remaining[i].stopSequence !== i + 1) {
+            await tx.corporateRouteStop.update({
+              where: { id: remaining[i].id },
+              data: { stopSequence: i + 1 },
+            });
+          }
+        }
+        const empCount = remaining.filter((s) => Boolean(s.employeeId)).length;
+        await tx.corporateRoute.update({
+          where: { id: rId },
+          data: { assignedPassengerCount: empCount },
+        });
+      }
+    });
+
+    if (existing.userId) {
+      if (typeof this.redis?.revokeUserSessions === 'function') {
+        await this.redis.revokeUserSessions(existing.userId).catch(() => undefined);
+      }
+      const linkedUser = await this.db.user.findUnique({
+        where: { id: existing.userId },
+        select: { id: true, role: true },
+      });
+      if (linkedUser?.role === UserRole.EMPLOYEE) {
+        try {
+          await this.db.user.delete({ where: { id: linkedUser.id } });
+        } catch {
+          await this.db.user.update({
+            where: { id: linkedUser.id },
+            data: { status: 'SUSPENDED', corporateTenantId: null },
+          });
+        }
+      }
+    }
+
+    await this.audit.log({
+      action: 'CORPORATE_EMPLOYEE_DELETED',
+      userId: actorUserId,
+      entityId: employeeId,
+      entityType: 'CORPORATE_EMPLOYEE',
+      metadata: { tenantId, employeeCode: existing.employeeCode },
+    });
+
+    return {
+      id: employeeId,
+      deleted: true,
+      deactivated: false,
+      message: 'Employee account permanently deleted.',
+    };
   }
 
   async addEmployeeLocation(

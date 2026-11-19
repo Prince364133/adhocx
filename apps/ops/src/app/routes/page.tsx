@@ -11,20 +11,38 @@ import {
   Calendar,
   Car,
   Clock,
+  ListChecks,
   MapPin,
   Navigation,
+  Pencil,
   Phone,
+  Plus,
   Radio,
   RefreshCw,
   Route as RouteIcon,
   Search,
   Sparkles,
+  Trash2,
+  UserCheck,
   Users,
+  XCircle,
 } from 'lucide-react';
 import { opsApi } from '../../lib/api/opsClient';
 import { CorporateRouteItem, CorporateTenantOption } from '../../lib/api/opsTypes';
+import {
+  canCancelRoute,
+  canDeleteRoute,
+  canEditRoute,
+  canReassignRoute,
+  isOfficeHubStop,
+} from '../../lib/opsHelpers';
 import { Button } from '../../components/common/Button';
+import { Modal } from '../../components/common/Modal';
 import { StatusBadge } from '../../components/common/StatusBadge';
+import { CancelRouteModal } from '../../components/operations/CancelRouteModal';
+import { ReassignDriverModal } from '../../components/operations/ReassignDriverModal';
+import { StopItineraryDrawer } from '../../components/operations/StopItineraryDrawer';
+import { EditRouteModal } from '../../components/operations/EditRouteModal';
 
 const COMPANY_STORAGE_KEY = 'adhocx_ops_selected_tenant';
 
@@ -62,6 +80,14 @@ function OpsRoutesContent() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [dispatchNotice, setDispatchNotice] = useState<string | null>(null);
   const [retryingRouteId, setRetryingRouteId] = useState<string | null>(null);
+
+  // Route Management Modals & Drawer
+  const [drawerRoute, setDrawerRoute] = useState<CorporateRouteItem | null>(null);
+  const [editRoute, setEditRoute] = useState<CorporateRouteItem | null>(null);
+  const [reassignRoute, setReassignRoute] = useState<CorporateRouteItem | null>(null);
+  const [cancelRoute, setCancelRoute] = useState<CorporateRouteItem | null>(null);
+  const [deleteRoute, setDeleteRoute] = useState<CorporateRouteItem | null>(null);
+  const [deletingRoute, setDeletingRoute] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [shiftDate, setShiftDate] = useState(() => searchParams.get('shiftDate') || '');
@@ -181,6 +207,34 @@ function OpsRoutesContent() {
     }
   }
 
+  async function handleConfirmDeleteRoute() {
+    if (!deleteRoute) return;
+    setDeletingRoute(true);
+    setDispatchNotice(null);
+    setErrorMsg(null);
+    try {
+      await opsApi.deleteRoute(deleteRoute.id);
+      setDispatchNotice(`Route RT-${deleteRoute.id.slice(0, 8).toUpperCase()} deleted.`);
+      setDeleteRoute(null);
+      await loadRoutes();
+    } catch (err: any) {
+      setErrorMsg(err?.message || 'Could not delete route.');
+    } finally {
+      setDeletingRoute(false);
+    }
+  }
+
+  async function handleOpenDrawer(e: React.MouseEvent, route: CorporateRouteItem) {
+    e.stopPropagation();
+    setDrawerRoute(route);
+    try {
+      const full = await opsApi.getRouteById(route.id, false);
+      setDrawerRoute(full);
+    } catch {
+      // keep list summary if fetch fails
+    }
+  }
+
   const metrics = useMemo(() => {
     const total = routes.length;
     const assigned = routes.filter((r) => Boolean(r.driverId || r.status === 'ASSIGNED' || r.status === 'IN_TRANSIT' || r.status === 'COMPLETED')).length;
@@ -288,6 +342,14 @@ function OpsRoutesContent() {
           >
             <Button variant="outline" leftIcon={<MapPin size={15} />}>
               Fleet Live Map
+            </Button>
+          </Link>
+          <Link
+            href={`/planner?tenantId=${encodeURIComponent(selectedTenantId)}&tab=MANUAL`}
+            style={{ textDecoration: 'none' }}
+          >
+            <Button variant="outline" leftIcon={<Plus size={15} />}>
+              Create Manual Route
             </Button>
           </Link>
           <Link
@@ -623,11 +685,11 @@ function OpsRoutesContent() {
             const effDispatch = getEffectiveDispatchStatus(route);
             const isExhausted = effDispatch === 'NO_DRIVERS_FOUND';
             const stopCount = route.stops?.length ?? route._count?.stops ?? 0;
-            const firstStop = route.stops?.[0];
+            const firstStop = route.stops?.find((s) => !isOfficeHubStop(s)) ?? route.stops?.[0];
             const distKm = route.estDistanceMeters ? (route.estDistanceMeters / 1000).toFixed(1) : '—';
             const durMin = route.estDurationSeconds ? Math.round(route.estDurationSeconds / 60) : null;
             const canRetryDispatch =
-              !route.driverId && route.status !== 'COMPLETED' && route.status !== 'CANCELLED';
+              !route.driverId && (route.status === 'PLANNED' || route.status === 'DISPATCHING');
 
             return (
               <div
@@ -683,7 +745,7 @@ function OpsRoutesContent() {
                     <span>{route.office?.name || 'Corporate Office'}</span>
                   </div>
                   <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>
-                    Route #{route.id.slice(0, 8)} • {route.direction} • {route.shiftDate} ({route.shiftTime} IST)
+                    Route #{route.id.slice(0, 8)} • {route.direction} • {String(route.shiftDate).slice(0, 10)} ({route.shiftTime} IST)
                   </div>
                 </div>
 
@@ -713,8 +775,11 @@ function OpsRoutesContent() {
                   </div>
                   {firstStop ? (
                     <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 4 }}>
-                      1st pickup: {firstStop.employeeName || 'Employee'}
-                      {firstStop.employeePhone ? ` (${firstStop.employeePhone})` : ''}
+                      {route.direction === 'LOGOUT' ? '1st dropoff' : '1st pickup'}:{' '}
+                      {firstStop.employeeName ?? firstStop.employee?.fullName ?? 'Employee'}
+                      {(firstStop.employeePhone ?? firstStop.employee?.phoneNumber)
+                        ? ` (${firstStop.employeePhone ?? firstStop.employee?.phoneNumber})`
+                        : ''}
                     </div>
                   ) : (
                     <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
@@ -759,7 +824,10 @@ function OpsRoutesContent() {
                 </div>
 
                 {/* Actions */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'flex-end' }}>
+                <div
+                  style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'flex-end', flexWrap: 'wrap' }}
+                  onClick={(e) => e.stopPropagation()}
+                >
                   {canRetryDispatch && (
                     <Button
                       variant={isExhausted ? 'danger' : 'secondary'}
@@ -770,17 +838,69 @@ function OpsRoutesContent() {
                       {retryingRouteId === route.id
                         ? 'Searching...'
                         : isExhausted
-                        ? 'Retry Search (10km)'
-                        : 'Start Dispatch'}
+                        ? 'Retry Search'
+                        : 'Dispatch'}
+                    </Button>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    leftIcon={<ListChecks size={13} />}
+                    onClick={(e) => void handleOpenDrawer(e, route)}
+                  >
+                    Stops
+                  </Button>
+                  {canReassignRoute(route) && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      leftIcon={<UserCheck size={13} />}
+                      onClick={() => setReassignRoute(route)}
+                    >
+                      Reassign
+                    </Button>
+                  )}
+                  {canEditRoute(route) && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      leftIcon={<Pencil size={13} />}
+                      onClick={() => setEditRoute(route)}
+                    >
+                      Edit
+                    </Button>
+                  )}
+                  {canDeleteRoute(route) && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      title="Delete route"
+                      onClick={() => {
+                        setErrorMsg(null);
+                        setDeleteRoute(route);
+                      }}
+                      style={{ color: 'var(--color-danger, #DC2626)' }}
+                    >
+                      <Trash2 size={14} />
+                    </Button>
+                  )}
+                  {canCancelRoute(route) && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      title="Cancel route"
+                      onClick={() => setCancelRoute(route)}
+                      style={{ color: 'var(--color-danger, #DC2626)' }}
+                    >
+                      <XCircle size={14} />
                     </Button>
                   )}
                   <Link
                     href={`/routes/${route.id}`}
-                    onClick={(e) => e.stopPropagation()}
                     style={{ textDecoration: 'none' }}
                   >
                     <Button variant="primary" size="sm">
-                      View Map &amp; Directions
+                      Map &amp; Details
                     </Button>
                   </Link>
                 </div>
@@ -789,6 +909,101 @@ function OpsRoutesContent() {
           })}
         </div>
       )}
+
+      {/* Modals & Stop Drawer */}
+      <StopItineraryDrawer
+        route={drawerRoute}
+        isOpen={Boolean(drawerRoute)}
+        onClose={() => setDrawerRoute(null)}
+        onRouteUpdated={() => {
+          void loadRoutes();
+          if (drawerRoute) {
+            void opsApi.getRouteById(drawerRoute.id, false).then(setDrawerRoute).catch(() => {});
+          }
+        }}
+      />
+
+      <EditRouteModal
+        route={editRoute}
+        isOpen={Boolean(editRoute)}
+        onClose={() => setEditRoute(null)}
+        onSuccess={() => {
+          setDispatchNotice('Route updated successfully.');
+          void loadRoutes();
+        }}
+      />
+
+      <ReassignDriverModal
+        route={reassignRoute}
+        isOpen={Boolean(reassignRoute)}
+        onClose={() => setReassignRoute(null)}
+        onSuccess={() => {
+          setDispatchNotice('Driver reassignment initiated.');
+          void loadRoutes();
+        }}
+      />
+
+      <CancelRouteModal
+        route={cancelRoute}
+        isOpen={Boolean(cancelRoute)}
+        onClose={() => setCancelRoute(null)}
+        onSuccess={() => {
+          setDispatchNotice('Route cancelled.');
+          void loadRoutes();
+        }}
+      />
+
+      <Modal
+        isOpen={Boolean(deleteRoute)}
+        onClose={() => {
+          setDeleteRoute(null);
+          setErrorMsg(null);
+        }}
+        title="Delete Corporate Route"
+        subtitle={deleteRoute ? `Route RT-${deleteRoute.id.slice(0, 8).toUpperCase()} · ${deleteRoute.assignedPassengerCount} Passengers` : undefined}
+        width="440px"
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {errorMsg && (
+            <div
+              role="alert"
+              style={{
+                padding: '10px 12px',
+                borderRadius: 8,
+                backgroundColor: 'var(--color-danger-bg)',
+                border: '1px solid var(--color-danger-border)',
+                color: 'var(--color-danger, #DC2626)',
+                fontSize: 12,
+              }}
+            >
+              {errorMsg}
+            </div>
+          )}
+          <p style={{ margin: 0, fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+            Permanently delete this unstarted route and its pending stops/transport requests? This action cannot be undone.
+          </p>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setDeleteRoute(null);
+                setErrorMsg(null);
+              }}
+              disabled={deletingRoute}
+            >
+              Keep Route
+            </Button>
+            <Button
+              variant="danger"
+              leftIcon={<Trash2 size={14} />}
+              isLoading={deletingRoute}
+              onClick={() => void handleConfirmDeleteRoute()}
+            >
+              Delete Route
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

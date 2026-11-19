@@ -52,6 +52,10 @@ export class DriverLocationPingDto {
 export class KycSubmissionDto {
   @IsOptional()
   @IsString()
+  referralCode?: string;
+
+  @IsOptional()
+  @IsString()
   idNumber?: string;
 
   @IsOptional()
@@ -214,6 +218,7 @@ export class DriverProfileDto {
   userId!: string;
   fullName!: string;
   phone!: string;
+  referralCode?: string;
   verificationStatus!: VerificationStatus;
   availabilityStatus!: DriverAvailability;
   vehicleType?: string;
@@ -261,6 +266,10 @@ export class DriverProfileDto {
 }
 
 export class UpdateDriverProfileDto {
+  @IsOptional()
+  @IsString()
+  referralCode?: string;
+
   @IsOptional()
   @IsString()
   fullName?: string;
@@ -477,6 +486,62 @@ export class DriverTrustScoreBreakdownDto {
   };
   scoreHistory!: TrustScoreHistoryItemDto[];
   improvementTips!: string[];
+}
+
+export class ValidateReferralDto {
+  @IsString()
+  identifier!: string;
+}
+
+export class ValidateReferralResponseDto {
+  valid!: boolean;
+  message!: string;
+  referrer?: {
+    id: string;
+    fullName: string;
+    phoneMasked?: string;
+    vehicleType?: string;
+  };
+}
+
+export class DriverReferralItemDto {
+  id!: string;
+  refereeName!: string;
+  refereePhoneMasked!: string;
+  refereePhotoUrl?: string;
+  status!: string;
+  rewardRupees!: number;
+  isClaimable!: boolean;
+  createdAt!: string;
+  refereeVerifiedAt?: string;
+  claimedAt?: string;
+}
+
+export class DriverReferralDashboardDto {
+  referralCode!: string;
+  phone?: string;
+  totalReferrals!: number;
+  verifiedReferrals!: number;
+  vaultLockedRupees!: number;
+  claimableRupees!: number;
+  claimedRupees!: number;
+  completedRides!: number;
+  milestoneRides!: number;
+  milestoneReached!: boolean;
+  ridesRemainingToMilestone!: number;
+  currentTier!: 'BRONZE' | 'SILVER' | 'GOLD';
+  currentRewardRupees!: number;
+  nextTier?: 'SILVER' | 'GOLD';
+  referralsToNextTier?: number;
+  referees!: DriverReferralItemDto[];
+}
+
+export class ClaimReferralResponseDto {
+  success!: boolean;
+  claimedAmountRupees!: number;
+  newWalletBalance!: number;
+  claimedReferralIds!: string[];
+  message!: string;
 }
 
 

@@ -144,7 +144,7 @@ export default function FleetLiveMapPage() {
   useEffect(() => {
     let active = true;
     void opsApi
-      .getTenants({ page: 1, limit: 100 })
+      .getTenants({ page: 1, limit: 100, minimal: true })
       .then((res) => {
         if (active) setCompanies(Array.isArray(res?.items) ? res.items : []);
       })
@@ -678,7 +678,7 @@ export default function FleetLiveMapPage() {
         fittedScopeRef.current = selectedTenantId;
       }
     }
-  }, [mapReady, selectedTenantId, selectedCompany, companies, routes, ui.gpsCount]);
+  }, [mapReady, selectedTenantId, selectedCompany, companies, routes]);
 
   function handleCompanyChange(newTenantId: string) {
     setSelectedTenantId(newTenantId);

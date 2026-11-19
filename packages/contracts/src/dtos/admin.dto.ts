@@ -1,4 +1,4 @@
-import { IsEnum, IsNotEmpty, IsOptional, IsString, IsNumber, MaxLength } from 'class-validator';
+import { IsEnum, IsNotEmpty, IsOptional, IsString, IsNumber, MaxLength, IsEmail } from 'class-validator';
 import { VerificationStatus, DriverAvailability } from '../enums';
 import { PaginationQueryDto } from './common.dto';
 
@@ -24,6 +24,40 @@ export class AdminVendorQueryDto extends PaginationQueryDto {
   @IsOptional()
   @IsString()
   search?: string;
+}
+
+export class CreateVendorDto {
+  @IsNotEmpty({ message: 'Organization name is required' })
+  @IsString()
+  organizationName!: string;
+
+  @IsNotEmpty({ message: 'Contact / SPOC full name is required' })
+  @IsString()
+  fullName!: string;
+
+  @IsNotEmpty({ message: 'Phone number is required' })
+  @IsString()
+  phone!: string;
+
+  @IsOptional()
+  @IsEmail({}, { message: 'Invalid email address' })
+  email?: string;
+
+  @IsOptional()
+  @IsString()
+  gstNumber?: string;
+
+  @IsOptional()
+  @IsString()
+  address?: string;
+
+  @IsOptional()
+  @IsString()
+  city?: string;
+
+  @IsOptional()
+  @IsEnum(VerificationStatus)
+  verificationStatus?: VerificationStatus;
 }
 
 export class VerifyDriverKycDto {

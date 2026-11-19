@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Param,
   Query,
   Body,
@@ -98,12 +99,14 @@ export class CorporateTenantController {
     @Query('status') status?: CorporateTenantStatus,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
+    @Query('minimal') minimal?: string,
   ) {
     return this.tenantService.listTenants({
       search,
       status,
       page: page ? parseInt(page, 10) : undefined,
       limit: limit ? parseInt(limit, 10) : undefined,
+      minimal: minimal === 'true' || minimal === '1',
     });
   }
 
@@ -131,8 +134,9 @@ export class CorporateTenantController {
   }
 
   @Post(':id/logo')
-  @Roles(UserRole.ADMIN)
+  @Roles(...CORPORATE_PORTAL_ROLES)
   @CorporateResource('tenant', 'id')
+  @CorporatePermission('tenant:write')
   @UseInterceptors(FileInterceptor('file', {
     limits: { fileSize: 2 * 1024 * 1024 },
     fileFilter: (_req, file, callback) => {
@@ -442,10 +446,10 @@ export class CorporateTenantController {
   // ---------------------------------------------------------------------------
 
   @Post(':id/employees')
-  @Roles(...CORPORATE_PORTAL_ROLES)
+  @Roles(...CORPORATE_PORTAL_ROLES, UserRole.OPS)
   @CorporateResource('tenant', 'id')
   @CorporatePermission('employees:write')
-  @ApiOperation({ summary: 'Add an employee with address geocoding and H3 spatial cell mapping' })
+  @ApiOperation({ summary: 'Add an employee with address geocoding, H3 spatial cell mapping, and login account provisioning' })
   @ApiResponse({ status: 201, description: 'Employee registered' })
   public async createEmployee(
     @Param('id') tenantId: string,
@@ -483,7 +487,7 @@ export class CorporateTenantController {
   }
 
   @Get(':id/employees/:employeeId')
-  @Roles(...CORPORATE_PORTAL_ROLES)
+  @Roles(...CORPORATE_PORTAL_ROLES, UserRole.OPS)
   @CorporateResource('tenant', 'id')
   @CorporatePermission('employees:read')
   @ApiOperation({ summary: 'Get employee details and pickup locations' })
@@ -497,7 +501,7 @@ export class CorporateTenantController {
   }
 
   @Get(':id/employees/:employeeId/requests')
-  @Roles(...CORPORATE_PORTAL_ROLES)
+  @Roles(...CORPORATE_PORTAL_ROLES, UserRole.OPS)
   @CorporateResource('tenant', 'id')
   @CorporatePermission('employees:read')
   @ApiOperation({
@@ -516,10 +520,10 @@ export class CorporateTenantController {
   }
 
   @Patch(':id/employees/:employeeId')
-  @Roles(...CORPORATE_PORTAL_ROLES)
+  @Roles(...CORPORATE_PORTAL_ROLES, UserRole.OPS)
   @CorporateResource('tenant', 'id')
   @CorporatePermission('employees:write')
-  @ApiOperation({ summary: 'Update employee details or active status' })
+  @ApiOperation({ summary: 'Update employee details, home address, or active status (syncs linked login account)' })
   @ApiResponse({ status: 200, description: 'Employee updated successfully' })
   public async updateEmployee(
     @Param('id') tenantId: string,
@@ -530,8 +534,22 @@ export class CorporateTenantController {
     return this.tenantService.updateEmployee(tenantId, employeeId, dto, req.user?.id, scopeOf(req));
   }
 
+  @Delete(':id/employees/:employeeId')
+  @Roles(...CORPORATE_PORTAL_ROLES, UserRole.OPS)
+  @CorporateResource('tenant', 'id')
+  @CorporatePermission('employees:write')
+  @ApiOperation({ summary: 'Delete an employee (or soft-deactivate if historical trips/tickets exist)' })
+  @ApiResponse({ status: 200, description: 'Employee deleted or deactivated' })
+  public async deleteEmployee(
+    @Param('id') tenantId: string,
+    @Param('employeeId') employeeId: string,
+    @Req() req: any,
+  ) {
+    return this.tenantService.deleteEmployee(tenantId, employeeId, req.user?.id, scopeOf(req));
+  }
+
   @Post(':id/employees/:employeeId/locations')
-  @Roles(...CORPORATE_PORTAL_ROLES)
+  @Roles(...CORPORATE_PORTAL_ROLES, UserRole.OPS)
   @CorporateResource('tenant', 'id')
   @CorporatePermission('employees:write')
   @ApiOperation({ summary: 'Add an alternate or default pickup/drop location for employee' })

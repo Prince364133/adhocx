@@ -21,9 +21,9 @@ class EmployeePermissionProvider extends ChangeNotifier {
         final status = await Permission.locationWhenInUse.request();
         _locationGranted = status.isGranted;
       }
-    } catch (_) {
-      // Graceful fallback for mock/dev environment
-      _locationGranted = true;
+    } catch (e) {
+      debugPrint('[EmployeePermissionProvider] Location permission error: $e');
+      _locationGranted = false;
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -42,9 +42,10 @@ class EmployeePermissionProvider extends ChangeNotifier {
         final status = await Permission.notification.request();
         _notificationsGranted = status.isGranted;
       }
-    } catch (_) {
-      // Graceful fallback for mock/dev environment
-      _notificationsGranted = true;
+    } catch (e) {
+      debugPrint(
+          '[EmployeePermissionProvider] Notification permission error: $e');
+      _notificationsGranted = false;
     } finally {
       _isLoading = false;
       notifyListeners();

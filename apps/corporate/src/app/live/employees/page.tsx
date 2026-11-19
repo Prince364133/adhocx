@@ -30,7 +30,7 @@ export default function EmployeeLiveTrackingPage() {
     setError(null);
     Promise.all([
       employeeApi.list(tenantId, { limit: 100 }),
-      routesApi.list(tenantId, { status: 'IN_PROGRESS' }),
+      routesApi.list(tenantId, { status: 'IN_TRANSIT' }),
     ])
       .then(([employeeResult, routeResult]) => {
         if (!active) return;

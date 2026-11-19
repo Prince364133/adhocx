@@ -3,7 +3,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, CheckCircle2, ShieldAlert } from 'lucide-react';
 import { safetyApi } from '../../../lib/api/corporate';
-import type { SosAlert } from '../../../lib/api/types';
+import { OPEN_SOS_STATUSES, type SosAlert } from '../../../lib/api/types';
+import { addDays, todayIst } from '../../../lib/format';
 import { useSession } from '../../../lib/auth/SessionContext';
 import MetricCard from '../../../components/common/MetricCard';
 import { DonutChart } from '../../../components/charts/DonutChart';
@@ -45,7 +46,9 @@ export default function SafetyReportsPage() {
   }, [tenantId]);
 
   const resolvedCount = alerts.filter((alert) => alert.status === 'RESOLVED').length;
-  const activeCount = alerts.filter((alert) => ['TRIGGERED', 'ACKNOWLEDGED'].includes(alert.status)).length;
+  const activeCount = alerts.filter((alert) =>
+    (OPEN_SOS_STATUSES as readonly string[]).includes(alert.status),
+  ).length;
   const statusCounts = useMemo(() => {
     const counts = new Map<string, number>();
     for (const alert of alerts) counts.set(alert.status, (counts.get(alert.status) ?? 0) + 1);
@@ -58,12 +61,11 @@ export default function SafetyReportsPage() {
   }, [alerts]);
 
   const trend = useMemo(() => {
-    const days = Array.from({ length: 7 }, (_, index) => {
-      const date = new Date();
-      date.setDate(date.getDate() - (6 - index));
-      const key = date.toISOString().slice(0, 10);
-      return { key, trips: 0 };
-    });
+    const today = todayIst();
+    const days = Array.from({ length: 7 }, (_, index) => ({
+      key: addDays(today, -(6 - index)),
+      trips: 0,
+    }));
     const byDate = new Map(days.map((day) => [day.key, day]));
     for (const alert of alerts) {
       const key = alert.createdAt.slice(0, 10);

@@ -3,20 +3,25 @@ import 'package:adhocx_employee/shared/illustrations/safety_illustrations.dart';
 import 'package:adhocx_employee/theme/app_colors.dart';
 import 'package:adhocx_employee/theme/app_spacing.dart';
 import 'package:adhocx_employee/theme/app_typography.dart';
+import '../widgets/safety_widgets.dart';
 
-/// Incoming / connected call with the safety team.
-/// Call surface: fixed dark slate in light and dark mode.
+/// Direct phone call to the 24/7 Safety Team via url_launcher `tel:`.
 class SafetyTeamCallScreen extends StatefulWidget {
   const SafetyTeamCallScreen({super.key});
+
+  static const String safetyHelplineNumber = '1800-419-7000';
 
   @override
   State<SafetyTeamCallScreen> createState() => _SafetyTeamCallScreenState();
 }
 
 class _SafetyTeamCallScreenState extends State<SafetyTeamCallScreen> {
-  bool _answered = false;
-  bool _muted = false;
-  bool _speaker = false;
+  bool _calling = false;
+
+  Future<void> _placeCall() async {
+    setState(() => _calling = true);
+    await dialNumber(SafetyTeamCallScreen.safetyHelplineNumber);
+  }
 
   Widget _roundButton({
     required IconData icon,
@@ -43,24 +48,6 @@ class _SafetyTeamCallScreenState extends State<SafetyTeamCallScreen> {
     );
   }
 
-  Widget _toggle({
-    required IconData icon,
-    required bool active,
-    required String label,
-    required VoidCallback onTap,
-  }) {
-    return IconButton(
-      tooltip: label,
-      isSelected: active,
-      onPressed: onTap,
-      style: IconButton.styleFrom(
-        backgroundColor:
-            active ? Colors.white.withAlpha(46) : Colors.transparent,
-      ),
-      icon: Icon(icon, color: Colors.white, size: 28),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     void hangUp() => Navigator.of(context).maybePop();
@@ -82,9 +69,11 @@ class _SafetyTeamCallScreenState extends State<SafetyTeamCallScreen> {
               ),
               const SizedBox(height: AppSpacing.sm),
               Text(
-                _answered ? 'Connected • 00:14' : 'Incoming Emergency Call...',
+                _calling
+                    ? 'Dialing ${SafetyTeamCallScreen.safetyHelplineNumber}…'
+                    : '24/7 Helpline • ${SafetyTeamCallScreen.safetyHelplineNumber}',
                 style: AppTypography.body(
-                  color: _answered
+                  color: _calling
                       ? AppColors.accentGreenLight
                       : Colors.white.withAlpha(179),
                   fontWeight: FontWeight.w500,
@@ -95,44 +84,20 @@ class _SafetyTeamCallScreenState extends State<SafetyTeamCallScreen> {
               const Spacer(),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: _answered
-                    ? [
-                        // Mute / speaker were dead buttons; now toggle.
-                        _toggle(
-                          icon: _muted
-                              ? Icons.mic_off_rounded
-                              : Icons.mic_rounded,
-                          active: _muted,
-                          label: _muted ? 'Unmute' : 'Mute',
-                          onTap: () => setState(() => _muted = !_muted),
-                        ),
-                        _roundButton(
-                          icon: Icons.call_end_rounded,
-                          color: AppColors.error,
-                          label: 'End call',
-                          onTap: hangUp,
-                        ),
-                        _toggle(
-                          icon: Icons.volume_up_rounded,
-                          active: _speaker,
-                          label: _speaker ? 'Speaker off' : 'Speaker on',
-                          onTap: () => setState(() => _speaker = !_speaker),
-                        ),
-                      ]
-                    : [
-                        _roundButton(
-                          icon: Icons.call_rounded,
-                          color: AppColors.success,
-                          label: 'Accept call',
-                          onTap: () => setState(() => _answered = true),
-                        ),
-                        _roundButton(
-                          icon: Icons.call_end_rounded,
-                          color: AppColors.error,
-                          label: 'Decline call',
-                          onTap: hangUp,
-                        ),
-                      ],
+                children: [
+                  _roundButton(
+                    icon: Icons.call_rounded,
+                    color: AppColors.success,
+                    label: 'Call safety team',
+                    onTap: _placeCall,
+                  ),
+                  _roundButton(
+                    icon: Icons.call_end_rounded,
+                    color: AppColors.error,
+                    label: 'Close',
+                    onTap: hangUp,
+                  ),
+                ],
               ),
               const SizedBox(height: AppSpacing.xxl),
             ],

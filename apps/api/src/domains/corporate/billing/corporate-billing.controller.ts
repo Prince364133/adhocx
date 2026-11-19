@@ -70,6 +70,7 @@ export class CorporateBillingController {
   @Get('invoices')
   @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
   @CorporateTenantScoped()
+  @CorporatePermission('invoices:read')
   @ApiOperation({ summary: 'List corporate invoices with pagination and status filters' })
   @ApiResponse({ status: 200, description: 'List of invoices' })
   public async listInvoices(
@@ -92,6 +93,7 @@ export class CorporateBillingController {
   @Get('invoices/:id')
   @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
   @CorporateResource('invoice', 'id')
+  @CorporatePermission('invoices:read')
   @ApiOperation({ summary: 'Get full invoice breakdown with individual route line items' })
   @ApiResponse({ status: 200, description: 'Invoice details' })
   public async getInvoiceById(@Param('id') id: string, @Req() req?: any) {
@@ -101,6 +103,7 @@ export class CorporateBillingController {
   @Get('invoices/:id/pdf')
   @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
   @CorporateResource('invoice', 'id')
+  @CorporatePermission('invoices:read')
   @ApiOperation({ summary: 'Download B2B GST tax invoice PDF document complying with Sec 31 CGST Act' })
   @ApiResponse({ status: 200, description: 'Binary PDF tax invoice stream' })
   public async downloadInvoicePdf(

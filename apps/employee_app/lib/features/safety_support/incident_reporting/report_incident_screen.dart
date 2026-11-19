@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:adhocx_employee/features/schedule/widgets/schedule_widgets.dart';
 import 'package:adhocx_employee/theme/app_spacing.dart';
 import '../widgets/incident_form.dart';
 
@@ -20,11 +21,32 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
   ];
   String _type = _types.first;
 
+  String get _apiCategory {
+    switch (_type) {
+      case 'Route Deviation':
+        return 'ROUTE_ISSUE';
+      case 'Driver Misconduct':
+        return 'DRIVER_BEHAVIOR';
+      case 'Vehicle Breakdown':
+        return 'VEHICLE_CONDITION';
+      case 'Late Arrival':
+        return 'CAB_DELAY';
+      case 'Unsafe Driving':
+        return 'SAFETY_CONCERN';
+      default:
+        return 'OTHER';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final todayLabel = formatScheduleDayLabel(DateTime.now());
     return IncidentFormScreen(
       title: 'Report an Incident',
       intro: 'Tell us what happened during your trip.',
+      ticketCategory: _apiCategory,
+      ticketSubject: 'Incident: $_type',
+      ticketPriority: _type == 'Unsafe Driving' ? 'HIGH' : 'MEDIUM',
       topFields: (context) => [
         const FormFieldLabel('Incident Type *'),
         FormSelectField(
@@ -33,15 +55,15 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
           onChanged: (v) => setState(() => _type = v),
         ),
         const SizedBox(height: AppSpacing.xl),
-        const FormFieldLabel('When did it happen? *'),
-        const FormValueBox(
+        const FormFieldLabel('Incident Date'),
+        FormValueBox(
           icon: Icons.calendar_today_rounded,
-          title: 'Tue, 09 Dec 2026',
+          title: todayLabel,
         ),
         const SizedBox(height: AppSpacing.xl),
       ],
       descriptionLabel: 'Description *',
-      descriptionHint: 'e.g. Driver was overspeeding on the main road.',
+      descriptionHint: 'Describe what happened during your trip...',
       mediaIcons: const [
         Icons.image_outlined,
         Icons.play_circle_outline_rounded,

@@ -109,7 +109,28 @@ export class CorporateSupportTicketService {
       if (prior) {
         if (prior.tenantId !== employee.tenantId) throw new ConflictException('Idempotency key already used');
         if (attachments.length) throw new ConflictException('Ticket submission already processed; retry without attachments');
-        return prior as SupportTicketResponse;
+        const safePrior: any = { ...prior };
+        if (actor?.role !== 'ADMIN' && actor?.role !== 'OPS') delete safePrior.adminNotes;
+        return safePrior as SupportTicketResponse;
+      }
+    }
+
+    if (dto.routeId && typeof this.db.corporateRoute?.findUnique === 'function') {
+      const targetRoute: any = await this.db.corporateRoute.findUnique({
+        where: { id: dto.routeId },
+        select: { id: true, tenantId: true },
+      });
+      if (!targetRoute || targetRoute.tenantId !== employee.tenantId) {
+        throw new ForbiddenException('Selected route does not belong to this corporate tenant');
+      }
+      if (actor?.role === 'EMPLOYEE' && typeof this.db.corporateRouteStop?.findFirst === 'function') {
+        const ownStop = await this.db.corporateRouteStop.findFirst({
+          where: { routeId: dto.routeId, employeeId: employee.id },
+          select: { id: true },
+        });
+        if (!ownStop) {
+          throw new ForbiddenException('You can only link tickets to your own assigned routes');
+        }
       }
     }
 
@@ -292,14 +313,18 @@ export class CorporateSupportTicketService {
       : [];
     const assigneeMap = new Map((assignees || []).map((u: any) => [u.id, u]));
 
+    const canSeeInternal = actor?.role === 'ADMIN' || actor?.role === 'OPS';
     const routeIds = Array.from(new Set(tickets.map((t) => t.routeId).filter(Boolean)));
     const routes = routeIds.length > 0 && this.db.corporateRoute?.findMany
       ? await this.db.corporateRoute.findMany({
           where: { id: { in: routeIds } },
           include: {
             driver: {
-              include: {
-                user: { select: { fullName: true, phone: true, email: true } },
+              select: {
+                id: true,
+                fullName: true,
+                vehiclePlate: true,
+                user: { select: { fullName: true, ...(canSeeInternal ? { phone: true, email: true } : {}) } },
               },
             },
             vehicle: { select: { id: true, registrationNumber: true, model: true, make: true } },
@@ -309,15 +334,15 @@ export class CorporateSupportTicketService {
     const routeMap = new Map((routes || []).map((r: any) => [r.id, r]));
 
     const mapped = tickets.map((t) => {
-      const route = t.routeId ? routeMap.get(t.routeId) || null : null;
+      const rawRoute = t.routeId ? routeMap.get(t.routeId) || null : null;
+      const route = rawRoute && rawRoute.tenantId === t.tenantId ? rawRoute : null;
       const driver = route?.driver
         ? {
             id: route.driver.id,
-            name: route.driver.user?.fullName || 'Driver',
-            phone: route.driver.user?.phone || null,
-            email: route.driver.user?.email || null,
-            licenseNumber: route.driver.licenseNumber || null,
-            vehiclePlate: route.vehicle?.registrationNumber || null,
+            name: route.driver.user?.fullName || route.driver.fullName || 'Driver',
+            phone: canSeeInternal ? route.driver.user?.phone || null : null,
+            email: canSeeInternal ? route.driver.user?.email || null : null,
+            vehiclePlate: route.vehicle?.registrationNumber || route.driver.vehiclePlate || null,
           }
         : null;
 
@@ -327,7 +352,7 @@ export class CorporateSupportTicketService {
         route,
         driver,
       };
-      if (actor?.role !== 'ADMIN' && actor?.role !== 'OPS') {
+      if (!canSeeInternal) {
         delete item.adminNotes;
       }
       return item;
@@ -426,31 +451,36 @@ export class CorporateSupportTicketService {
         select: { id: true, fullName: true, email: true, role: true },
       });
     }
+    const canSeeInternal = actor?.role === 'ADMIN' || actor?.role === 'OPS';
     if (ticket.routeId && this.db.corporateRoute?.findUnique) {
-      ticket.route = await this.db.corporateRoute.findUnique({
+      const routeRec: any = await this.db.corporateRoute.findUnique({
         where: { id: ticket.routeId },
         include: {
           driver: {
-            include: {
-              user: { select: { fullName: true, phone: true, email: true } },
+            select: {
+              id: true,
+              fullName: true,
+              vehiclePlate: true,
+              user: { select: { fullName: true, ...(canSeeInternal ? { phone: true, email: true } : {}) } },
             },
           },
           vehicle: { select: { id: true, registrationNumber: true, model: true, make: true } },
         },
       });
-      if (ticket.route?.driver) {
-        ticket.driver = {
-          id: ticket.route.driver.id,
-          name: ticket.route.driver.user?.fullName || 'Driver',
-          phone: ticket.route.driver.user?.phone || null,
-          email: ticket.route.driver.user?.email || null,
-          licenseNumber: ticket.route.driver.licenseNumber || null,
-          vehiclePlate: ticket.route.vehicle?.registrationNumber || null,
-        };
+      if (routeRec && routeRec.tenantId === ticket.tenantId) {
+        ticket.route = routeRec;
+        if (routeRec.driver) {
+          ticket.driver = {
+            id: routeRec.driver.id,
+            name: routeRec.driver.user?.fullName || routeRec.driver.fullName || 'Driver',
+            phone: canSeeInternal ? routeRec.driver.user?.phone || null : null,
+            email: canSeeInternal ? routeRec.driver.user?.email || null : null,
+            vehiclePlate: routeRec.vehicle?.registrationNumber || routeRec.driver.vehiclePlate || null,
+          };
+        }
       }
     }
 
-    const canSeeInternal = actor?.role === 'ADMIN' || actor?.role === 'OPS';
     const allComments = ticket.comments ?? [];
     const allActivities = ticket.activities ?? [];
     const ticketAttachments = ticket.attachments ?? [];
@@ -581,7 +611,11 @@ export class CorporateSupportTicketService {
         status: updated.status,
       });
 
-      return updated as SupportTicketResponse;
+      const safeUpdated: any = { ...updated };
+    if (actor.role !== 'ADMIN' && actor.role !== 'OPS') {
+      delete safeUpdated.adminNotes;
+    }
+    return safeUpdated as SupportTicketResponse;
     }
 
     const team = teamOrDto as string | null | undefined;
@@ -794,17 +828,28 @@ export class CorporateSupportTicketService {
       where.isInternal = false;
     }
 
-    const messages = await this.db.corporateTicketMessage.findMany({
-      where: where as any,
-      orderBy: { createdAt: 'asc' },
-      include: {
-        sender: {
-          select: { id: true, fullName: true, email: true, role: true },
+    const [messages, comments] = await Promise.all([
+      this.db.corporateTicketMessage.findMany({
+        where: where as any,
+        orderBy: { createdAt: 'asc' },
+        include: {
+          sender: {
+            select: { id: true, fullName: true, email: true, role: true },
+          },
         },
-      },
-    });
+      }),
+      typeof (this.db as any).corporateSupportTicketComment?.findMany === 'function'
+        ? this.db.corporateSupportTicketComment.findMany({
+            where: {
+              ticketId,
+              ...(isPlatformStaff ? {} : { visibility: 'PUBLIC' }),
+            },
+            orderBy: { createdAt: 'asc' },
+          })
+        : Promise.resolve([]),
+    ]);
 
-    return messages.map((m) => ({
+    const mappedMessages: CorporateTicketMessageResponse[] = messages.map((m) => ({
       id: m.id,
       ticketId: m.ticketId,
       senderId: m.senderId,
@@ -814,6 +859,21 @@ export class CorporateSupportTicketService {
       isInternal: m.isInternal,
       createdAt: m.createdAt.toISOString(),
     }));
+
+    const mappedComments: CorporateTicketMessageResponse[] = (comments ?? []).map((c: any) => ({
+      id: `cmt-${c.id}`,
+      ticketId: c.ticketId,
+      senderId: c.userId,
+      senderRole: c.user?.role || 'CORPORATE_ADMIN',
+      senderName: c.user?.fullName || c.user?.email || 'Support User',
+      message: c.message,
+      isInternal: c.visibility === 'INTERNAL',
+      createdAt: new Date(c.createdAt).toISOString(),
+    }));
+
+    return [...mappedMessages, ...mappedComments].sort(
+      (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+    );
   }
 
   /**
@@ -990,7 +1050,11 @@ export class CorporateSupportTicketService {
       reopened: true,
     });
 
-    return updated as SupportTicketResponse;
+    const safeUpdated: any = { ...updated };
+    if (actor.role !== 'ADMIN' && actor.role !== 'OPS') {
+      delete safeUpdated.adminNotes;
+    }
+    return safeUpdated as SupportTicketResponse;
   }
 
   /**

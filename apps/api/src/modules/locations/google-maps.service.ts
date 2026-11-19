@@ -302,11 +302,29 @@ export class GoogleMapsService {
   }
 
   /**
+   * Picks the shortest valid route (lowest positive distanceMeters) from Google Routes API results.
+   */
+  private pickShortestRoute(routes: any[] | undefined): any | null {
+    if (!Array.isArray(routes) || routes.length === 0) return null;
+    let shortest: any = null;
+    let shortestMeters = Number.POSITIVE_INFINITY;
+    for (const r of routes) {
+      const m = Number(r?.distanceMeters ?? 0);
+      if (Number.isFinite(m) && m > 0 && m < shortestMeters) {
+        shortestMeters = m;
+        shortest = r;
+      }
+    }
+    return shortest ?? routes[0];
+  }
+
+  /**
    * Road distance for PRICING. Unlike computeRoadRoute this never estimates: it throws
    * RouteUnavailableError when there is no API key, Google errors or times out, or no drivable
    * route exists, so callers can refuse to price instead of inventing a distance.
-   * Uses TRAFFIC_UNAWARE (the standard driving route, independent of live traffic) so the same
-   * trip gets the same distance; duration is informational only and never used for price.
+   * Uses TRAFFIC_UNAWARE + avoidTolls: true + computeAlternativeRoutes: true and always selects
+   * the SHORTEST toll-free driving route to the destination (falling back to standard routes only
+   * if no toll-free path exists).
    */
   async computeVerifiedRoadDistance(origin: LatLng, destination: LatLng): Promise<VerifiedRoadDistance> {
     const oLat = Number(origin.latitude);
@@ -320,13 +338,12 @@ export class GoogleMapsService {
       throw new RouteUnavailableError('NO_API_KEY', 'Route distance service is not configured.');
     }
     // ~1 m precision: two quotes only share a cached distance when they are the same points.
-    const cacheKey = `verified:${oLat.toFixed(5)},${oLng.toFixed(5)}->${dLat.toFixed(5)},${dLng.toFixed(5)}`;
+    const cacheKey = `verified:notoll:${oLat.toFixed(5)},${oLng.toFixed(5)}->${dLat.toFixed(5)},${dLng.toFixed(5)}`;
     const cached = this.verifiedRouteCache.get(cacheKey);
     if (cached && cached.expiresAt > Date.now()) return cached.result;
 
-    let responseData: any;
-    try {
-      responseData = await this.postJson(
+    const queryRoutes = async (avoidTolls: boolean) =>
+      this.postJson(
         'routes.googleapis.com',
         '/directions/v2:computeRoutes',
         JSON.stringify({
@@ -334,18 +351,28 @@ export class GoogleMapsService {
           destination: { location: { latLng: { latitude: dLat, longitude: dLng } } },
           travelMode: 'DRIVE',
           routingPreference: 'TRAFFIC_UNAWARE',
-          computeAlternativeRoutes: false,
+          computeAlternativeRoutes: true,
+          routeModifiers: {
+            avoidTolls,
+          },
         }),
         {
           'X-Goog-Api-Key': this.apiKey,
           'X-Goog-FieldMask': 'routes.distanceMeters,routes.duration,routes.description',
         },
       );
+
+    let responseData: any;
+    try {
+      responseData = await queryRoutes(true);
+      if (!Array.isArray(responseData?.routes) || responseData.routes.length === 0) {
+        responseData = await queryRoutes(false);
+      }
     } catch (err: any) {
       this.logger.warn(`[GoogleMapsService] Verified route lookup failed: ${err?.message ?? err}`);
       throw new RouteUnavailableError('MAPS_ERROR', 'Route distance service is temporarily unavailable.');
     }
-    const top = responseData?.routes?.[0];
+    const top = this.pickShortestRoute(responseData?.routes);
     const distanceMeters = Math.round(Number(top?.distanceMeters ?? 0));
     if (!top || !Number.isFinite(distanceMeters) || distanceMeters <= 0) {
       throw new RouteUnavailableError('NO_ROUTE', 'No drivable route was found between pickup and drop.');
@@ -362,8 +389,8 @@ export class GoogleMapsService {
   }
 
   /**
-   * Computes the real road driving distance and traffic-aware ETA between two coordinates
-   * using Google Routes API (New).
+   * Computes the shortest toll-free road driving distance and traffic-aware ETA between two coordinates
+   * using Google Routes API (New) with alternative routes enabled.
    *
    * Automatically falls back to high-fidelity road-factor calculation if API network call fails.
    */
@@ -374,7 +401,7 @@ export class GoogleMapsService {
     const destLng = Number(destination.longitude);
 
     // Cache key rounded to ~100m (3 decimal places) for lightning-fast repeated queries
-    const cacheKey = `${originLat.toFixed(3)},${originLng.toFixed(3)}->${destLat.toFixed(3)},${destLng.toFixed(3)}`;
+    const cacheKey = `notoll:${originLat.toFixed(3)},${originLng.toFixed(3)}->${destLat.toFixed(3)},${destLng.toFixed(3)}`;
     const cached = this.routeCache.get(cacheKey);
     if (cached && cached.expiresAt > Date.now()) {
       return cached.result;
@@ -385,25 +412,33 @@ export class GoogleMapsService {
     }
 
     try {
-      const payload = JSON.stringify({
-        origin:{ location: { latLng: { latitude: originLat, longitude: originLng } } },
-        destination: { location: { latLng: { latitude: destLat, longitude: destLng } } },
-        travelMode: 'DRIVE',
-        routingPreference: 'TRAFFIC_AWARE',
-      });
+      const fetchRoutes = async (avoidTolls: boolean) =>
+        this.postJson(
+          'routes.googleapis.com',
+          '/directions/v2:computeRoutes',
+          JSON.stringify({
+            origin: { location: { latLng: { latitude: originLat, longitude: originLng } } },
+            destination: { location: { latLng: { latitude: destLat, longitude: destLng } } },
+            travelMode: 'DRIVE',
+            routingPreference: 'TRAFFIC_AWARE',
+            computeAlternativeRoutes: true,
+            routeModifiers: {
+              avoidTolls,
+            },
+          }),
+          {
+            'X-Goog-Api-Key': this.apiKey,
+            'X-Goog-FieldMask': 'routes.distanceMeters,routes.duration,routes.description,routes.polyline.encodedPolyline',
+          },
+        );
 
-      const responseData = await this.postJson(
-        'routes.googleapis.com',
-        '/directions/v2:computeRoutes',
-        payload,
-        {
-          'X-Goog-Api-Key': this.apiKey,
-          'X-Goog-FieldMask': 'routes.distanceMeters,routes.duration,routes.description,routes.polyline.encodedPolyline',
-        },
-      );
+      let responseData = await fetchRoutes(true);
+      if (!Array.isArray(responseData?.routes) || responseData.routes.length === 0) {
+        responseData = await fetchRoutes(false);
+      }
 
-      if (responseData?.routes && responseData.routes.length > 0) {
-        const topRoute = responseData.routes[0];
+      const topRoute = this.pickShortestRoute(responseData?.routes);
+      if (topRoute) {
         const distanceMeters = Number(topRoute.distanceMeters || 0);
         const distanceKm = Number((distanceMeters / 1000).toFixed(2));
         const rawDurationSec = topRoute.duration ? parseFloat(topRoute.duration.replace('s', '')) : 0;
@@ -422,7 +457,7 @@ export class GoogleMapsService {
 
         setBounded(this.routeCache, cacheKey, { result, expiresAt: Date.now() + this.CACHE_TTL_MS }, MAPS_CACHE_MAX);
         this.logger.debug(
-          `[GoogleMapsService] Route computed: ${distanceKm} km, ${durationMinutes} mins (via ${topRoute.description || 'Road'})`,
+          `[GoogleMapsService] Shortest toll-free route computed: ${distanceKm} km, ${durationMinutes} mins (via ${topRoute.description || 'Road'})`,
         );
         return result;
       }

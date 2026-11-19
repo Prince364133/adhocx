@@ -10,7 +10,7 @@ import {
   PhoneCall,
 } from 'lucide-react';
 import { safetyApi } from '../../lib/api/corporate';
-import type { SosAlert, SafetyIncident } from '../../lib/api/types';
+import { OPEN_SOS_STATUSES, type SosAlert, type SafetyIncident } from '../../lib/api/types';
 import { useSession } from '../../lib/auth/SessionContext';
 import MetricCard from '../../components/common/MetricCard';
 
@@ -55,7 +55,9 @@ export default function SafetyOverviewPage() {
     loadData();
   }, [loadData]);
 
-  const activeSosCount = alerts.filter((a) => a.status === 'TRIGGERED' || a.status === 'ACKNOWLEDGED').length;
+  const activeSosCount = alerts.filter((a) =>
+    (OPEN_SOS_STATUSES as readonly string[]).includes(a.status),
+  ).length;
 
   const filteredIncidents = incidents.filter((inc) => {
     const q = searchTerm.toLowerCase();

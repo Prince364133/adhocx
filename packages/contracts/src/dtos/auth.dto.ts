@@ -33,6 +33,10 @@ export class RequestOtpDto {
   @IsOptional()
   @IsString()
   companyName?: string;
+
+  @IsOptional()
+  @IsString()
+  referralCode?: string;
 }
 
 export class RequestOtpResponseDto {
@@ -75,6 +79,10 @@ export class VerifyOtpDto {
   @IsOptional()
   @IsString()
   fullName?: string;
+
+  @IsOptional()
+  @IsString()
+  referralCode?: string;
 }
 
 export class SocialAuthDto {
@@ -159,6 +167,7 @@ export class AuthUserDto {
   corporateTenantId?: string;
   corporateRole?: string;
   corporateOfficeIds?: string[];
+  corporateEmployeeId?: string;
 }
 
 export class AuthResponseDto {
@@ -204,6 +213,10 @@ export class UserMeResponseDto {
   status!: string;
   hasPassword?: boolean;
   isOnboarded?: boolean;
+  corporateTenantId?: string;
+  corporateRole?: string;
+  corporateOfficeIds?: string[];
+  corporateEmployeeId?: string;
   vendorProfile?: {
     id: string;
     organizationName: string;

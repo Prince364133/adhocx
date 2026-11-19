@@ -13,6 +13,7 @@ class ShiftDetailsOvernightScreen extends StatelessWidget {
     return ShiftDetailsView(
       sectionKey: 'shift_details_overnight',
       accent: AppColors.accentPurple,
+      preferLogout: true,
       badge: Container(
         padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.md + 2,
@@ -30,7 +31,7 @@ class ShiftDetailsOvernightScreen extends StatelessWidget {
                 size: 14, color: AppColors.accentPurple),
             const SizedBox(width: AppSpacing.xs + 2),
             Text(
-              'Overnight Shift',
+              'Logout / Overnight Shift',
               style: AppTypography.caption(
                 color: AppColors.accentPurple,
                 fontWeight: FontWeight.w700,
@@ -39,14 +40,6 @@ class ShiftDetailsOvernightScreen extends StatelessWidget {
           ],
         ),
       ),
-      fallback: const {
-        'date': 'Wed, 10 Dec - Thu, 11 Dec',
-        'hours': '10:00 PM - 6:00 AM',
-        'pickupTime': '9:15 PM',
-        'pickupLoc': 'Home (Miyapur)',
-        'dropTime': '6:15 AM',
-        'dropLoc': 'Home (Miyapur)',
-      },
     );
   }
 }

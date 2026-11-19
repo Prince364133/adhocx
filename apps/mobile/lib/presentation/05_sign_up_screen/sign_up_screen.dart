@@ -34,6 +34,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   final _formKey = GlobalKey<FormState>();
   final _phoneController = TextEditingController();
+  final _referralController = TextEditingController();
 
   bool _agreeToTerms = false;
   bool _isLoading = false;
@@ -50,6 +51,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     _termsRecognizer.dispose();
     _privacyRecognizer.dispose();
     _phoneController.dispose();
+    _referralController.dispose();
     super.dispose();
   }
 
@@ -121,6 +123,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
         gender: onboarding.gender,
         phone: phoneE164,
       );
+      if (_referralController.text.trim().isNotEmpty) {
+        onboarding.setReferralCode(_referralController.text.trim());
+      }
 
       final res = await authService.requestOtp(
         phone: phoneE164,
@@ -252,6 +257,19 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       ),
                       validator: _validatePhone,
                     ),
+                    if (isDriver) ...[
+                      const SizedBox(height: AppSpacing.md),
+                      AppTextField(
+                        controller: _referralController,
+                        label: 'Referral Code / Partner Phone (Optional)',
+                        hintText: 'e.g. ADH8K92L or 9876543210',
+                        prefixIcon: const Icon(Icons.card_giftcard_rounded, size: 20),
+                        textCapitalization: TextCapitalization.characters,
+                        onChanged: (val) {
+                          onboarding.setReferralCode(val.trim());
+                        },
+                      ),
+                    ],
                     const SizedBox(height: AppSpacing.lg),
 
                     // ── Terms & Privacy Checkbox ─────────────────────────────
@@ -317,31 +335,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       ],
                     ),
                     const SizedBox(height: AppSpacing.sm),
-
-                    // ── Link-based Role Switcher (Below Privacy Policy) ──────
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: GestureDetector(
-                        onTap: () {
-                          onboarding.setRole(isDriver ? 'VENDOR' : 'DRIVER');
-                        },
-                        behavior: HitTestBehavior.opaque,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 4),
-                          child: Text(
-                            isDriver ? 'Sign up as a Vendor' : 'Sign up as a Driver Partner',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: isDark ? AppColors.primaryLight : AppColors.primary,
-                              decoration: TextDecoration.underline,
-                              decorationColor: (isDark ? AppColors.primaryLight : AppColors.primary).withValues(alpha: 0.5),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.lg),
 
                     // ── Primary Action: Continue with SMS OTP ────────────────
                     AppPrimaryButton(

@@ -9,7 +9,8 @@ export interface CorporateTenantOption {
   activeShiftsCount?: number;
   activeCabsCount?: number;
   inTransitCount?: number;
-  onTimePunctualityPct?: number;
+  inTransitPassengersCount?: number;
+  onTimePunctualityPct?: number | null;
   delayedCount?: number;
   unassignedCount?: number;
   _count?: {
@@ -82,6 +83,7 @@ export interface OnboardCorporateCompanyResponse {
 
 export interface RouteStop {
   id: string;
+  employeeId?: string | null;
   stopSequence: number;
   stopType: 'PICKUP' | 'DROPOFF';
   latitude: number;
@@ -266,7 +268,7 @@ export interface OpsBoardResponse {
 
 export interface OperationsAnalyticsDashboard {
   asOf: string;
-  filter: { tenantId: string; from: string; to: string; shiftTime?: string | null; timezone: string };
+  filter: { tenantId: string | null; from: string; to: string; shiftTime?: string | null; timezone: string };
   trips: { total: number; byStatus: Record<string, number> };
   employeesServed: number;
   requests: { total: number; byStatus: Record<string, number>; cancelled: number; noShows: number; unserved: number };
@@ -464,19 +466,67 @@ export interface RouteWaypointsResponse {
 export interface SosAlertItem {
   id: string;
   routeId: string;
+  tenantId?: string;
+  stopId?: string | null;
+  triggeredById?: string | null;
+  triggeredByRole?: 'EMPLOYEE' | 'DRIVER' | string | null;
+  latitude?: number | string | null;
+  longitude?: number | string | null;
+  batteryPct?: number | null;
+  audioUrl?: string | null;
+  status:
+    | 'NEW'
+    | 'ACTIVE'
+    | 'ACKNOWLEDGED'
+    | 'INVESTIGATING'
+    | 'ESCALATED'
+    | 'RESPONDED'
+    | 'RESOLVED'
+    | 'FALSE_ALARM'
+    | string;
+  escalationLevel?: number;
+  assignedToAdminId?: string | null;
+  assignedAdminName?: string | null;
+  resolutionNotes?: string | null;
+  createdAt: string;
+  acknowledgedAt?: string | null;
+  escalatedAt?: string | null;
+  resolvedAt?: string | null;
+  route?: {
+    id: string;
+    tenantId?: string;
+    direction?: 'LOGIN' | 'LOGOUT' | string;
+    shiftDate?: string;
+    shiftTime?: string;
+    driver?: {
+      id?: string;
+      fullName?: string | null;
+      phone?: string | null;
+    } | null;
+    vehicle?: {
+      id?: string;
+      registrationNumber?: string | null;
+      model?: string | null;
+    } | null;
+    tenant?: {
+      id: string;
+      name: string;
+      code?: string | null;
+    } | null;
+    office?: {
+      id: string;
+      name: string;
+    } | null;
+  } | null;
+  // Optional legacy aliases kept for backward compatibility
   tripId?: string;
   riderId?: string;
   driverId?: string;
-  status: 'NEW' | 'ACKNOWLEDGED' | 'INVESTIGATING' | 'RESOLVED' | 'ESCALATED';
-  severity: 'CRITICAL_P0' | 'HIGH_P1' | 'MEDIUM_P2';
-  triggerType: 'PANIC_BUTTON' | 'ROUTE_DEVIATION' | 'MANUAL_DISPATCHER';
-  locationLat: number;
-  locationLng: number;
+  severity?: 'CRITICAL_P0' | 'HIGH_P1' | 'MEDIUM_P2' | string;
+  triggerType?: string;
+  locationLat?: number;
+  locationLng?: number;
   addressText?: string;
-  createdAt: string;
-  acknowledgedAt?: string;
-  resolvedAt?: string;
-  escalatedAt?: string;
   responderNotes?: string;
   riderName?: string;
   riderPhone?: string;
@@ -637,4 +687,144 @@ export interface OpsSupportTicket {
   comments?: Array<{ id: string; message: string; userId: string; visibility: 'PUBLIC' | 'INTERNAL'; createdAt: string }>;
   activities?: Array<{ id: string; description: string; visibility: 'PUBLIC' | 'INTERNAL'; createdAt: string }>;
   attachments?: Array<{ id: string; fileName: string; fileType: string; fileSize: number; url: string; createdAt: string }>;
+}
+
+export interface ManualRouteStopInput {
+  employeeId?: string;
+  employeeCode?: string;
+  name: string;
+  phoneNumber: string;
+  email?: string;
+  gender?: string;
+  department?: string;
+  address: string;
+  lat?: number;
+  lng?: number;
+  plannedEta?: string;
+}
+
+export interface CreateManualRoutePayload {
+  tenantId: string;
+  officeId: string;
+  shiftDate: string;
+  shiftTime: string;
+  direction: 'LOGIN' | 'LOGOUT';
+  vehicleCategory?: string;
+  maxCapacity?: number;
+  stops: ManualRouteStopInput[];
+}
+
+export interface UpdateRoutePayload {
+  shiftDate?: string;
+  shiftTime?: string;
+  direction?: 'LOGIN' | 'LOGOUT';
+  vehicleCategory?: string;
+  maxCapacity?: number;
+  officeId?: string;
+}
+
+export interface UpdateRouteStopPayload {
+  name?: string;
+  phoneNumber?: string;
+  address?: string;
+  lat?: number;
+  lng?: number;
+  plannedEta?: string;
+}
+
+export interface CorporateEmployeeLocation {
+  id: string;
+  addressText: string;
+  landmark?: string | null;
+  latitude: number;
+  longitude: number;
+  isDefault: boolean;
+}
+
+export interface CorporateEmployeeItem {
+  id: string;
+  tenantId: string;
+  officeId: string;
+  userId?: string | null;
+  employeeCode: string;
+  fullName: string;
+  email: string;
+  phoneNumber: string;
+  gender: 'MALE' | 'FEMALE' | 'OTHER' | string;
+  department?: string | null;
+  costCenter?: string | null;
+  isActive: boolean;
+  createdAt?: string;
+  office?: { id: string; name: string; code: string } | null;
+  locations?: CorporateEmployeeLocation[];
+}
+
+export interface CorporateEmployeeListResponse {
+  items: CorporateEmployeeItem[];
+  pagination: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
+
+export interface CreateTenantEmployeePayload {
+  officeId: string;
+  employeeCode: string;
+  fullName: string;
+  email: string;
+  phoneNumber: string;
+  gender: 'MALE' | 'FEMALE' | 'OTHER';
+  department?: string;
+  costCenter?: string;
+  homeAddress: string;
+  landmark?: string;
+  latitude?: number;
+  longitude?: number;
+}
+
+export interface UpdateTenantEmployeePayload {
+  officeId?: string;
+  fullName?: string;
+  email?: string;
+  phoneNumber?: string;
+  gender?: 'MALE' | 'FEMALE' | 'OTHER';
+  department?: string;
+  costCenter?: string;
+  homeAddress?: string;
+  landmark?: string;
+  latitude?: number;
+  longitude?: number;
+  isActive?: boolean;
+}
+
+export interface OperationsExceptionFeedItem {
+  id: string;
+  type: 'Delayed' | 'Unassigned' | 'GPS Stale' | 'Route Deviation' | 'Safety Alert';
+  target: string;
+  details: string;
+  office: string;
+  duration: string;
+  status: 'Open' | 'In Review' | 'Escalated' | 'Resolved';
+  action: 'View' | 'Assign' | 'Track' | 'Resolve' | 'Locate';
+}
+
+export interface OperationsExceptionsResponse {
+  summary: {
+    delayedPickups: number;
+    unassignedTrips: number;
+    gpsStaleCount: number;
+    routeDeviations: number;
+    safetyAlerts: number;
+  };
+  items: OperationsExceptionFeedItem[];
+  trend: Array<{
+    day: string;
+    delayed: number;
+    unassigned: number;
+    gpsStale: number;
+    deviation: number;
+    safety: number;
+  }>;
 }

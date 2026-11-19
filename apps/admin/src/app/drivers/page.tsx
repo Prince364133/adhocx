@@ -69,39 +69,38 @@ const formatCurrency = (amount: number) =>
 
 /**
  * Computes performance aggregates and time-series data for a driver
- * Derived strictly from actual trip records and wallet records in the database.
- * If no data exists, zeroes are returned without any mock, seed, or fallback numbers.
+ * strictly from actual trip records returned by the API.
  */
 function computeDriverPerformance(driver: DriverDetail, selectedYear: number) {
   const actualTrips = Array.isArray(driver.trips) ? driver.trips : [];
 
-  const dbTotalTrips = driver.totalTrips ?? 0;
-  const dbCompleted = actualTrips.filter(
+  const totalOrders = actualTrips.length;
+  const completedOrders = actualTrips.filter(
     (t) => t.status === "COMPLETED",
   ).length;
-  const dbCancelled = actualTrips.filter(
+  const cancelledOrders = actualTrips.filter(
     (t) => t.status === "CANCELLED",
   ).length;
-  const dbTotalRevenue = actualTrips
+  const totalEarnings = actualTrips
     .filter((t) => t.status === "COMPLETED")
     .reduce(
-      (acc, t) => acc + Number(t.totalDriverEarnings || t.driverRate || 0),
+      (acc, t) => acc + Number(t.totalDriverEarnings ?? t.driverRate ?? 0),
       0,
     );
 
-  const totalOrders = Math.max(dbTotalTrips, actualTrips.length);
-  const completedOrders = dbCompleted;
-  const cancelledOrders = dbCancelled;
+  const uniqueActiveDays = new Set(
+    actualTrips
+      .map((t) => t.completedAt || t.startedAt || t.createdAt)
+      .filter(Boolean)
+      .map((iso) => {
+        const d = new Date(iso);
+        return Number.isNaN(d.getTime()) ? null : d.toDateString();
+      })
+      .filter((v): v is string => Boolean(v)),
+  );
+  const activeDays = uniqueActiveDays.size;
 
-  const rawWallet = Number(driver.walletBalance || 0);
-  const totalEarnings = dbTotalRevenue > 0 ? dbTotalRevenue : rawWallet;
-
-  const uniqueDaysOverall = new Set(
-    actualTrips.map((t) => new Date(t.createdAt).toDateString()),
-  ).size;
-  const activeDays = uniqueDaysOverall;
-
-  // Monthly breakdown for selectedYear
+  // Monthly breakdown for selectedYear (real trip records only)
   const months = [
     "Jan",
     "Feb",
@@ -118,53 +117,49 @@ function computeDriverPerformance(driver: DriverDetail, selectedYear: number) {
   ];
   const monthData = months.map((monthName, idx) => {
     const tripsThisMonth = actualTrips.filter((t) => {
-      const d = new Date(t.completedAt || t.startedAt || t.createdAt);
-      return d.getFullYear() === selectedYear && d.getMonth() === idx;
+      const raw = t.completedAt || t.startedAt || t.createdAt;
+      if (!raw) return false;
+      const d = new Date(raw);
+      return (
+        !Number.isNaN(d.getTime()) &&
+        d.getFullYear() === selectedYear &&
+        d.getMonth() === idx
+      );
     });
 
-    if (tripsThisMonth.length > 0) {
-      const completed = tripsThisMonth.filter(
-        (t) => t.status === "COMPLETED",
-      ).length;
-      const cancelled = tripsThisMonth.filter(
-        (t) => t.status === "CANCELLED",
-      ).length;
-      const rev = tripsThisMonth
-        .filter((t) => t.status === "COMPLETED")
-        .reduce(
-          (sum, t) => sum + Number(t.totalDriverEarnings || t.driverRate || 0),
-          0,
-        );
-      const uniqueDays = new Set(
-        tripsThisMonth.map((t) => new Date(t.createdAt).toDateString()),
-      ).size;
-      return {
-        month: `${monthName} ${selectedYear}`,
-        monthShort: monthName,
-        monthIndex: idx,
-        year: selectedYear,
-        totalOrders: tripsThisMonth.length,
-        completedOrders: completed,
-        cancelledOrders: cancelled,
-        earnings: rev,
-        activeDays: uniqueDays,
-      };
-    }
+    const completed = tripsThisMonth.filter(
+      (t) => t.status === "COMPLETED",
+    ).length;
+    const cancelled = tripsThisMonth.filter(
+      (t) => t.status === "CANCELLED",
+    ).length;
+    const rev = tripsThisMonth
+      .filter((t) => t.status === "COMPLETED")
+      .reduce(
+        (sum, t) => sum + Number(t.totalDriverEarnings ?? t.driverRate ?? 0),
+        0,
+      );
+    const uniqueDays = new Set(
+      tripsThisMonth
+        .map((t) => t.completedAt || t.startedAt || t.createdAt)
+        .filter(Boolean)
+        .map((iso) => new Date(iso).toDateString()),
+    ).size;
 
     return {
       month: `${monthName} ${selectedYear}`,
       monthShort: monthName,
       monthIndex: idx,
       year: selectedYear,
-      totalOrders: 0,
-      completedOrders: 0,
-      cancelledOrders: 0,
-      earnings: 0,
-      activeDays: 0,
+      totalOrders: tripsThisMonth.length,
+      completedOrders: completed,
+      cancelledOrders: cancelled,
+      earnings: rev,
+      activeDays: uniqueDays,
     };
   });
 
-  // Daily breakdown (last 14 days)
+  // Daily breakdown (last 14 days, real trip records only)
   const dailyData: Array<{
     date: string;
     day: string;
@@ -186,20 +181,21 @@ function computeDriverPerformance(driver: DriverDetail, selectedYear: number) {
     });
 
     const tripsToday = actualTrips.filter((t) => {
-      const tripDate = new Date(t.createdAt).toISOString().split("T")[0];
-      return tripDate === dateStr;
+      const raw = t.completedAt || t.startedAt || t.createdAt;
+      if (!raw) return false;
+      const tripDate = new Date(raw);
+      return (
+        !Number.isNaN(tripDate.getTime()) &&
+        tripDate.toISOString().split("T")[0] === dateStr
+      );
     });
 
-    const completed = tripsToday.filter(
-      (t) => t.status === "COMPLETED",
-    ).length;
-    const cancelled = tripsToday.filter(
-      (t) => t.status === "CANCELLED",
-    ).length;
+    const completed = tripsToday.filter((t) => t.status === "COMPLETED").length;
+    const cancelled = tripsToday.filter((t) => t.status === "CANCELLED").length;
     const rev = tripsToday
       .filter((t) => t.status === "COMPLETED")
       .reduce(
-        (sum, t) => sum + Number(t.totalDriverEarnings || t.driverRate || 0),
+        (sum, t) => sum + Number(t.totalDriverEarnings ?? t.driverRate ?? 0),
         0,
       );
 
@@ -213,13 +209,20 @@ function computeDriverPerformance(driver: DriverDetail, selectedYear: number) {
     });
   }
 
-  // Yearly breakdown
-  const currentYear = new Date().getFullYear();
-  const yearlyData = [currentYear, currentYear - 1, currentYear - 2].map((yr) => {
+  // Yearly breakdown (real trip records only)
+  const currentYear = today.getFullYear();
+  const years = Array.from(
+    new Set([selectedYear, currentYear, currentYear - 1, currentYear - 2]),
+  ).sort((a, b) => b - a);
+
+  const yearlyData = years.map((yr) => {
     const tripsThisYear = actualTrips.filter((t) => {
-      const d = new Date(t.createdAt);
-      return d.getFullYear() === yr;
+      const raw = t.completedAt || t.startedAt || t.createdAt;
+      if (!raw) return false;
+      const d = new Date(raw);
+      return !Number.isNaN(d.getTime()) && d.getFullYear() === yr;
     });
+
     const completed = tripsThisYear.filter(
       (t) => t.status === "COMPLETED",
     ).length;
@@ -229,11 +232,14 @@ function computeDriverPerformance(driver: DriverDetail, selectedYear: number) {
     const rev = tripsThisYear
       .filter((t) => t.status === "COMPLETED")
       .reduce(
-        (sum, t) => sum + Number(t.totalDriverEarnings || t.driverRate || 0),
+        (sum, t) => sum + Number(t.totalDriverEarnings ?? t.driverRate ?? 0),
         0,
       );
     const uniqueDays = new Set(
-      tripsThisYear.map((t) => new Date(t.createdAt).toDateString()),
+      tripsThisYear
+        .map((t) => t.completedAt || t.startedAt || t.createdAt)
+        .filter(Boolean)
+        .map((iso) => new Date(iso).toDateString()),
     ).size;
 
     return {

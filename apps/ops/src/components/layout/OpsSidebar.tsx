@@ -11,6 +11,8 @@ import {
   Radio,
   LifeBuoy,
   Users,
+  UserCheck,
+  LayoutDashboard,
 } from 'lucide-react';
 
 interface NavItem {
@@ -31,6 +33,11 @@ const NAV_ITEMS: NavItem[] = [
 
 const OPERATIONS_ITEMS: NavItem[] = [
   {
+    href: '/dashboard',
+    label: 'Command Dashboard',
+    icon: <LayoutDashboard size={18} />,
+  },
+  {
     href: '/live',
     label: 'Live Operations',
     icon: <Radio size={18} />,
@@ -40,6 +47,11 @@ const OPERATIONS_ITEMS: NavItem[] = [
     href: '/drivers',
     label: 'Drivers',
     icon: <Users size={18} />,
+  },
+  {
+    href: '/employees',
+    label: 'Employees',
+    icon: <UserCheck size={18} />,
   },
   {
     href: '/safety',
@@ -175,40 +187,42 @@ export const OpsSidebar: React.FC = () => {
         </nav>
       </div>
 
-      {/* Bottom Switcher: Jump to Super Admin Finance/Governance */}
-      <div
-        style={{
-          padding: 'var(--space-4, 16px) var(--space-3, 12px)',
-          borderTop: '1px solid var(--border-subtle)',
-          backgroundColor: 'var(--bg-surface-muted)',
-        }}
-      >
-        <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: 600 }}>
-          GOVERNANCE & FINANCE
-        </div>
-        <a
-          href="http://localhost:7002/dashboard"
-          target="_blank"
-          rel="noopener noreferrer"
+      {/* Bottom Switcher: Jump to Super Admin Finance/Governance (only when configured) */}
+      {process.env.NEXT_PUBLIC_ADMIN_URL?.trim() && (
+        <div
           style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '8px 10px',
-            borderRadius: 'var(--radius-md, 8px)',
-            backgroundColor: 'var(--bg-surface)',
-            border: '1px solid var(--border-subtle)',
-            color: 'var(--text-secondary)',
-            textDecoration: 'none',
-            fontSize: '12px',
-            fontWeight: 500,
-            transition: 'border-color 0.15s ease',
+            padding: 'var(--space-4, 16px) var(--space-3, 12px)',
+            borderTop: '1px solid var(--border-subtle)',
+            backgroundColor: 'var(--bg-surface-muted)',
           }}
         >
-          <span>Super Admin (:7002)</span>
-          <ExternalLink size={14} />
-        </a>
-      </div>
+          <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: 600 }}>
+            GOVERNANCE &amp; FINANCE
+          </div>
+          <a
+            href={process.env.NEXT_PUBLIC_ADMIN_URL.trim()}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '8px 10px',
+              borderRadius: 'var(--radius-md, 8px)',
+              backgroundColor: 'var(--bg-surface)',
+              border: '1px solid var(--border-subtle)',
+              color: 'var(--text-secondary)',
+              textDecoration: 'none',
+              fontSize: '12px',
+              fontWeight: 500,
+              transition: 'border-color 0.15s ease',
+            }}
+          >
+            <span>Super Admin Portal</span>
+            <ExternalLink size={14} />
+          </a>
+        </div>
+      )}
     </aside>
   );
 };

@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Activity, BarChart3, Clock3, Gauge, RefreshCw, Timer } from 'lucide-react';
+import { opsApi } from '../../../lib/api/opsClient';
+import type { CorporateTenantOption, OperationsAnalyticsDashboard } from '../../../lib/api/opsTypes';
 import { MetricCard } from '../../../components/common/MetricCard';
 import { Button } from '../../../components/common/Button';
-import { buildMockAnalytics, readMockDatabase, refreshMockDatabase, type MockOpsDatabase } from '../../../lib/mock-ops-db';
 
 const today = () => new Date(Date.now() + 330 * 60_000).toISOString().slice(0, 10);
 const daysAgo = (days: number) => new Date(Date.now() + 330 * 60_000 - days * 86_400_000).toISOString().slice(0, 10);
@@ -28,27 +29,101 @@ function parseDisplayDate(value: string): string | null {
 }
 
 export default function OperationsAnalyticsPage() {
-  const [database, setDatabase] = useState<MockOpsDatabase | null>(null);
+  const [tenants, setTenants] = useState<CorporateTenantOption[]>([]);
   const [tenantId, setTenantId] = useState('ALL');
   const [from, setFrom] = useState(daysAgo(6));
   const [to, setTo] = useState(today());
   const [fromInput, setFromInput] = useState(() => formatDisplayDate(daysAgo(6)));
   const [toInput, setToInput] = useState(() => formatDisplayDate(today()));
   const [shiftTime, setShiftTime] = useState('');
+  const [availableShiftTimes, setAvailableShiftTimes] = useState<string[]>([]);
+  const [data, setData] = useState<OperationsAnalyticsDashboard | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const requestSeqRef = useRef(0);
 
   useEffect(() => {
-    try {
-      setDatabase(readMockDatabase());
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to load operations analytics.');
-    } finally {
-      setLoading(false);
-    }
+    let cancelled = false;
+    void opsApi
+      .getTenants({ page: 1, limit: 100, minimal: true })
+      .then((res) => {
+        if (!cancelled) setTenants(res?.items ?? []);
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err instanceof Error ? err.message : 'Unable to load corporate clients.');
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const tenants = database?.tenants ?? [];
+  useEffect(() => {
+    let cancelled = false;
+    void opsApi
+      .getRoutes({
+        tenantId: tenantId === 'ALL' ? undefined : tenantId,
+        limit: 200,
+      })
+      .then((routes) => {
+        if (cancelled) return;
+        const times = Array.from(
+          new Set(
+            (Array.isArray(routes) ? routes : [])
+              .map((r) => (typeof r.shiftTime === 'string' ? r.shiftTime.trim() : ''))
+              .filter(Boolean),
+          ),
+        ).sort((a, b) => a.localeCompare(b));
+        setAvailableShiftTimes(times);
+        setShiftTime((prev) => (prev && !times.includes(prev) ? '' : prev));
+      })
+      .catch(() => {
+        if (!cancelled) setAvailableShiftTimes([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [tenantId]);
+
+  const loadAnalytics = useCallback(async () => {
+    if (from > to) {
+      setError('Start date must be on or before end date.');
+      return;
+    }
+
+    abortControllerRef.current?.abort();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    const reqId = ++requestSeqRef.current;
+
+    setLoading(true);
+    setError('');
+    try {
+      const res = await opsApi.getAnalyticsDashboard({
+        tenantId: tenantId === 'ALL' ? undefined : tenantId,
+        from,
+        to,
+        shiftTime: shiftTime || undefined,
+        signal: controller.signal,
+      });
+      if (controller.signal.aborted || reqId !== requestSeqRef.current) return;
+      setData(res);
+    } catch (err: any) {
+      if (controller.signal.aborted || err?.name === 'AbortError' || reqId !== requestSeqRef.current) return;
+      setError(err instanceof Error ? err.message : 'Unable to load operations analytics.');
+    } finally {
+      if (reqId === requestSeqRef.current) {
+        setLoading(false);
+      }
+    }
+  }, [from, shiftTime, tenantId, to]);
+
+  useEffect(() => {
+    void loadAnalytics();
+    return () => {
+      abortControllerRef.current?.abort();
+    };
+  }, [loadAnalytics]);
 
   function commitFromDate() {
     const parsed = parseDisplayDate(fromInput);
@@ -72,31 +147,12 @@ export default function OperationsAnalyticsPage() {
     setError('');
   }
 
-  const data = useMemo(() => {
-    if (!database || from > to) return null;
-    return buildMockAnalytics(database, {
-      tenantId: tenantId === 'ALL' ? undefined : tenantId,
-      from,
-      to,
-      shiftTime: shiftTime || undefined,
-    });
-  }, [database, from, shiftTime, tenantId, to]);
-
-  function loadAnalytics() {
-    setLoading(true);
-    setError('');
-    try {
-      if (from > to) throw new Error('Start date must be on or before end date.');
-      setDatabase(refreshMockDatabase());
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to refresh operations analytics.');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  const scheduled = data?.trips.total ?? 0;
-  const fulfilled = (data?.trips.byStatus.ASSIGNED ?? 0) + (data?.trips.byStatus.IN_TRANSIT ?? 0) + (data?.trips.byStatus.COMPLETED ?? 0);
+  const cancelled = data?.trips.byStatus.CANCELLED ?? 0;
+  const scheduled = Math.max(0, (data?.trips.total ?? 0) - cancelled);
+  const fulfilled =
+    (data?.trips.byStatus.ASSIGNED ?? 0) +
+    (data?.trips.byStatus.IN_TRANSIT ?? 0) +
+    (data?.trips.byStatus.COMPLETED ?? 0);
   const fulfillmentRate = scheduled > 0 ? Math.round((fulfilled * 1000) / scheduled) / 10 : null;
   const chartMax = Math.max(1, ...(data?.dailyTrips.map((day) => day.scheduled) ?? []));
   const rangeLabel = useMemo(() => `${from} to ${to}`, [from, to]);
@@ -107,10 +163,10 @@ export default function OperationsAnalyticsPage() {
         <div>
           <h1 className="h1-text" style={{ color: 'var(--text-primary)' }}>Operations Analytics</h1>
           <p style={{ color: 'var(--text-secondary)', fontSize: 13, marginTop: 4 }}>
-            Delivery, service quality, demand coverage, and fleet efficiency · {rangeLabel}
+            Live delivery, service quality, demand coverage, and fleet efficiency · {rangeLabel}
           </p>
         </div>
-        <Button size="md" variant="outline" leftIcon={<RefreshCw size={14} />} onClick={loadAnalytics} isLoading={loading}>
+        <Button size="md" variant="outline" leftIcon={<RefreshCw size={14} />} onClick={() => void loadAnalytics()} isLoading={loading}>
           Refresh
         </Button>
       </div>
@@ -151,7 +207,7 @@ export default function OperationsAnalyticsPage() {
         <label style={{ fontSize: 11, color: 'var(--text-secondary)', fontWeight: 600 }}>SHIFT
           <select value={shiftTime} onChange={(event) => setShiftTime(event.target.value)} style={filterStyle}>
             <option value="">All shifts</option>
-            {['05:00', '08:00', '09:00', '17:00', '18:00', '20:00'].map((time) => <option key={time} value={time}>{time}</option>)}
+            {availableShiftTimes.map((time) => <option key={time} value={time}>{time}</option>)}
           </select>
         </label>
       </section>
@@ -171,7 +227,9 @@ export default function OperationsAnalyticsPage() {
           <h2 style={{ margin: 0, fontSize: 15, color: 'var(--text-primary)' }}>Scheduled vs. Completed Trips</h2>
         </div>
         <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '0 0 20px' }}>Daily route delivery trend for the selected client, date range, and shift.</p>
-        {loading ? <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>Loading daily trip data…</p> : !data?.dailyTrips.length ? (
+        {loading ? (
+          <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>Loading daily trip data…</p>
+        ) : !data?.dailyTrips.length ? (
           <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>No trip data for the selected filters.</p>
         ) : (
           <div style={{ display: 'flex', alignItems: 'end', gap: 12, minHeight: 220, overflowX: 'auto', padding: '8px 0' }}>

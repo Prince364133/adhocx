@@ -134,7 +134,7 @@ export function SessionProvider({
   }, []);
 
   const value: PortalSession = {
-    status: !booted ? 'loading' : !token || !user ? 'anonymous' : !portalRole ? 'forbidden' : 'ready',
+    status: !booted ? 'loading' : !token || !user ? 'anonymous' : !portalRole || (!opsMode && !tenantId) ? 'forbidden' : 'ready',
     user,
     claims,
     tenantId,

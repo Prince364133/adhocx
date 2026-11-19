@@ -1,16 +1,43 @@
 import 'package:url_launcher/url_launcher.dart';
-import 'package:adhocx_employee/services/mock_data_service.dart';
 
-/// Loads one section of the mock safety data.
-Future<Map<String, dynamic>?> loadSafetySection(String key) async =>
-    (await MockDataService.getSafetyData())[key] as Map<String, dynamic>?;
-
-/// Loads a list section of the mock safety data, wrapped as `{'items': …}`.
-Future<Map<String, dynamic>> loadSafetyList(String key) async =>
-    {'items': (await MockDataService.getSafetyData())[key]};
+/// Standard national & 24/7 corporate safety helplines.
+const List<Map<String, String>> kDefaultEmergencyContacts = [
+  {
+    'name': '24/7 Transport Safety Desk',
+    'phone': '1800-419-7000',
+    'type': 'company',
+  },
+  {
+    'name': 'National Emergency Response',
+    'phone': '112',
+    'type': 'security',
+  },
+  {
+    'name': 'Police Control Room',
+    'phone': '100',
+    'type': 'police',
+  },
+  {
+    'name': 'Medical / Ambulance',
+    'phone': '108',
+    'type': 'medical',
+  },
+  {
+    'name': 'Fire & Rescue',
+    'phone': '101',
+    'type': 'fire',
+  },
+  {
+    'name': 'Women Safety Helpline',
+    'phone': '181',
+    'type': 'security',
+  },
+];
 
 /// Opens the phone dialer for [phone] (spaces and dashes are stripped).
 Future<void> dialNumber(String phone) async {
-  final uri = Uri.parse('tel:${phone.replaceAll(RegExp(r'[^0-9+]'), '')}');
+  final clean = phone.replaceAll(RegExp(r'[^0-9+]'), '');
+  if (clean.isEmpty) return;
+  final uri = Uri.parse('tel:$clean');
   if (await canLaunchUrl(uri)) await launchUrl(uri);
 }

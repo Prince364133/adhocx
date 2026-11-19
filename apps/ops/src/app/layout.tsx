@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { OpsShell } from '../components/layout/OpsShell';
+import { ToastProvider } from '../components/common/ToastProvider';
 
 export const metadata: Metadata = {
   title: 'AdhocX Operations & Fleet Flight Control',
@@ -41,7 +42,9 @@ export default function RootLayout({
         />
       </head>
       <body suppressHydrationWarning>
-        <OpsShell>{children}</OpsShell>
+        <ToastProvider>
+          <OpsShell>{children}</OpsShell>
+        </ToastProvider>
       </body>
     </html>
   );

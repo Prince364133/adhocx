@@ -36,10 +36,6 @@ jobs:
             image_name: adhocx-admin
             dockerfile: apps/admin/Dockerfile
             context: .
-          - name: marketing
-            image_name: adhocx-marketing
-            dockerfile: apps/marketing/Dockerfile
-            context: .
           - name: mobile
             image_name: adhocx-mobile
             dockerfile: apps/mobile/Dockerfile
@@ -199,6 +195,7 @@ jobs:
             docker compose -f docker-compose.prod.yml run --rm --no-deps -T api npx prisma db push --skip-generate --accept-data-loss
 
             docker compose -f docker-compose.prod.yml up -d --remove-orphans
+            docker rm -f adhocx_prod_marketing 2>/dev/null || true
             docker compose -f docker-compose.prod.yml restart gateway
 
             echo 'Pruning dangling images...'
