@@ -398,6 +398,7 @@ export class CorporateRoutingController {
   @ApiOperation({ summary: 'List corporate routes with optional filters (paged: limit default 500, max 1000; offset)' })
   public async listRoutes(
     @Query('tenantId') tenantId?: string,
+    @Query('officeId') officeId?: string,
     @Query('shiftDate') shiftDate?: string,
     @Query('shiftTime') shiftTime?: string,
     @Query('direction') direction?: 'LOGIN' | 'LOGOUT',
@@ -418,6 +419,7 @@ export class CorporateRoutingController {
     return this.queryRoutes({
       officeScope: req?.corporateOfficeScope ?? null,
       tenantId: tenantId || undefined,
+      officeId: officeId || undefined,
       shiftDate,
       shiftTime,
       direction,
@@ -469,6 +471,7 @@ export class CorporateRoutingController {
     /** WS-F office scope of a corporate user (null = all offices). */
     officeScope?: string[] | null;
     tenantId?: string;
+    officeId?: string;
     shiftDate?: string;
     shiftTime?: string;
     direction?: 'LOGIN' | 'LOGOUT';
@@ -482,6 +485,7 @@ export class CorporateRoutingController {
   }) {
     const {
       tenantId,
+      officeId,
       shiftDate,
       shiftTime,
       direction,
@@ -500,6 +504,9 @@ export class CorporateRoutingController {
     const where: any = {};
     if (tenantId) {
       where.tenantId = tenantId;
+    }
+    if (officeId) {
+      where.officeId = officeId;
     }
     if (params.officeScope && params.officeScope.length > 0) {
       where.officeId = { in: params.officeScope };

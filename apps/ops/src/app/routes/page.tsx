@@ -353,6 +353,14 @@ function OpsRoutesContent() {
             </Button>
           </Link>
           <Link
+            href={`/employees?tenantId=${encodeURIComponent(selectedTenantId)}`}
+            style={{ textDecoration: 'none' }}
+          >
+            <Button variant="outline" leftIcon={<Users size={15} />}>
+              Employees
+            </Button>
+          </Link>
+          <Link
             href={`/planner?tenantId=${encodeURIComponent(selectedTenantId)}`}
             style={{ textDecoration: 'none' }}
           >

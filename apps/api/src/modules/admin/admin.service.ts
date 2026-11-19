@@ -325,11 +325,11 @@ export class AdminService {
 
     // Unlock driver referral if this driver was referred by another driver partner
     try {
-      const referral = await this.db.driverReferral.findUnique({
+      const referral = await (this.db as any).driverReferral?.findUnique({
         where: { refereeDriverId: id },
       });
       if (referral && (referral.status as string) === 'PENDING_VERIFICATION') {
-        await this.db.driverReferral.update({
+        await (this.db as any).driverReferral?.update({
           where: { id: referral.id },
           data: {
             status: 'UNLOCKED_READY_TO_CLAIM' as any,

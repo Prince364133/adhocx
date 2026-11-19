@@ -22,7 +22,7 @@ import { CorporateResource } from '../../../common/decorators/corporate-resource
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import { CorporateOperationsService } from './corporate-operations.service';
 import { CorporateOpsDriversService } from './corporate-ops-drivers.service';
-import { CancelRouteDto, ReassignRouteDto } from './operations.types';
+import { CancelRouteDto, ReassignRouteDto, AssignDriverDto } from './operations.types';
 
 /** Command centre (AdhocX operations). ADMIN only: it spans every tenant. */
 @ApiTags('Corporate ETS - Command Centre Operations')
@@ -91,6 +91,33 @@ export class CorporateOperationsController {
   @ApiResponse({ status: 409, description: 'Route not ASSIGNED, changed concurrently, or driver unavailable' })
   public async reassign(@Param('id') routeId: string, @Body() dto: ReassignRouteDto, @Req() req: any) {
     return this.ops.reassignRoute(routeId, dto, { id: req.user?.id, role: req.user?.role });
+  }
+
+  @Post('routes/:id/assign')
+  @HttpCode(200)
+  @Roles(UserRole.ADMIN, UserRole.OPS)
+  @CorporateResource('route', 'id')
+  @ApiOperation({
+    summary: 'Manually assign or reassign a verified driver directly to a corporate route',
+  })
+  @ApiResponse({ status: 200, description: 'Driver assigned to route' })
+  @ApiResponse({ status: 400, description: 'Invalid driver or route state' })
+  @ApiResponse({ status: 409, description: 'Driver ineligible or route conflict' })
+  public async assignDriver(
+    @Param('id') routeId: string,
+    @Body() dto: AssignDriverDto,
+    @Req() req: any,
+  ) {
+    return this.ops.assignDriverToRoute(routeId, dto, { id: req.user?.id, role: req.user?.role });
+  }
+
+  @Get('routes/:id/eligible-drivers')
+  @Roles(UserRole.ADMIN, UserRole.OPS)
+  @CorporateResource('route', 'id')
+  @ApiOperation({ summary: 'List drivers with real-time eligibility evaluation for a specific corporate route' })
+  @ApiResponse({ status: 200, description: 'List of drivers with eligibility flags and reasons' })
+  public async getEligibleDrivers(@Param('id') routeId: string) {
+    return this.ops.getEligibleDriversForRoute(routeId);
   }
 }
 
