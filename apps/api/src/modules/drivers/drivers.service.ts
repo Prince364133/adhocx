@@ -423,6 +423,15 @@ export class DriversService {
       }
     }
 
+    if (dto.referralCode && !driver.referredById && this.referrals) {
+      try {
+        await this.referrals.linkReferralOnSignup(driver.id, dto.referralCode);
+        this.logger.log(`Linked referral for driver ${driver.id} with identifier ${dto.referralCode}`);
+      } catch (refErr: any) {
+        this.logger.warn(`Referral linking during profile update: ${refErr?.message}`);
+      }
+    }
+
     return this.getProfile(userId);
   }
 

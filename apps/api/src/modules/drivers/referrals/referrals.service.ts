@@ -149,7 +149,7 @@ export class ReferralsService {
       return { valid: false, message: 'Invalid referral code or phone format.' };
     }
 
-    // Try finding by referral code first
+    // 1. Try finding by referral code first
     let referrer = await this.db.driver.findFirst({
       where: {
         referralCode: { equals: normalized, mode: 'insensitive' },
@@ -163,27 +163,51 @@ export class ReferralsService {
       },
     });
 
-    // If not found and input looks like a phone number (10 digits)
-    if (!referrer && /^\d{10}$/.test(normalized)) {
-      const phoneVariants = [
-        normalized,
-        `+91${normalized}`,
-        `91${normalized}`,
-        `+91 ${normalized}`,
-      ];
+    // 2. If not found, try matching by userId or id suffix (e.g. 6-char hex suffix like '2BFEFB')
+    if (!referrer && /^[A-Z0-9]{6}$/.test(normalized)) {
+      try {
+        const pattern = `%${normalized}`;
+        const candidates: any[] = await this.db.$queryRaw`
+          SELECT id, "fullName", phone, "vehicleType", "verificationStatus"
+          FROM "Driver"
+          WHERE UPPER(REPLACE(id::text, '-', '')) LIKE ${pattern}
+             OR UPPER(REPLACE("userId"::text, '-', '')) LIKE ${pattern}
+          LIMIT 1
+        `;
+        if (candidates && candidates.length > 0) {
+          referrer = candidates[0];
+        }
+      } catch (_) {}
+    }
 
-      referrer = await this.db.driver.findFirst({
-        where: {
-          phone: { in: phoneVariants },
-        },
-        select: {
-          id: true,
-          fullName: true,
-          phone: true,
-          vehicleType: true,
-          verificationStatus: true,
-        },
-      });
+    // 3. If not found, try matching by registered mobile number (10-digit clean or international)
+    if (!referrer) {
+      const cleanDigits = rawIdentifier.replace(/\D/g, '');
+      const phone10 = cleanDigits.length >= 10 ? cleanDigits.slice(-10) : '';
+      if (phone10) {
+        const phoneVariants = [
+          phone10,
+          `+91${phone10}`,
+          `91${phone10}`,
+          `+91 ${phone10}`,
+        ];
+
+        referrer = await this.db.driver.findFirst({
+          where: {
+            OR: [
+              { phone: { in: phoneVariants } },
+              { user: { phone: { in: phoneVariants } } },
+            ],
+          },
+          select: {
+            id: true,
+            fullName: true,
+            phone: true,
+            vehicleType: true,
+            verificationStatus: true,
+          },
+        });
+      }
     }
 
     if (!referrer) {

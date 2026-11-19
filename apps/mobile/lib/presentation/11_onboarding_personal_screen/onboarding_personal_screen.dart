@@ -163,6 +163,12 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
     _selectedGender = onboarding.gender.isNotEmpty ? onboarding.gender : 'Male';
     _selectedDate = onboarding.dateOfBirth;
 
+    final initialReferral = onboarding.referralCode.trim();
+    if (initialReferral.isNotEmpty) {
+      _referralCodeController.text = initialReferral;
+      _onReferralChanged(initialReferral);
+    }
+
     // Vendor specific initialization
     _companyNameController = TextEditingController(
       text: onboarding.companyName.isNotEmpty && !isPlaceholderName(onboarding.companyName)
@@ -481,7 +487,12 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
           dateOfBirth: _selectedDate,
           gender: _selectedGender,
         );
-        onboarding.setReferralCode(_referralCodeController.text);
+        final effectiveReferral = _referralCodeController.text.trim().isNotEmpty
+            ? _referralCodeController.text.trim()
+            : onboarding.referralCode.trim();
+        if (effectiveReferral.isNotEmpty) {
+          onboarding.setReferralCode(effectiveReferral);
+        }
 
         // Authoritatively persist core User profile (throws ConflictException on collision)
         await AuthService.instance.updateUserProfile(
@@ -494,8 +505,8 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
           if (enteredName.isNotEmpty) 'fullName': enteredName,
           if (enteredPhone.isNotEmpty) 'phone': enteredPhone,
           if (enteredEmail.isNotEmpty) 'email': enteredEmail,
-          if (_referralCodeController.text.trim().isNotEmpty)
-            'referralCode': _referralCodeController.text.trim(),
+          if (effectiveReferral.isNotEmpty)
+            'referralCode': effectiveReferral,
           if (enteredAddress.isNotEmpty) 'address': enteredAddress,
           if (enteredEmergencyName.isNotEmpty)
             'emergencyContactName': enteredEmergencyName,
@@ -765,42 +776,102 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
                       ),
                       const SizedBox(height: AppSpacing.lg),
 
-                      // Referral Code (Optional)
-                      AppTextField(
-                        controller: _referralCodeController,
-                        label: 'Referral Code (Optional)',
-                        hintText: 'e.g. ADH8K9',
-                        prefixIcon: const Icon(Icons.card_giftcard_rounded, size: 20),
-                        onChanged: _onReferralChanged,
-                        suffixIcon: _isValidatingReferral
-                            ? const Padding(
-                                padding: EdgeInsets.all(12),
-                                child: SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                      // Referral Code: Show applied banner if already entered on signup, or input field if not provided
+                      if (onboarding.referralCode.trim().isNotEmpty) ...[
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: isDark ? AppColors.surfaceElevatedDark : AppColors.surfaceElevatedLight,
+                            borderRadius: BorderRadius.circular(AppRadius.md),
+                            border: Border.all(color: AppColors.accentGreen.withValues(alpha: 0.4)),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: AppColors.accentGreen.withValues(alpha: 0.15),
+                                  shape: BoxShape.circle,
                                 ),
-                              )
-                            : (_referrerValidationMessage != null
-                                ? Icon(
-                                    _isReferralValid ? Icons.check_circle_rounded : Icons.info_outline_rounded,
-                                    color: _isReferralValid ? AppColors.accentGreen : Colors.orange,
-                                  )
-                                : null),
-                      ),
-                      if (_referrerValidationMessage != null) ...[
-                        const SizedBox(height: 4),
-                        Padding(
-                          padding: const EdgeInsets.only(left: 4),
-                          child: Text(
-                            _referrerValidationMessage!,
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: _isReferralValid ? AppColors.accentGreen : Colors.orange,
-                            ),
+                                child: const Icon(Icons.check_rounded, color: AppColors.accentGreen, size: 16),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Referral Code Applied from Sign Up',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                        color: isDark ? Colors.white60 : Colors.black54,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      onboarding.referralCode.trim().toUpperCase(),
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w800,
+                                        letterSpacing: 1.2,
+                                        color: AppColors.accentGreen,
+                                      ),
+                                    ),
+                                    if (_referrerValidationMessage != null) ...[
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        _referrerValidationMessage!,
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w500,
+                                          color: _isReferralValid ? AppColors.accentGreen : Colors.orange,
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
                         ),
+                      ] else ...[
+                        AppTextField(
+                          controller: _referralCodeController,
+                          label: 'Referral Code (Optional)',
+                          hintText: 'e.g. ADH8K9',
+                          prefixIcon: const Icon(Icons.card_giftcard_rounded, size: 20),
+                          onChanged: _onReferralChanged,
+                          suffixIcon: _isValidatingReferral
+                              ? const Padding(
+                                  padding: EdgeInsets.all(12),
+                                  child: SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                                  ),
+                                )
+                              : (_referrerValidationMessage != null
+                                  ? Icon(
+                                      _isReferralValid ? Icons.check_circle_rounded : Icons.info_outline_rounded,
+                                      color: _isReferralValid ? AppColors.accentGreen : Colors.orange,
+                                    )
+                                  : null),
+                        ),
+                        if (_referrerValidationMessage != null) ...[
+                          const SizedBox(height: 4),
+                          Padding(
+                            padding: const EdgeInsets.only(left: 4),
+                            child: Text(
+                              _referrerValidationMessage!,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: _isReferralValid ? AppColors.accentGreen : Colors.orange,
+                              ),
+                            ),
+                          ),
+                        ],
                       ],
                       const SizedBox(height: AppSpacing.lg),
 
