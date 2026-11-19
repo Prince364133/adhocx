@@ -32,6 +32,19 @@ class _ReferralScreenState extends State<ReferralScreen> {
     _loadDashboard();
   }
 
+  String _computeFallbackReferralCode() {
+    final authUser = AuthService.instance.currentUser;
+    final uid = authUser?.id?.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').toUpperCase() ?? '';
+    final phoneDigits = (authUser?.phone ?? '').replaceAll(RegExp(r'\D'), '');
+
+    if (uid.length >= 6) {
+      return uid.substring(uid.length - 6);
+    } else if (phoneDigits.length >= 6) {
+      return 'AX${phoneDigits.substring(phoneDigits.length - 4)}';
+    }
+    return 'AX7K2M';
+  }
+
   Future<void> _loadDashboard({bool forceRefresh = false}) async {
     try {
       final data = await DriverService.instance.getReferralDashboard(forceRefresh: forceRefresh);
@@ -41,7 +54,8 @@ class _ReferralScreenState extends State<ReferralScreen> {
           _isLoading = false;
         });
       }
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[ReferralScreen] Error loading dashboard: $e');
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -49,7 +63,7 @@ class _ReferralScreenState extends State<ReferralScreen> {
             final authUser = AuthService.instance.currentUser;
             _dashboardData = {
               'phone': authUser?.phone,
-              'referralCode': 'ADHOCX',
+              'referralCode': _computeFallbackReferralCode(),
               'vaultLockedRupees': 0,
               'claimableRupees': 0,
               'claimedRupees': 0,
@@ -167,7 +181,9 @@ class _ReferralScreenState extends State<ReferralScreen> {
   }
 
   Future<void> _shareOnWhatsApp(String code, String phone) async {
-    final effective = code.isNotEmpty ? code : phone;
+    final effective = (code.isNotEmpty && code != 'ADHOCX' && code != 'LOADING...')
+        ? (code.length > 6 ? code.substring(0, 6) : code)
+        : _computeFallbackReferralCode();
 
     final message =
         'Namaste! Join AdhocX as a Driver Partner and earn guaranteed distance-based payouts.\n\n'
@@ -231,12 +247,14 @@ class _ReferralScreenState extends State<ReferralScreen> {
   }
 
   Widget _buildShareCodeCard(bool isDark) {
-    final rawCode = _dashboardData?['referralCode']?.toString() ?? '';
+    final rawCode = _dashboardData?['referralCode']?.toString().trim().toUpperCase() ?? '';
     final authPhone = AuthService.instance.currentUser?.phone ?? '';
     final rawPhone = (_dashboardData?['phone']?.toString() ?? '').isNotEmpty
         ? _dashboardData!['phone'].toString()
         : authPhone;
-    final displayCode = rawCode.isNotEmpty ? rawCode : 'ADHOCX';
+    final displayCode = (rawCode.isNotEmpty && rawCode != 'ADHOCX' && rawCode != 'LOADING...')
+        ? (rawCode.length > 6 ? rawCode.substring(0, 6) : rawCode)
+        : _computeFallbackReferralCode();
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),

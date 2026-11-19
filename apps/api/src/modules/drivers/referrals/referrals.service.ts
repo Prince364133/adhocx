@@ -60,8 +60,9 @@ export class ReferralsService {
   }
 
   /**
-   * Ensure the given driver has a unique referral code.
-   * By default, the driver's registered 10-digit phone number is used as their primary referral code.
+   * Ensure the given driver has a unique permanent 6-character alphanumeric referral code.
+   * If the driver currently has no code, or an invalid/old format code (e.g. 10-digit phone, 8 chars, or ADHOCX),
+   * a fresh, permanent 6-character alphanumeric code is generated and saved to the database.
    */
   async ensureDriverReferralCode(driverId: string): Promise<string> {
     const driver = await this.db.driver.findFirst({
@@ -83,51 +84,56 @@ export class ReferralsService {
       throw new NotFoundException('Driver not found');
     }
 
-    const rawPhone = driver.phone || driver.user?.phone || '';
-    const cleanDigits = rawPhone.replace(/\D/g, '');
-    const phone10 = cleanDigits.length >= 10 ? cleanDigits.slice(-10) : cleanDigits;
+    const currentCode = driver.referralCode?.trim().toUpperCase();
+    const isAlreadyValid6Char =
+      currentCode &&
+      currentCode.length === 6 &&
+      /^[A-Z0-9]{6}$/.test(currentCode) &&
+      /[A-Z]/.test(currentCode) &&
+      !/^\d{6}$/.test(currentCode) &&
+      currentCode !== 'ADHOCX';
 
-    if (phone10) {
-      try {
-        if (driver.referralCode !== phone10) {
-          await this.db.driver.update({
-            where: { id: driver.id },
-            data: {
-              referralCode: phone10,
-              ...(driver.phone ? {} : (driver.user?.phone ? { phone: driver.user.phone } : {})),
-            },
-          });
-        }
-      } catch (err: any) {
-        this.logger.warn(`Could not sync referral code / phone for driver ${driver.id}: ${err?.message}`);
-      }
-      return phone10;
+    if (isAlreadyValid6Char) {
+      return currentCode;
     }
 
-    if (driver.referralCode) {
-      return driver.referralCode;
-    }
-
-    // Fallback if driver has no phone registered
-    for (let attempts = 0; attempts < 10; attempts++) {
+    // Generate and persist a permanent, collision-free 6-character alphanumeric code
+    for (let attempts = 0; attempts < 30; attempts++) {
       const candidateCode = generateDriverReferralCode();
-      const existing = await this.db.driver.findUnique({
+      if (candidateCode === 'ADHOCX') continue;
+      const collision = await this.db.driver.findUnique({
         where: { referralCode: candidateCode },
         select: { id: true },
       });
-      if (!existing) {
+      if (!collision) {
         try {
           await this.db.driver.update({
             where: { id: driver.id },
             data: { referralCode: candidateCode },
           });
-          this.logger.log(`Assigned referral code ${candidateCode} to driver ${driver.id}`);
-        } catch (_) {}
-        return candidateCode;
+          this.logger.log(`Assigned unique 6-char referral code ${candidateCode} to driver ${driver.id}`);
+          return candidateCode;
+        } catch (err: any) {
+          this.logger.warn(`Collision or update retry on referral code ${candidateCode}: ${err?.message}`);
+        }
       }
     }
 
-    return driver.id.slice(0, 8).toUpperCase();
+    // Deterministic collision fallback: 6-character uppercase alphanumeric (never ADHOCX)
+    const seed = (driver.id.replace(/[^A-Z0-9]/gi, '') + 'ADH8K9').toUpperCase();
+    let fallback = seed.slice(0, 6);
+    if (fallback === 'ADHOCX' || !/[A-Z]/.test(fallback) || /^\d{6}$/.test(fallback)) {
+      fallback = 'AX7K2M';
+    }
+
+    try {
+      await this.db.driver.update({
+        where: { id: driver.id },
+        data: { referralCode: fallback },
+      });
+    } catch (_) {}
+
+    return fallback;
   }
 
   /**
