@@ -121,28 +121,10 @@ export const Sidebar: React.FC = () => {
       className={`admin-sidebar ${isHovered ? "is-expanded" : ""}`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        height: "100vh",
-        width: isHovered ? "240px" : "64px",
-        transition:
-          "width 0.22s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.22s ease",
-        boxShadow: isHovered
-          ? "10px 0 36px rgba(0, 0, 0, 0.16), 0 0 0 1px var(--border)"
-          : "var(--shadow-sm)",
-        overflowX: "hidden",
-      }}
+      aria-label="Admin Navigation Sidebar"
     >
       {/* Brand Header */}
-      <div
-        className="border-b bg-surface flex items-center box-border overflow-hidden"
-        style={{
-          padding: isHovered ? "0.85rem 1.15rem" : "0.85rem 0",
-          justifyContent: isHovered ? "flex-start" : "center",
-          minHeight: "50px",
-        }}
-      >
+      <div className="sidebar-brand-header">
         {isHovered ? (
           <AdhocxBrandLogo size={26} subtitle="Control Portal" />
         ) : (
@@ -152,36 +134,19 @@ export const Sidebar: React.FC = () => {
         )}
       </div>
 
-      {/* Navigation Items */}
-      <nav
-        className="flex flex-col flex-1 overflow-y-auto"
-        style={{
-          padding: isHovered ? "1rem 0.75rem" : "1rem 0.5rem",
-          gap: isHovered ? "1.25rem" : "0.85rem",
-          overflowX: "hidden",
-        }}
-      >
+      {/* Scrollable Navigation Items */}
+      <nav className="sidebar-nav-scrollable">
         {navSections.map((sec, sIdx) => (
-          <div key={sIdx}>
+          <div key={sIdx} className="sidebar-section-group">
             {sec.title &&
               (isHovered ? (
-                <div
-                  className="text-xs font-bold text-muted py-0 px-3 mb-compact whitespace-nowrap overflow-hidden text-ellipsis"
-                  style={{ letterSpacing: "0.08em" }}
-                >
+                <div className="sidebar-section-title">
                   {sec.title}
                 </div>
               ) : (
-                <div
-                  style={{
-                    height: "1px",
-                    background: "var(--border)",
-                    margin: "0.4rem 0.5rem",
-                    opacity: 0.6,
-                  }}
-                />
+                <div className="sidebar-section-divider" />
               ))}
-            <div className="flex flex-col gap-1">
+            <div className="sidebar-items-list">
               {sec.items.map((item) => {
                 const isActive =
                   pathname === item.href ||
@@ -192,69 +157,18 @@ export const Sidebar: React.FC = () => {
                     key={item.href}
                     href={item.href}
                     title={item.label}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: isHovered ? "space-between" : "center",
-                      padding: isHovered ? "0.46rem 0.68rem" : "0.48rem 0",
-                      borderRadius: "var(--radius-md)",
-                      fontSize: "0.79rem",
-                      fontWeight: isActive ? 700 : 500,
-                      color: isActive ? "#ffffff" : "var(--text-secondary)",
-                      backgroundColor: isActive
-                        ? "var(--brand-primary)"
-                        : "transparent",
-                      boxShadow: isActive
-                        ? "var(--shadow-glow-purple)"
-                        : "none",
-                      transition: "all 0.18s cubic-bezier(0.16, 1, 0.3, 1)",
-                      textDecoration: "none",
-                      width: isHovered ? "100%" : "38px",
-                      margin: isHovered ? "0" : "0 auto",
-                      boxSizing: "border-box",
-                    }}
-                    onMouseEnter={(e) => {
-                      if (!isActive) {
-                        e.currentTarget.style.backgroundColor =
-                          "var(--bg-surface-elevated)";
-                        e.currentTarget.style.color = "var(--text-primary)";
-                        if (isHovered)
-                          e.currentTarget.style.transform = "translateX(2px)";
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!isActive) {
-                        e.currentTarget.style.backgroundColor = "transparent";
-                        e.currentTarget.style.color = "var(--text-secondary)";
-                        e.currentTarget.style.transform = "translateX(0)";
-                      }
-                    }}
+                    className={`sidebar-nav-item ${isActive ? "is-active" : ""}`}
                   >
-                    <div
-                      className="flex items-center min-w-0"
-                      style={{
-                        justifyContent: isHovered ? "flex-start" : "center",
-                        gap: isHovered ? "0.65rem" : "0",
-                      }}
-                    >
-                      <item.icon size={16} style={{ flexShrink: 0 }} />
+                    <div className="sidebar-item-content">
+                      <item.icon size={17} className="sidebar-item-icon" />
                       {isHovered && (
-                        <span className="whitespace-nowrap overflow-hidden text-ellipsis">
+                        <span className="sidebar-item-label">
                           {item.label}
                         </span>
                       )}
                     </div>
                     {isHovered && item.badge && (
-                      <span
-                        className="text-xs font-bold rounded-full flex-shrink-0"
-                        style={{
-                          padding: "0.1rem 0.45rem",
-                          backgroundColor: isActive
-                            ? "rgba(255, 255, 255, 0.25)"
-                            : "var(--brand-primary-subtle)",
-                          color: isActive ? "#ffffff" : "var(--text-brand)",
-                        }}
-                      >
+                      <span className="sidebar-badge">
                         {item.badge}
                       </span>
                     )}
@@ -266,130 +180,75 @@ export const Sidebar: React.FC = () => {
         ))}
       </nav>
 
-      {/* Tactical Fleet Flight Control Launcher */}
-      {OPS_PORTAL_URL && (
-        <div
-          className="border-t"
-          style={{ padding: isHovered ? "0.5rem 0.75rem" : "0.5rem 0.4rem" }}
-        >
-          <a
-            href={OPS_PORTAL_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            title="Open Fleet Operations Portal"
-            className="flex items-center rounded-md no-underline text-compact font-bold box-border"
-            style={{
-              justifyContent: isHovered ? "space-between" : "center",
-              padding: isHovered ? "0.5rem 0.75rem" : "0.55rem 0",
-              backgroundColor: "rgba(var(--brand-primary-rgb), 0.1)",
-              border: "1px solid rgba(var(--brand-primary-rgb), 0.25)",
-              color: "var(--text-brand)",
-              width: isHovered ? "100%" : "38px",
-              margin: isHovered ? "0" : "0 auto",
-            }}
-          >
-            <div
-              className="flex items-center gap-2"
-              style={{
-                justifyContent: isHovered ? "flex-start" : "center",
-                width: isHovered ? "auto" : "100%",
-              }}
+      {/* Bottom Sticky/Fixed Wrapper */}
+      <div className="sidebar-bottom-fixed-wrapper">
+        {/* Tactical Fleet Flight Control Launcher */}
+        {OPS_PORTAL_URL && (
+          <div className="sidebar-fleet-container">
+            <a
+              href={OPS_PORTAL_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Open Tactical Fleet Operations"
+              className="sidebar-fleet-btn"
             >
-              <Radio size={15} style={{ flexShrink: 0 }} />
-              {isHovered && <span>Fleet Ops</span>}
-            </div>
-            {isHovered && <ExternalLink size={13} style={{ flexShrink: 0 }} />}
-          </a>
-        </div>
-      )}
-
-      {/* Administrative User & Logout Footer */}
-      <div
-        className="border-t bg-surface flex flex-col gap-medium overflow-hidden"
-        style={{
-          padding: isHovered ? "0.75rem 0.95rem" : "0.7rem 0.4rem",
-          alignItems: isHovered ? "stretch" : "center",
-        }}
-      >
-        <div
-          className="flex items-center w-full"
-          style={{
-            justifyContent: isHovered ? "flex-start" : "center",
-            gap: isHovered ? "0.6rem" : "0",
-          }}
-          title={
-            !isHovered
-              ? [
-                  adminUser?.fullName || "Administrator",
-                  adminUser?.email || adminUser?.phone,
-                ]
-                  .filter(Boolean)
-                  .join(" · ")
-              : undefined
-          }
-        >
-          <div
-            className="rounded-full flex items-center justify-center font-extrabold text-sm flex-shrink-0"
-            style={{
-              width: "32px",
-              height: "32px",
-              background: "var(--brand-primary-gradient)",
-              color: "#ffffff",
-              boxShadow: "0 2px 8px rgba(var(--brand-accent-rgb), 0.3)",
-            }}
-          >
-            AD
+              <div className="sidebar-fleet-content">
+                <Radio size={15} style={{ flexShrink: 0 }} />
+                {isHovered && <span>Fleet Ops</span>}
+              </div>
+              {isHovered && <ExternalLink size={13} style={{ flexShrink: 0 }} />}
+            </a>
           </div>
-          {isHovered && (
-            <div className="flex flex-col min-w-0 flex-1">
-              <span
-                className="font-bold text-primary whitespace-nowrap overflow-hidden text-ellipsis"
-                style={{ fontSize: "0.775rem" }}
-              >
-                {adminUser?.fullName || "Administrator"}
-              </span>
-              {(adminUser?.email || adminUser?.phone) && (
-                <span className="text-micro text-muted whitespace-nowrap overflow-hidden text-ellipsis">
-                  {adminUser.email || adminUser.phone}
-                </span>
-              )}
+        )}
+
+        {/* Administrative User & Logout Footer */}
+        <div className="sidebar-bottom-fixed">
+          <div
+            className="sidebar-profile-card"
+            title={
+              !isHovered
+                ? [
+                    adminUser?.fullName || "Administrator",
+                    adminUser?.email || adminUser?.phone,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")
+                : undefined
+            }
+          >
+            <div className="sidebar-avatar">
+              AD
             </div>
-          )}
+            {isHovered && (
+              <div className="sidebar-user-info">
+                <span className="sidebar-user-name">
+                  {adminUser?.fullName || "Administrator"}
+                </span>
+                {(adminUser?.email || adminUser?.phone) && (
+                  <span className="sidebar-user-email">
+                    {adminUser.email || adminUser.phone}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+
+          <button
+            type="button"
+            id="sidebar-logout-btn"
+            onClick={() => setShowLogoutConfirm(true)}
+            disabled={isLoggingOut}
+            title={!isHovered ? "Log Out" : undefined}
+            className="sidebar-logout-btn"
+          >
+            <LogOut size={16} />
+            {isHovered && (
+              <span>{isLoggingOut ? "Signing Out..." : "Log Out"}</span>
+            )}
+          </button>
         </div>
-
-        <button
-          type="button"
-          id="sidebar-logout-btn"
-          onClick={() => setShowLogoutConfirm(true)}
-          disabled={isLoggingOut}
-          title={!isHovered ? "Log Out" : undefined}
-          className="flex items-center justify-center rounded-md bg-danger-subtle text-danger text-body-sm font-semibold"
-          style={{
-            width: isHovered ? "100%" : "34px",
-            height: isHovered ? "auto" : "34px",
-            gap: isHovered ? "0.45rem" : "0",
-            padding: isHovered ? "0.45rem 0.72rem" : "0",
-            border: "1px solid var(--color-danger-border)",
-            cursor: isLoggingOut ? "not-allowed" : "pointer",
-            transition: "all 0.15s ease",
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = "var(--color-danger)";
-            e.currentTarget.style.color = "#ffffff";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = "var(--color-danger-bg)";
-            e.currentTarget.style.color = "var(--color-danger)";
-          }}
-        >
-          <LogOut size={16} />
-          {isHovered && (
-            <span>{isLoggingOut ? "Signing Out..." : "Log Out"}</span>
-          )}
-        </button>
       </div>
-
-      <ConfirmDialog
+       <ConfirmDialog
         isOpen={showLogoutConfirm}
         onClose={() => setShowLogoutConfirm(false)}
         onConfirm={handleLogout}

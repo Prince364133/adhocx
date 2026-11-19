@@ -374,6 +374,17 @@ export class AdminController {
     return this.adminService.getDailyFinancialReport(date, companyId, companyType);
   }
 
+  @Get('reports/analytics-trends')
+  @Get('analytics/trends')
+  @ApiOperation({ summary: 'Get comprehensive real-time business analytics and trends with date filters' })
+  async getAnalyticsTrends(
+    @Query('range') range?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    return this.adminService.getAnalyticsTrends(range, startDate, endDate);
+  }
+
   @Get('reports/analytics')
   @Get('reports')
   @ApiOperation({ summary: 'Get operational SLA performance and driver payout metrics' })

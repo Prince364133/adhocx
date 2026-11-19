@@ -2,7 +2,6 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Activity,
   Building2,
   Car,
   ClipboardList,
@@ -17,6 +16,7 @@ import {
   MetricCard,
   PageHeader,
 } from "../../components/common";
+import { AnalyticsTrendsSection } from "../../components/dashboard/AnalyticsTrendsSection";
 import { adminApi } from "../../lib/api/client";
 import type {
   AdminMetrics,
@@ -41,24 +41,6 @@ interface DashboardData {
   requirements: RequirementListItem[];
   finance: FinanceDashboardData | null;
   tripReport: TripFrequencyReport | null;
-}
-
-interface ChartDatum {
-  label: string;
-  value: number;
-}
-
-interface GrowthMonth {
-  key: string;
-  label: string;
-}
-
-interface GrowthSeries {
-  name: string;
-  color: string;
-  values: number[];
-  current: number;
-  previous: number;
 }
 
 const EMPTY_DASHBOARD_DATA: DashboardData = {
@@ -167,291 +149,6 @@ function isActiveRequirement(requirement: RequirementListItem) {
 
 function isPendingPayout(settlement: FinanceSettlementReportItem) {
   return PENDING_PAYOUT_STATUSES.has(settlement.status.toUpperCase());
-}
-
-function getRecentGrowthMonths(count = 6): GrowthMonth[] {
-  const { year, month } = getIndiaMonth();
-  return Array.from({ length: count }, (_, index) => {
-    const date = new Date(Date.UTC(year, month - 1 - (count - index - 1), 1));
-    const monthKey = `${date.getUTCFullYear()}-${String(
-      date.getUTCMonth() + 1,
-    ).padStart(2, "0")}`;
-    return {
-      key: monthKey,
-      label: new Intl.DateTimeFormat("en-IN", {
-        month: "short",
-        timeZone: "UTC",
-      }).format(date),
-    };
-  });
-}
-
-function getMonthlyRegistrations(
-  records: Array<{ createdAt?: string | null }>,
-  months: GrowthMonth[],
-) {
-  const counts = new Map(months.map(({ key }) => [key, 0]));
-  records.forEach(({ createdAt }) => {
-    const key = getMonthKey(createdAt);
-    if (key && counts.has(key)) counts.set(key, (counts.get(key) ?? 0) + 1);
-  });
-  return months.map(({ key }) => counts.get(key) ?? 0);
-}
-
-function ChartCard({
-  title,
-  subtitle,
-  action,
-  children,
-}: {
-  title: string;
-  subtitle: string;
-  action?: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="card dashboard-chart-card">
-      <div className="dashboard-chart-heading">
-        <div className="min-w-0">
-          <h2 className="dashboard-section-title">{title}</h2>
-          <p className="dashboard-section-subtitle">{subtitle}</p>
-        </div>
-        {action}
-      </div>
-      {children}
-    </section>
-  );
-}
-
-function BarChart({
-  data,
-  color = "var(--color-info)",
-  currency = false,
-}: {
-  data: ChartDatum[];
-  color?: string;
-  currency?: boolean;
-}) {
-  const width = 720;
-  const height = 232;
-  const padding = { top: 16, right: 12, bottom: 34, left: 54 };
-  const chartWidth = width - padding.left - padding.right;
-  const chartHeight = height - padding.top - padding.bottom;
-  const maxValue = Math.max(0, ...data.map(({ value }) => value));
-  const minValue = Math.min(0, ...data.map(({ value }) => value));
-  const chartMaxValue = maxValue === 0 && minValue === 0 ? 1 : maxValue;
-  const valueRange = chartMaxValue - minValue || 1;
-  const valueY = (value: number) =>
-    padding.top + ((chartMaxValue - value) / valueRange) * chartHeight;
-  const zeroY = valueY(0);
-  const ticks = [
-    chartMaxValue,
-    (chartMaxValue + minValue) / 2,
-    minValue,
-  ];
-  const slotWidth = data.length ? chartWidth / data.length : chartWidth;
-  const barWidth = Math.max(5, Math.min(34, slotWidth * 0.62));
-  const labelStep = Math.max(1, Math.ceil(data.length / 12));
-  const formatValue = currency ? formatCompactINR : formatCompactNumber;
-
-  if (data.length === 0) {
-    return (
-      <div className="dashboard-chart-empty">
-        No report data is available for this period.
-      </div>
-    );
-  }
-
-  return (
-    <div className="dashboard-chart-scroll">
-      <svg
-        className="dashboard-chart-svg"
-        viewBox={`0 0 ${width} ${height}`}
-        role="img"
-        aria-label={`${data.length} data points`}
-        style={{ minWidth: data.length > 14 ? 620 : 500 }}
-      >
-        {ticks.map((tick, index) => {
-          const y = valueY(tick);
-          return (
-            <g key={`tick-${index}`}>
-              <line
-                x1={padding.left}
-                y1={y}
-                x2={width - padding.right}
-                y2={y}
-                stroke="var(--border-subtle)"
-                strokeDasharray={index === 0 ? undefined : "4 4"}
-              />
-              <text
-                x={padding.left - 8}
-                y={y + 4}
-                textAnchor="end"
-                fontSize="10"
-                fill="var(--text-muted)"
-              >
-                {formatValue(tick)}
-              </text>
-            </g>
-          );
-        })}
-        {data.map(({ label, value }, index) => {
-          const endY = valueY(value);
-          const barHeight = Math.abs(zeroY - endY);
-          const x =
-            padding.left + index * slotWidth + (slotWidth - barWidth) / 2;
-          const showLabel =
-            index % labelStep === 0 || index === data.length - 1;
-          return (
-            <g key={`${label}-${index}`}>
-              <rect
-                x={x}
-                y={Math.min(zeroY, endY)}
-                width={barWidth}
-                height={barHeight}
-                rx="4"
-                fill={color}
-              >
-                <title>{`${label}: ${formatValue(value)}`}</title>
-              </rect>
-              {showLabel && (
-                <text
-                  x={padding.left + index * slotWidth + slotWidth / 2}
-                  y={height - 11}
-                  textAnchor="middle"
-                  fontSize="10"
-                  fill="var(--text-muted)"
-                >
-                  {label}
-                </text>
-              )}
-            </g>
-          );
-        })}
-      </svg>
-    </div>
-  );
-}
-
-function GroupedBarChart({
-  months,
-  series,
-}: {
-  months: GrowthMonth[];
-  series: GrowthSeries[];
-}) {
-  if (months.length === 0 || series.length === 0) {
-    return (
-      <div className="dashboard-chart-empty">
-        Registration history is not available.
-      </div>
-    );
-  }
-
-  const width = 720;
-  const height = 240;
-  const padding = { top: 16, right: 12, bottom: 36, left: 42 };
-  const chartWidth = width - padding.left - padding.right;
-  const chartHeight = height - padding.top - padding.bottom;
-  const maxValue = Math.max(
-    1,
-    ...series.flatMap(({ values }) => values.map((value) => value)),
-  );
-  const slotWidth = chartWidth / months.length;
-  const barWidth = Math.max(
-    4,
-    Math.min(20, (slotWidth * 0.72) / series.length),
-  );
-
-  return (
-    <div className="dashboard-chart-scroll">
-      <svg
-        className="dashboard-chart-svg"
-        viewBox={`0 0 ${width} ${height}`}
-        role="img"
-        aria-label="Monthly registrations for corporate clients, vendors, drivers, and employees"
-        style={{ minWidth: 520 }}
-      >
-        {[0, maxValue / 2, maxValue].map((tick, index) => {
-          const y = padding.top + chartHeight - (tick / maxValue) * chartHeight;
-          return (
-            <g key={`growth-tick-${index}`}>
-              <line
-                x1={padding.left}
-                y1={y}
-                x2={width - padding.right}
-                y2={y}
-                stroke="var(--border-subtle)"
-                strokeDasharray={index === 0 ? undefined : "4 4"}
-              />
-              <text
-                x={padding.left - 8}
-                y={y + 4}
-                textAnchor="end"
-                fontSize="10"
-                fill="var(--text-muted)"
-              >
-                {formatCompactNumber(tick)}
-              </text>
-            </g>
-          );
-        })}
-        {months.map((month, monthIndex) => {
-          const groupWidth = barWidth * series.length;
-          const groupStart =
-            padding.left +
-            monthIndex * slotWidth +
-            (slotWidth - groupWidth) / 2;
-          return (
-            <g key={month.key}>
-              {series.map((item, seriesIndex) => {
-                const value = item.values[monthIndex] ?? 0;
-                const barHeight = (value / maxValue) * chartHeight;
-                return (
-                  <rect
-                    key={item.name}
-                    x={groupStart + seriesIndex * barWidth}
-                    y={padding.top + chartHeight - barHeight}
-                    width={Math.max(3, barWidth - 2)}
-                    height={barHeight}
-                    rx="3"
-                    fill={item.color}
-                  >
-                    <title>{`${month.label} ${item.name}: ${value}`}</title>
-                  </rect>
-                );
-              })}
-              <text
-                x={padding.left + monthIndex * slotWidth + slotWidth / 2}
-                y={height - 12}
-                textAnchor="middle"
-                fontSize="10"
-                fill="var(--text-muted)"
-              >
-                {month.label}
-              </text>
-            </g>
-          );
-        })}
-      </svg>
-    </div>
-  );
-}
-
-function ChartLegend({ series }: { series: GrowthSeries[] }) {
-  return (
-    <div className="dashboard-chart-legend">
-      {series.map((item) => (
-        <span key={item.name} className="dashboard-chart-legend-item">
-          <span
-            className="dashboard-chart-legend-dot"
-            style={{ background: item.color }}
-          />
-          {item.name}
-        </span>
-      ))}
-    </div>
-  );
 }
 
 export default function DashboardPage() {
@@ -615,17 +312,6 @@ export default function DashboardPage() {
     () => data.requirements.filter(isActiveRequirement),
     [data.requirements],
   );
-  const activeRequirementsByStatus = useMemo(() => {
-    const counts = new Map<string, number>();
-    activeRequirements.forEach(({ status }) => {
-      const label = status.replaceAll("_", " ");
-      counts.set(label, (counts.get(label) ?? 0) + 1);
-    });
-    return [...counts.entries()]
-      .map(([label, value]) => ({ label, value }))
-      .sort((a, b) => b.value - a.value);
-  }, [activeRequirements]);
-
   const todayBookings = useMemo(() => {
     if (!data.tripReport) return null;
     return (
@@ -633,108 +319,6 @@ export default function DashboardPage() {
         ?.count ?? 0
     );
   }, [data.tripReport, indiaToday]);
-
-  const dailyBookingData = useMemo(
-    () =>
-      (data.tripReport?.dailyTrips ?? [])
-        .filter((trip) => trip.date <= indiaToday)
-        .slice(-30)
-        .map((trip) => ({
-          label: trip.date.slice(-2),
-          value: trip.count,
-        })),
-    [data.tripReport, indiaToday],
-  );
-
-  const payoutRequestedData = useMemo(() => {
-    const byDate = new Map<string, number>();
-    (data.finance?.settlements ?? []).forEach((settlement) => {
-      if (!isPendingPayout(settlement)) return;
-      const date = getIndiaDateKey(settlement.requestedDate);
-      if (!date) return;
-      byDate.set(
-        date,
-        (byDate.get(date) ?? 0) + Number(settlement.amount || 0),
-      );
-    });
-    return [...byDate.entries()]
-      .sort(([a], [b]) => a.localeCompare(b))
-      .slice(-30)
-      .map(([date, value]) => ({ label: date.slice(5), value }));
-  }, [data.finance]);
-
-  const marginData = useMemo(
-    () => {
-      const byDate = new Map<string, number>();
-      (data.finance?.transactions ?? []).forEach((transaction) => {
-        const date = getIndiaDateKey(transaction.transactionDate);
-        if (!date) return;
-        byDate.set(
-          date,
-          (byDate.get(date) ?? 0) +
-            Number(transaction.totalOrderAmount || 0) -
-            Number(transaction.driverEarnings || 0),
-        );
-      });
-      return [...byDate.entries()]
-        .sort(([a], [b]) => a.localeCompare(b))
-        .slice(-30)
-        .map(([date, value]) => ({ label: date.slice(5), value }));
-    },
-    [data.finance],
-  );
-
-  const tripStatusData = useMemo(
-    () =>
-      (data.tripReport?.statusBreakdown ?? []).map(({ status, count }) => ({
-        label: status.replaceAll("_", " "),
-        value: count,
-      })),
-    [data.tripReport],
-  );
-
-  const growthMonths = useMemo(() => getRecentGrowthMonths(), []);
-  const growthSeries = useMemo<GrowthSeries[]>(() => {
-    const sources = [
-      {
-        name: "Corporate clients",
-        color: "var(--brand-secondary)",
-        records: data.corporateClients,
-      },
-      {
-        name: "Vendors",
-        color: "var(--color-info)",
-        records: data.vendors,
-      },
-      {
-        name: "Drivers",
-        color: "var(--color-success)",
-        records: data.drivers,
-      },
-      {
-        name: "Employees",
-        color: "var(--text-brand)",
-        records: data.employees,
-      },
-    ];
-
-    return sources.map(({ name, color, records }) => {
-      const values = getMonthlyRegistrations(records, growthMonths);
-      return {
-        name,
-        color,
-        values,
-        current: values.at(-1) ?? 0,
-        previous: values.at(-2) ?? 0,
-      };
-    });
-  }, [
-    data.corporateClients,
-    data.drivers,
-    data.employees,
-    data.vendors,
-    growthMonths,
-  ]);
 
   const payoutRequestedTotal =
     data.finance?.metrics.pendingSettlementRequests ?? null;
@@ -750,11 +334,6 @@ export default function DashboardPage() {
         );
   const activeRequirementTotal =
     data.metrics?.activeRequirements ?? activeRequirements.length;
-
-  const corporateGrowthRate = (series: GrowthSeries) =>
-    series.previous > 0
-      ? ((series.current - series.previous) / series.previous) * 100
-      : null;
 
   return (
     <main className="admin-page dashboard-page">
@@ -901,98 +480,7 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      <section className="dashboard-analytics-section">
-        <div className="dashboard-section-heading">
-          <div>
-            <h2 className="dashboard-section-title">Analytics &amp; trends</h2>
-            <p className="dashboard-section-subtitle">
-              Current-month booking usage and 30-day financial activity.
-            </p>
-          </div>
-          <span className="dashboard-period-label">
-            <Activity size={14} />
-            Live operational data
-          </span>
-        </div>
-
-        <div className="dashboard-chart-grid">
-          <ChartCard
-            title="Daily cab booking usage"
-            subtitle="Trips created each day this month · India time"
-            action={<Car size={16} className="text-muted" />}
-          >
-            <BarChart data={dailyBookingData} color="var(--brand-secondary)" />
-          </ChartCard>
-
-          <ChartCard
-            title="Trip status"
-            subtitle="Trips created this month by current status"
-            action={<Activity size={16} className="text-muted" />}
-          >
-            <BarChart data={tripStatusData} color="var(--color-info)" />
-          </ChartCard>
-
-          <ChartCard
-            title="Driver payouts requested"
-            subtitle="Pending and processing requests by day · last 30 days"
-            action={<Wallet size={16} className="text-muted" />}
-          >
-            <BarChart
-              data={payoutRequestedData}
-              color="var(--color-info)"
-              currency
-            />
-          </ChartCard>
-
-          <ChartCard
-            title="Completed-trip margin"
-            subtitle="Daily completed-trip fares less driver earnings · last 30 days"
-            action={<TrendingUp size={16} className="text-muted" />}
-          >
-            <BarChart data={marginData} color="var(--color-success)" currency />
-          </ChartCard>
-
-          <ChartCard
-            title="Active requirements"
-            subtitle="Currently open or in-flight requirements by status"
-            action={<ClipboardList size={16} className="text-muted" />}
-          >
-            <BarChart
-              data={activeRequirementsByStatus}
-              color="var(--text-brand)"
-            />
-          </ChartCard>
-
-          <ChartCard
-            title="User growth rate"
-            subtitle="Monthly registrations from available records; current month is to date"
-            action={<Users size={16} className="text-muted" />}
-          >
-            <GroupedBarChart months={growthMonths} series={growthSeries} />
-            <ChartLegend series={growthSeries} />
-            <div className="dashboard-growth-summary">
-              {growthSeries.map((series) => {
-                const rate = corporateGrowthRate(series);
-                return (
-                  <div key={series.name} className="dashboard-growth-item">
-                    <span>{series.name}</span>
-                    <strong>
-                      {series.current.toLocaleString("en-IN")} this month
-                    </strong>
-                    <small>
-                      {rate == null
-                        ? series.current > 0
-                          ? "New registrations"
-                          : "No prior-month baseline"
-                        : `${rate >= 0 ? "+" : ""}${rate.toFixed(1)}% vs. last month`}
-                    </small>
-                  </div>
-                );
-              })}
-            </div>
-          </ChartCard>
-        </div>
-      </section>
+      <AnalyticsTrendsSection />
 
       <footer className="dashboard-footer-note">
         <Building2 size={14} />

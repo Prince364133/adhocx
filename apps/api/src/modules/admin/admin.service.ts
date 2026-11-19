@@ -210,6 +210,17 @@ export class AdminService {
             },
           },
         },
+        corporateRoutes: {
+          take: 50,
+          orderBy: { createdAt: 'desc' },
+          include: {
+            stops: {
+              orderBy: { stopSequence: 'asc' },
+            },
+            tenant: true,
+            office: true,
+          },
+        },
       },
     });
 
@@ -3249,6 +3260,506 @@ export class AdminService {
       this.logger.warn(
         `Finance dashboard aggregation failed: ${err instanceof Error ? err.message : String(err)}`,
       );
+      throw err;
+    }
+  }
+
+  /**
+   * Get production-ready business analytics and trends data for selected date filter.
+   */
+  async getAnalyticsTrends(range = '30D', customStart?: string, customEnd?: string) {
+    const indiaOffsetMs = 5.5 * 60 * 60 * 1000;
+    const nowUtc = new Date();
+    const nowIndia = new Date(nowUtc.getTime() + indiaOffsetMs);
+
+    let startDate: Date;
+    let endDate: Date;
+
+    if (range === '7D') {
+      const startIndia = new Date(nowIndia);
+      startIndia.setUTCDate(startIndia.getUTCDate() - 6);
+      startIndia.setUTCHours(0, 0, 0, 0);
+      startDate = new Date(startIndia.getTime() - indiaOffsetMs);
+
+      const endIndia = new Date(nowIndia);
+      endIndia.setUTCHours(23, 59, 59, 999);
+      endDate = new Date(endIndia.getTime() - indiaOffsetMs);
+    } else if (range === '30D') {
+      const startIndia = new Date(nowIndia);
+      startIndia.setUTCDate(startIndia.getUTCDate() - 29);
+      startIndia.setUTCHours(0, 0, 0, 0);
+      startDate = new Date(startIndia.getTime() - indiaOffsetMs);
+
+      const endIndia = new Date(nowIndia);
+      endIndia.setUTCHours(23, 59, 59, 999);
+      endDate = new Date(endIndia.getTime() - indiaOffsetMs);
+    } else if (range === 'THIS_MONTH') {
+      const startIndia = new Date(Date.UTC(nowIndia.getUTCFullYear(), nowIndia.getUTCMonth(), 1, 0, 0, 0, 0));
+      startDate = new Date(startIndia.getTime() - indiaOffsetMs);
+
+      const endIndia = new Date(nowIndia);
+      endIndia.setUTCHours(23, 59, 59, 999);
+      endDate = new Date(endIndia.getTime() - indiaOffsetMs);
+    } else if (range === 'CUSTOM' && customStart) {
+      const [sYear, sMonth, sDay] = customStart.split('-').map(Number);
+      const startIndia = new Date(Date.UTC(sYear, (sMonth || 1) - 1, sDay || 1, 0, 0, 0, 0));
+      startDate = new Date(startIndia.getTime() - indiaOffsetMs);
+
+      if (customEnd) {
+        const [eYear, eMonth, eDay] = customEnd.split('-').map(Number);
+        const endIndia = new Date(Date.UTC(eYear, (eMonth || 1) - 1, eDay || 1, 23, 59, 59, 999));
+        endDate = new Date(endIndia.getTime() - indiaOffsetMs);
+      } else {
+        const endIndia = new Date(nowIndia);
+        endIndia.setUTCHours(23, 59, 59, 999);
+        endDate = new Date(endIndia.getTime() - indiaOffsetMs);
+      }
+    } else {
+      const startIndia = new Date(nowIndia);
+      startIndia.setUTCDate(startIndia.getUTCDate() - 29);
+      startIndia.setUTCHours(0, 0, 0, 0);
+      startDate = new Date(startIndia.getTime() - indiaOffsetMs);
+
+      const endIndia = new Date(nowIndia);
+      endIndia.setUTCHours(23, 59, 59, 999);
+      endDate = new Date(endIndia.getTime() - indiaOffsetMs);
+    }
+
+    try {
+      const sixMonthsAgoIndia = new Date(Date.UTC(nowIndia.getUTCFullYear(), nowIndia.getUTCMonth() - 5, 1, 0, 0, 0, 0));
+      const sixMonthsAgoUtc = new Date(sixMonthsAgoIndia.getTime() - indiaOffsetMs);
+      const queryStartDate = startDate < sixMonthsAgoUtc ? startDate : sixMonthsAgoUtc;
+
+      const [tripsQuery, paymentsQuery, reqs, activeReqs] = await Promise.all([
+        this.db.trip.findMany({
+          where: { createdAt: { gte: queryStartDate, lte: endDate } },
+          include: { requirement: { include: { vendor: true } }, pricingSnapshot: true },
+          orderBy: { createdAt: 'asc' },
+        }),
+        this.db.payment.findMany({
+          where: { createdAt: { gte: queryStartDate, lte: endDate }, status: 'CAPTURED' },
+          orderBy: { createdAt: 'asc' },
+        }),
+        this.db.requirement.findMany({
+          where: { createdAt: { gte: startDate, lte: endDate } },
+          orderBy: { createdAt: 'asc' },
+        }),
+        this.db.requirement.findMany({
+          where: {
+            status: { in: ['POSTED', 'DISPATCHING', 'PARTIALLY_FULFILLED', 'IN_PROGRESS'] },
+          },
+          orderBy: { createdAt: 'desc' },
+        }),
+      ]);
+
+      const allTrips = tripsQuery.filter((t) => t.createdAt >= startDate && t.createdAt <= endDate);
+      const completedTrips = tripsQuery.filter(
+        (t) =>
+          t.status === 'COMPLETED' &&
+          (t.completedAt ? t.completedAt >= startDate && t.completedAt <= endDate : t.createdAt >= startDate && t.createdAt <= endDate),
+      );
+      const periodPayments = paymentsQuery.filter((p) => p.createdAt >= startDate && p.createdAt <= endDate);
+
+      const toIndiaDateKey = (date: Date) =>
+        new Date(date.getTime() + indiaOffsetMs).toISOString().slice(0, 10);
+
+      const formatIndiaDateLabel = (dateKey: string) => {
+        const [y, m, d] = dateKey.split('-').map(Number);
+        const dt = new Date(Date.UTC(y, m - 1, d));
+        return dt.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+      };
+
+      const dailyMap = new Map<string, {
+        date: string;
+        label: string;
+        count: number;
+        completedCount: number;
+        cancelledCount: number;
+        revenue: number;
+        driverPayouts: number;
+        margin: number;
+        marginPercentage: number;
+      }>();
+
+      const startKey = toIndiaDateKey(startDate);
+      const endKey = toIndiaDateKey(endDate);
+      const [sY, sM, sD] = startKey.split('-').map(Number);
+      const curIter = new Date(Date.UTC(sY, sM - 1, sD));
+
+      while (true) {
+        const key = curIter.toISOString().slice(0, 10);
+        dailyMap.set(key, {
+          date: key,
+          label: formatIndiaDateLabel(key),
+          count: 0,
+          completedCount: 0,
+          cancelledCount: 0,
+          revenue: 0,
+          driverPayouts: 0,
+          margin: 0,
+          marginPercentage: 0,
+        });
+        if (key >= endKey) break;
+        curIter.setUTCDate(curIter.getUTCDate() + 1);
+      }
+
+      for (const t of allTrips) {
+        const key = toIndiaDateKey(t.createdAt);
+        const slot = dailyMap.get(key);
+        if (slot) {
+          slot.count += 1;
+          if (t.status === 'COMPLETED') slot.completedCount += 1;
+          if (t.status === 'CANCELLED') slot.cancelledCount += 1;
+        }
+      }
+
+      const tripReqIdsWithTrip = new Set<string>();
+
+      for (const t of completedTrips) {
+        if (t.requirementId) tripReqIdsWithTrip.add(t.requirementId);
+        const dateKey = toIndiaDateKey(t.completedAt || t.createdAt);
+        const slot = dailyMap.get(dateKey);
+        const snapshot = t.pricingSnapshot;
+        const reqAmount = t.requirement?.totalAmount ? Number(t.requirement.totalAmount) : 0;
+        const driverRate = Number(t.driverRate || 0);
+        const toll = Number(t.tollCharges || 0);
+        const parking = Number(t.parkingCharges || 0);
+
+        let rev = 0;
+        let earn = 0;
+        if (snapshot) {
+          rev = (snapshot.vendorPricePaise || 0) / 100;
+          earn = (snapshot.driverPayoutPaise || 0) / 100;
+        } else {
+          const orderAmount = reqAmount > 0 ? reqAmount : driverRate;
+          const payout = driverRate > 0 ? driverRate : reqAmount;
+          earn = payout + toll + parking;
+          rev = orderAmount + toll + parking;
+        }
+        if (t.totalDriverEarnings && Number(t.totalDriverEarnings) > 0) {
+          earn = Number(t.totalDriverEarnings);
+        }
+
+        if (slot) {
+          slot.revenue += rev;
+          slot.driverPayouts += earn;
+          slot.margin = slot.revenue - slot.driverPayouts;
+          slot.marginPercentage = slot.revenue > 0 ? Math.round((slot.margin / slot.revenue) * 1000) / 10 : 0;
+        }
+      }
+
+      for (const p of periodPayments) {
+        if (!p.requirementId || !tripReqIdsWithTrip.has(p.requirementId)) {
+          const dateKey = toIndiaDateKey(p.createdAt);
+          const slot = dailyMap.get(dateKey);
+          if (slot) {
+            const amt = Number(p.amount || 0);
+            slot.revenue += amt;
+            slot.margin = slot.revenue - slot.driverPayouts;
+            slot.marginPercentage = slot.revenue > 0 ? Math.round((slot.margin / slot.revenue) * 1000) / 10 : 0;
+          }
+        }
+      }
+
+      const dailyList = Array.from(dailyMap.values());
+
+      const weeklyBuckets: Array<{
+        weekStart: string;
+        label: string;
+        count: number;
+        completedCount: number;
+        cancelledCount: number;
+        revenue: number;
+        driverPayouts: number;
+        margin: number;
+        marginPercentage: number;
+      }> = [];
+
+      for (let i = 0; i < dailyList.length; i += 7) {
+        const chunk = dailyList.slice(i, i + 7);
+        const first = chunk[0];
+        const last = chunk[chunk.length - 1];
+        const cCount = chunk.reduce((s, c) => s + c.count, 0);
+        const cCompleted = chunk.reduce((s, c) => s + c.completedCount, 0);
+        const cCancelled = chunk.reduce((s, c) => s + c.cancelledCount, 0);
+        const cRev = chunk.reduce((s, c) => s + c.revenue, 0);
+        const cPayout = chunk.reduce((s, c) => s + c.driverPayouts, 0);
+        const cMargin = cRev - cPayout;
+        weeklyBuckets.push({
+          weekStart: first.date,
+          label: first.date === last.date ? first.label : `${first.label} - ${last.label}`,
+          count: cCount,
+          completedCount: cCompleted,
+          cancelledCount: cCancelled,
+          revenue: Math.round(cRev * 100) / 100,
+          driverPayouts: Math.round(cPayout * 100) / 100,
+          margin: Math.round(cMargin * 100) / 100,
+          marginPercentage: cRev > 0 ? Math.round((cMargin / cRev) * 1000) / 10 : 0,
+        });
+      }
+
+      const monthlyBuckets: Array<{
+        month: string;
+        label: string;
+        count: number;
+        completedCount: number;
+        cancelledCount: number;
+        revenue: number;
+        driverPayouts: number;
+        margin: number;
+        marginPercentage: number;
+      }> = [];
+
+      for (let m = 5; m >= 0; m--) {
+        const mStartIndia = new Date(Date.UTC(nowIndia.getUTCFullYear(), nowIndia.getUTCMonth() - m, 1, 0, 0, 0, 0));
+        const mEndIndia = new Date(Date.UTC(nowIndia.getUTCFullYear(), nowIndia.getUTCMonth() - m + 1, 0, 23, 59, 59, 999));
+        const mStartUtc = new Date(mStartIndia.getTime() - indiaOffsetMs);
+        const mEndUtc = new Date(mEndIndia.getTime() - indiaOffsetMs);
+
+        const monthKey = `${mStartIndia.getUTCFullYear()}-${String(mStartIndia.getUTCMonth() + 1).padStart(2, '0')}`;
+        const monthLabel = mStartIndia.toLocaleDateString('en-IN', { month: 'short', timeZone: 'UTC' });
+
+        let mCount = 0;
+        let mCompleted = 0;
+        let mCancelled = 0;
+        let mRev = 0;
+        let mEarn = 0;
+
+        const mTripReqIds = new Set<string>();
+
+        for (const t of tripsQuery) {
+          if (t.createdAt >= mStartUtc && t.createdAt <= mEndUtc) {
+            mCount += 1;
+            if (t.status === 'COMPLETED') mCompleted += 1;
+            if (t.status === 'CANCELLED') mCancelled += 1;
+          }
+          if (t.status === 'COMPLETED') {
+            const d = t.completedAt || t.createdAt;
+            if (d >= mStartUtc && d <= mEndUtc) {
+              if (t.requirementId) mTripReqIds.add(t.requirementId);
+              const snapshot = t.pricingSnapshot;
+              const reqAmount = t.requirement?.totalAmount ? Number(t.requirement.totalAmount) : 0;
+              const driverRate = Number(t.driverRate || 0);
+              const toll = Number(t.tollCharges || 0);
+              const parking = Number(t.parkingCharges || 0);
+
+              let rev = 0;
+              let earn = 0;
+              if (snapshot) {
+                rev = (snapshot.vendorPricePaise || 0) / 100;
+                earn = (snapshot.driverPayoutPaise || 0) / 100;
+              } else {
+                const orderAmount = reqAmount > 0 ? reqAmount : driverRate;
+                const payout = driverRate > 0 ? driverRate : reqAmount;
+                earn = payout + toll + parking;
+                rev = orderAmount + toll + parking;
+              }
+              if (t.totalDriverEarnings && Number(t.totalDriverEarnings) > 0) {
+                earn = Number(t.totalDriverEarnings);
+              }
+              mRev += rev;
+              mEarn += earn;
+            }
+          }
+        }
+
+        for (const p of paymentsQuery) {
+          if (p.createdAt >= mStartUtc && p.createdAt <= mEndUtc) {
+            if (!p.requirementId || !mTripReqIds.has(p.requirementId)) {
+              mRev += Number(p.amount || 0);
+            }
+          }
+        }
+
+        const mMargin = mRev - mEarn;
+        monthlyBuckets.push({
+          month: monthKey,
+          label: monthLabel,
+          count: mCount,
+          completedCount: mCompleted,
+          cancelledCount: mCancelled,
+          revenue: Math.round(mRev * 100) / 100,
+          driverPayouts: Math.round(mEarn * 100) / 100,
+          margin: Math.round(mMargin * 100) / 100,
+          marginPercentage: mRev > 0 ? Math.round((mMargin / mRev) * 1000) / 10 : 0,
+        });
+      }
+
+      const statusCounts = new Map<string, number>();
+      for (const t of allTrips) {
+        statusCounts.set(t.status, (statusCounts.get(t.status) ?? 0) + 1);
+      }
+      const statusColorMap: Record<string, string> = {
+        COMPLETED: 'var(--color-success)',
+        IN_PROGRESS: 'var(--color-info)',
+        ASSIGNED: 'var(--text-brand)',
+        ARRIVED: 'var(--brand-secondary)',
+        CANCELLED: 'var(--color-danger, #ef4444)',
+        NO_SHOW: 'var(--color-warning)',
+      };
+      const bookingStatusDistribution = Array.from(statusCounts.entries()).map(([status, count]) => ({
+        status,
+        label: status.replace(/_/g, ' '),
+        count,
+        percentage: allTrips.length > 0 ? Math.round((count / allTrips.length) * 1000) / 10 : 0,
+        color: statusColorMap[status] || 'var(--text-secondary)',
+      }));
+
+      const activeStatusCounts = new Map<string, number>();
+      for (const r of activeReqs) {
+        activeStatusCounts.set(r.status, (activeStatusCounts.get(r.status) ?? 0) + 1);
+      }
+      const activeRequirementsByStatus = Array.from(activeStatusCounts.entries()).map(([status, count]) => ({
+        status,
+        label: status.replace(/_/g, ' '),
+        count,
+        percentage: activeReqs.length > 0 ? Math.round((count / activeReqs.length) * 1000) / 10 : 0,
+      }));
+
+      const allReqStatusCounts = new Map<string, number>();
+      for (const r of reqs) {
+        allReqStatusCounts.set(r.status, (allReqStatusCounts.get(r.status) ?? 0) + 1);
+      }
+      const allRequirementsByStatus = Array.from(allReqStatusCounts.entries()).map(([status, count]) => ({
+        status,
+        label: status.replace(/_/g, ' '),
+        count,
+        percentage: reqs.length > 0 ? Math.round((count / reqs.length) * 1000) / 10 : 0,
+      }));
+
+      const sixMonthsAgo = new Date(Date.UTC(nowIndia.getUTCFullYear(), nowIndia.getUTCMonth() - 5, 1));
+      const [drivers, vendors, tenants, users, corporateEmployees] = await Promise.all([
+        this.db.driver.findMany({ where: { createdAt: { gte: sixMonthsAgo } }, select: { createdAt: true } }),
+        this.db.vendor.findMany({ where: { createdAt: { gte: sixMonthsAgo } }, select: { createdAt: true } }),
+        this.db.corporateTenant.findMany({ where: { createdAt: { gte: sixMonthsAgo } }, select: { createdAt: true } }),
+        this.db.user.findMany({ where: { createdAt: { gte: sixMonthsAgo }, role: 'EMPLOYEE' }, select: { createdAt: true } }),
+        this.db.corporateEmployee.findMany({ where: { createdAt: { gte: sixMonthsAgo } }, select: { createdAt: true } }),
+      ]);
+
+      const growthMonths = Array.from({ length: 6 }, (_, index) => {
+        const d = new Date(Date.UTC(nowIndia.getUTCFullYear(), nowIndia.getUTCMonth() - (5 - index), 1));
+        const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+        return {
+          key,
+          label: d.toLocaleDateString('en-IN', { month: 'short', timeZone: 'UTC' }),
+        };
+      });
+
+      const countByMonth = (records: Array<{ createdAt: Date }>) => {
+        const counts = new Map(growthMonths.map((m) => [m.key, 0]));
+        for (const r of records) {
+          const k = `${r.createdAt.getFullYear()}-${String(r.createdAt.getMonth() + 1).padStart(2, '0')}`;
+          if (counts.has(k)) counts.set(k, counts.get(k)! + 1);
+        }
+        return growthMonths.map((m) => counts.get(m.key) ?? 0);
+      };
+
+      const employeeRecords = [...users, ...corporateEmployees];
+
+      const userSeries = [
+        {
+          name: 'Corporate clients',
+          key: 'corporate',
+          color: 'var(--brand-secondary)',
+          values: countByMonth(tenants),
+        },
+        {
+          name: 'Vendors',
+          key: 'vendor',
+          color: 'var(--color-info)',
+          values: countByMonth(vendors),
+        },
+        {
+          name: 'Drivers',
+          key: 'driver',
+          color: 'var(--color-success)',
+          values: countByMonth(drivers),
+        },
+        {
+          name: 'Employees',
+          key: 'employee',
+          color: 'var(--text-brand)',
+          values: countByMonth(employeeRecords),
+        },
+      ].map((series) => {
+        const current = series.values.at(-1) ?? 0;
+        const previous = series.values.at(-2) ?? 0;
+        const growthRate = previous > 0 ? Math.round(((current - previous) / previous) * 1000) / 10 : null;
+        return {
+          ...series,
+          current,
+          previous,
+          growthRate,
+        };
+      });
+
+      const totalRevenue = dailyList.reduce((s, d) => s + d.revenue, 0);
+      const totalDriverPayouts = dailyList.reduce((s, d) => s + d.driverPayouts, 0);
+      const totalPlatformMargin = totalRevenue - totalDriverPayouts;
+      const marginPercentage = totalRevenue > 0 ? Math.round((totalPlatformMargin / totalRevenue) * 1000) / 10 : 0;
+
+      return {
+        range,
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString(),
+        totals: {
+          totalBookings: allTrips.length,
+          completedBookings: completedTrips.length,
+          cancelledBookings: allTrips.filter((t) => t.status === 'CANCELLED').length,
+          totalRevenue: Math.round(totalRevenue * 100) / 100,
+          totalDriverPayouts: Math.round(totalDriverPayouts * 100) / 100,
+          totalPlatformMargin: Math.round(totalPlatformMargin * 100) / 100,
+          marginPercentage,
+          totalActiveRequirements: activeReqs.length,
+          totalRequirements: reqs.length,
+        },
+        bookingTrends: {
+          daily: dailyList.map((d) => ({
+            date: d.date,
+            label: d.label,
+            count: d.count,
+            completedCount: d.completedCount,
+            cancelledCount: d.cancelledCount,
+          })),
+          weekly: weeklyBuckets,
+          monthly: monthlyBuckets,
+        },
+        financialTrends: {
+          daily: dailyList.map((d) => ({
+            date: d.date,
+            label: d.label,
+            revenue: d.revenue,
+            driverPayouts: d.driverPayouts,
+            margin: d.margin,
+            marginPercentage: d.marginPercentage,
+          })),
+          weekly: weeklyBuckets.map((w) => ({
+            weekStart: w.weekStart,
+            label: w.label,
+            revenue: w.revenue,
+            driverPayouts: w.driverPayouts,
+            margin: w.margin,
+            marginPercentage: w.marginPercentage,
+          })),
+          monthly: monthlyBuckets.map((m) => ({
+            month: m.month,
+            label: m.label,
+            revenue: m.revenue,
+            driverPayouts: m.driverPayouts,
+            margin: m.margin,
+            marginPercentage: m.marginPercentage,
+          })),
+        },
+        bookingStatusDistribution,
+        activeRequirementsByStatus,
+        allRequirementsByStatus,
+        userGrowth: {
+          months: growthMonths,
+          series: userSeries,
+        },
+      };
+    } catch (err: any) {
+      this.logger.error(`Analytics trends aggregation error: ${err.message}`, err.stack);
       throw err;
     }
   }
