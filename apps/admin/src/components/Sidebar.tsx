@@ -8,7 +8,6 @@ import {
   LayoutDashboard,
   ShieldCheck,
   Car,
-  Users,
   CreditCard,
   WalletCards,
   Tag,
@@ -52,7 +51,7 @@ const navSections: NavSection[] = [
         icon: ShieldCheck,
       },
       { href: "/drivers", label: "Driver Fleet", icon: Car },
-      { href: "/users", label: "Users & Vendors", icon: Users },
+      { href: "/users", label: "Corporate Vendors", icon: Building2 },
     ],
   },
   {

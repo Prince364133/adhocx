@@ -70,7 +70,7 @@ const STATUS_OPTIONS = [
 const formatCurrency = (amt: number) =>
   "₹" + Math.round(amt).toLocaleString("en-IN");
 
-function haversineDistanceKm(
+function _haversineDistanceKm(
   lat1: number,
   lon1: number,
   lat2: number,

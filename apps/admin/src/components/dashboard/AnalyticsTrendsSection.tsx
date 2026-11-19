@@ -1659,9 +1659,9 @@ export function AnalyticsTrendsSection() {
   const [bookingGranularity, setBookingGranularity] = useState<"daily" | "weekly" | "monthly">("daily");
   const [financialGranularity, setFinancialGranularity] = useState<"daily" | "weekly" | "monthly">("daily");
   const [data, setData] = useState<AnalyticsTrendsData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [_isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
+  const [_lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
 
   const fetchAnalytics = useCallback(
     async (range: string, start?: string, end?: string) => {
