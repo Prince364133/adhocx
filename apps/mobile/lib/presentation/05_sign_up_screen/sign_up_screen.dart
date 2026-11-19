@@ -261,8 +261,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       const SizedBox(height: AppSpacing.md),
                       AppTextField(
                         controller: _referralController,
-                        label: 'Referral Code / Partner Phone (Optional)',
-                        hintText: 'e.g. ADH8K9 or 9876543210',
+                        label: 'Referral Code (Optional)',
+                        hintText: 'e.g. ADH8K9',
                         prefixIcon: const Icon(Icons.card_giftcard_rounded, size: 20),
                         textCapitalization: TextCapitalization.characters,
                         onChanged: (val) {

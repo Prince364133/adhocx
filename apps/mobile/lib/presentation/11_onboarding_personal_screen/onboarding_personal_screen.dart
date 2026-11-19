@@ -765,11 +765,11 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
                       ),
                       const SizedBox(height: AppSpacing.lg),
 
-                      // Referral Code or Referrer Mobile Number (Optional)
+                      // Referral Code (Optional)
                       AppTextField(
                         controller: _referralCodeController,
-                        label: 'Referral Code or Referrer Mobile Number (Optional)',
-                        hintText: 'e.g. ADH8K9 or 9876543210',
+                        label: 'Referral Code (Optional)',
+                        hintText: 'e.g. ADH8K9',
                         prefixIcon: const Icon(Icons.card_giftcard_rounded, size: 20),
                         onChanged: _onReferralChanged,
                         suffixIcon: _isValidatingReferral
