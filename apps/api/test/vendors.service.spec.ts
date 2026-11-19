@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
 import { VendorsService } from '../src/modules/vendors/vendors.service';
 import { DatabaseService } from '../src/database/database.service';
+import { StorageService } from '../src/common/storage/storage.service';
 import { VerificationStatus } from '@adhocx/contracts';
 
 describe('VendorsService', () => {
@@ -27,6 +28,7 @@ describe('VendorsService', () => {
       providers: [
         VendorsService,
         { provide: DatabaseService, useValue: mockDb },
+        { provide: StorageService, useValue: { upload: jest.fn(), getUrl: jest.fn() } },
       ],
     }).compile();
 

@@ -69,7 +69,7 @@ const formatCurrency = (amount: number) =>
 
 /**
  * Computes performance aggregates and time-series data for a driver
- * strictly from actual trip records returned by the API.
+ * strictly from actual trip records returned by the API. If no data exists, zeroes are returned without mock numbers.
  */
 function computeDriverPerformance(driver: DriverDetail, selectedYear: number) {
   const actualTrips = Array.isArray(driver.trips) ? driver.trips : [];
@@ -222,7 +222,6 @@ function computeDriverPerformance(driver: DriverDetail, selectedYear: number) {
       const d = new Date(raw);
       return !Number.isNaN(d.getTime()) && d.getFullYear() === yr;
     });
-
     const completed = tripsThisYear.filter(
       (t) => t.status === "COMPLETED",
     ).length;
@@ -1914,6 +1913,24 @@ export default function DriversPage() {
                   </>
                 )}
               </svg>
+
+              {/* Empty state overlay when no monthly activity exists */}
+              {chartMonths.every((m) => m.earnings === 0 && m.activeDays === 0) && (
+                <div
+                  className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center p-4 rounded-lg"
+                  style={{
+                    background: "rgba(var(--bg-surface-rgb, 255, 255, 255), 0.7)",
+                    backdropFilter: "blur(1.5px)",
+                  }}
+                >
+                  <span className="text-sm font-bold text-primary mb-1">
+                    No Operational Activity in {selectedYear}
+                  </span>
+                  <span className="text-caption text-muted max-w-xs">
+                    Monthly revenue and active day trajectories will update automatically when trips are completed.
+                  </span>
+                </div>
+              )}
 
               {/* Floating Tooltip Card */}
               {hoveredGraphPoint !== null && chartMonths[hoveredGraphPoint] && (

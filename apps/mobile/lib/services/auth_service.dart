@@ -480,18 +480,41 @@ class AuthService {
     String? role,
     bool isRegister = false,
     String? fullName,
+    String? referralCode,
   }) async {
-    final response = await _api.post(
-      '/auth/otp/verify',
-      body: {
-        if (phone != null && phone.isNotEmpty) 'phone': phone,
-        if (email != null && email.isNotEmpty) 'email': email,
-        'otp': otp,
-        if (role != null && role.isNotEmpty) 'role': role,
-        'isRegister': isRegister,
-        if (fullName != null) 'fullName': fullName,
-      },
-    );
+    dynamic response;
+    try {
+      response = await _api.post(
+        '/auth/otp/verify',
+        body: {
+          if (phone != null && phone.isNotEmpty) 'phone': phone,
+          if (email != null && email.isNotEmpty) 'email': email,
+          'otp': otp,
+          if (role != null && role.isNotEmpty) 'role': role,
+          'isRegister': isRegister,
+          if (fullName != null) 'fullName': fullName,
+          if (referralCode != null && referralCode.trim().isNotEmpty) 'referralCode': referralCode.trim(),
+        },
+      );
+    } catch (e) {
+      final errStr = e.toString().toLowerCase();
+      if (errStr.contains('referralcode should not exist') || errStr.contains('referralcode')) {
+        // Fallback for deployed servers that have not yet updated VerifyOtpDto whitelist
+        response = await _api.post(
+          '/auth/otp/verify',
+          body: {
+            if (phone != null && phone.isNotEmpty) 'phone': phone,
+            if (email != null && email.isNotEmpty) 'email': email,
+            'otp': otp,
+            if (role != null && role.isNotEmpty) 'role': role,
+            'isRegister': isRegister,
+            if (fullName != null) 'fullName': fullName,
+          },
+        );
+      } else {
+        rethrow;
+      }
+    }
 
     final token = await _saveTokens(response);
     UserModel? user;

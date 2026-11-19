@@ -296,9 +296,9 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
       const dMatch = dSlabs.find((s) => testM > s.minDistanceMExclusive && testM <= s.maxDistanceMInclusive) || dSlabs[dSlabs.length - 1];
 
       let vStd = vMatch ? Math.max(100, vMatch.vendorPricePaise) : 100;
-      let dStd = dMatch ? Math.max(100, dMatch.driverPayoutPaise) : 100;
+      const dStd = dMatch ? Math.max(100, dMatch.driverPayoutPaise) : 100;
       let vPeak = vMatch ? Math.max(vStd, vMatch.vendorPeakPricePaise ?? vStd) : vStd;
-      let dPeak = dMatch ? Math.max(dStd, dMatch.driverPeakPayoutPaise ?? dStd) : dStd;
+      const dPeak = dMatch ? Math.max(dStd, dMatch.driverPeakPayoutPaise ?? dStd) : dStd;
 
       if (vStd < dStd) vStd = dStd;
       if (vPeak < dPeak) vPeak = dPeak;
@@ -651,8 +651,8 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
     }
 
     // 1. Build role-specific slabs
-    let newVendorSlabs: CreatePricingSlabInput[] = [];
-    let newDriverSlabs: CreatePricingSlabInput[] = [];
+    let newVendorSlabs: CreatePricingSlabInput[];
+    let newDriverSlabs: CreatePricingSlabInput[];
 
     const prevVendorSlabs = Array.isArray(cfg.vendorSlabs) && cfg.vendorSlabs.length > 0 ? cfg.vendorSlabs : null;
     const prevDriverSlabs = Array.isArray(cfg.driverSlabs) && cfg.driverSlabs.length > 0 ? cfg.driverSlabs : null;
@@ -1052,7 +1052,7 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
             ? s.vendorPeakPricePaise
             : vStd + Math.round(vExtra * 100);
 
-          let dPeak = (role === 'vendor' && s.driverPeakPayoutPaise)
+          const dPeak = (role === 'vendor' && s.driverPeakPayoutPaise)
             ? s.driverPeakPayoutPaise
             : dStd + Math.round(dExtra * 100);
 

@@ -21,21 +21,27 @@ describe('AdminService Unit Tests', () => {
     };
 
     db = {
+      $transaction: jest.fn(async (cb: any, _options?: any) => cb(db)),
       driver: {
         findUnique: jest.fn(),
+        findFirst: jest.fn().mockResolvedValue(null),
         update: jest.fn(),
         findMany: jest.fn(),
         count: jest.fn().mockResolvedValue(10),
       },
       vendor: {
         findUnique: jest.fn(),
+        findFirst: jest.fn().mockResolvedValue(null),
         update: jest.fn(),
         findMany: jest.fn(),
         count: jest.fn().mockResolvedValue(5),
+        create: jest.fn(),
       },
       user: {
         count: jest.fn().mockResolvedValue(20),
         findUnique: jest.fn(),
+        findFirst: jest.fn().mockResolvedValue(null),
+        create: jest.fn(),
         delete: jest.fn(),
       },
       payment: {
@@ -768,5 +774,121 @@ describe('AdminService Unit Tests', () => {
     expect(logs).toHaveLength(1);
     expect(logs[0].action).toBe('ADMIN_DRIVER_VERIFIED');
     expect(logs[0].actorPhone).toBe('+919999999999');
+  });
+
+  describe('createVendor (Admin Manual Vendor Onboarding)', () => {
+    const validDto = {
+      organizationName: 'Acme Fleet Logistics Pvt Ltd',
+      fullName: 'Ramesh Sharma',
+      phone: '9876543210',
+      email: 'ramesh@acmefleet.com',
+      gstNumber: '29ABCDE1234F1Z5',
+      city: 'Bengaluru',
+      address: 'Indiranagar 100ft Road',
+      verificationStatus: VerificationStatus.VERIFIED,
+    };
+
+    it('should successfully create User (role: VENDOR, status: ACTIVE) and Vendor (status: VERIFIED) and write audit log', async () => {
+      const mockCreatedUser = {
+        id: 'usr-vendor-1',
+        phone: '+919876543210',
+        email: 'ramesh@acmefleet.com',
+        fullName: 'Ramesh Sharma',
+        role: 'VENDOR',
+        status: 'ACTIVE',
+      };
+      const mockCreatedVendor = {
+        id: 'vnd-1',
+        userId: 'usr-vendor-1',
+        organizationName: 'Acme Fleet Logistics Pvt Ltd',
+        fullName: 'Ramesh Sharma',
+        phone: '+919876543210',
+        gstNumber: '29ABCDE1234F1Z5',
+        address: 'Indiranagar 100ft Road',
+        verificationStatus: VerificationStatus.VERIFIED,
+        user: mockCreatedUser,
+      };
+
+      db.user.create.mockResolvedValue(mockCreatedUser);
+      db.vendor.create.mockResolvedValue(mockCreatedVendor);
+
+      const result = await service.createVendor('admin-super-1', validDto);
+
+      expect(db.$transaction).toHaveBeenCalledWith(
+        expect.any(Function),
+        { timeout: 30000, maxWait: 10000 },
+      );
+      expect(db.user.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          phone: '+919876543210',
+          email: 'ramesh@acmefleet.com',
+          fullName: 'Ramesh Sharma',
+          role: 'VENDOR',
+          status: 'ACTIVE',
+        }),
+      });
+      expect(db.vendor.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          userId: 'usr-vendor-1',
+          organizationName: 'Acme Fleet Logistics Pvt Ltd',
+          fullName: 'Ramesh Sharma',
+          phone: '+919876543210',
+          gstNumber: '29ABCDE1234F1Z5',
+          address: 'Indiranagar 100ft Road',
+          verificationStatus: VerificationStatus.VERIFIED,
+        }),
+        include: { user: true },
+      });
+      expect(audit.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: 'admin-super-1',
+          action: 'ADMIN_VENDOR_CREATED',
+          entityType: 'VENDOR',
+          entityId: 'vnd-1',
+          metadata: expect.objectContaining({
+            organizationName: 'Acme Fleet Logistics Pvt Ltd',
+            phone: '+919876543210',
+            email: 'ramesh@acmefleet.com',
+            verificationStatus: VerificationStatus.VERIFIED,
+          }),
+        }),
+      );
+      expect(result).toEqual(mockCreatedVendor);
+    });
+
+    it('should throw BadRequestException if phone number is invalid', async () => {
+      await expect(
+        service.createVendor('admin-1', {
+          ...validDto,
+          phone: '12345',
+        }),
+      ).rejects.toThrow('A valid 10-digit Indian phone number is required.');
+    });
+
+    it('should throw ConflictException if phone number is already registered', async () => {
+      db.user.findFirst.mockResolvedValueOnce({
+        id: 'usr-existing',
+        phone: '+919876543210',
+        role: 'DRIVER',
+      });
+
+      await expect(
+        service.createVendor('admin-1', validDto),
+      ).rejects.toThrow(/already registered to another account/);
+    });
+
+    it('should throw ConflictException if email address is already registered', async () => {
+      db.user.findFirst
+        .mockResolvedValueOnce(null) // phone check passes
+        .mockResolvedValueOnce({
+          id: 'usr-existing-email',
+          email: 'ramesh@acmefleet.com',
+          role: 'CORPORATE_ADMIN',
+        });
+
+      await expect(
+        service.createVendor('admin-1', validDto),
+      ).rejects.toThrow(/is already registered under role CORPORATE_ADMIN/);
+    });
   });
 });

@@ -21,6 +21,7 @@ import {
   ReactivateDriverDto,
   VerifyVendorDto,
   RejectVendorDto,
+  CreateVendorDto,
   AuthUserDto,
   UserRole,
 } from '@adhocx/contracts';
@@ -120,6 +121,17 @@ export class AdminController {
   }
 
   // --- Vendor Verification Workflows ---
+
+  @Post('vendors')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Manually onboard and create a new vendor account' })
+  @SwaggerResponse({ status: 201, description: 'Vendor created successfully' })
+  async createVendor(
+    @CurrentUser() admin: AuthUserDto,
+    @Body() dto: CreateVendorDto,
+  ) {
+    return this.adminService.createVendor(admin.id, dto);
+  }
 
   @Get('vendors')
   @ApiOperation({ summary: 'List vendors for onboarding review' })
@@ -360,6 +372,17 @@ export class AdminController {
     @Query('companyType') companyType?: string,
   ) {
     return this.adminService.getDailyFinancialReport(date, companyId, companyType);
+  }
+
+  @Get('reports/analytics-trends')
+  @Get('analytics/trends')
+  @ApiOperation({ summary: 'Get comprehensive real-time business analytics and trends with date filters' })
+  async getAnalyticsTrends(
+    @Query('range') range?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    return this.adminService.getAnalyticsTrends(range, startDate, endDate);
   }
 
   @Get('reports/analytics')

@@ -70,6 +70,27 @@ const STATUS_OPTIONS = [
 const formatCurrency = (amt: number) =>
   "₹" + Math.round(amt).toLocaleString("en-IN");
 
+function haversineDistanceKm(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number,
+) {
+  if (!lat1 || !lon1 || !lat2 || !lon2) return 0;
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return Math.round(R * c * 10) / 10;
+}
+
+
 function formatTimeOrNull(iso?: string | null): string | null {
   if (!iso) return null;
   const d = new Date(iso);
@@ -197,17 +218,101 @@ function RouteEarningsContent() {
     return drivers.find((d) => d.id === selectedDriverId) || null;
   }, [driverDetail, drivers, selectedDriverId]);
 
-  // Extract real route stops strictly from API trip records
+  // Extract real route stops strictly from API trip records and corporate routes
   const rawStops: RouteStop[] = useMemo(() => {
     if (!currentDriver) return [];
 
     const actualTrips: any[] = Array.isArray((currentDriver as any).trips)
       ? (currentDriver as any).trips
       : [];
+    const corporateRoutes: any[] = Array.isArray(
+      (currentDriver as any).corporateRoutes,
+    )
+      ? (currentDriver as any).corporateRoutes
+      : [];
 
-    if (actualTrips.length === 0) return [];
+    const stops: RouteStop[] = [];
 
-    return actualTrips.map((trip: any, idx: number) => {
+    // 1. Process real corporate routes if assigned
+    corporateRoutes.forEach((route: any) => {
+      const tenant = route.tenant || {};
+      const office = route.office || {};
+      const corpName = tenant.companyName || tenant.name || "Corporate Fleet";
+      const rawDate = route.shiftDate || route.createdAt;
+      const parsedDate = rawDate ? new Date(rawDate) : null;
+      const validDate =
+        parsedDate && !Number.isNaN(parsedDate.getTime()) ? parsedDate : null;
+
+      const dateStr = validDate
+        ? validDate.toLocaleDateString("en-IN", {
+            day: "numeric",
+            month: "short",
+            year: "numeric",
+          })
+        : "—";
+      const dayStr = validDate
+        ? validDate
+            .toLocaleDateString("en-IN", { weekday: "long" })
+            .toUpperCase()
+        : "";
+
+      const year = validDate ? validDate.getFullYear() : currentYear;
+      const monthIndex = validDate ? validDate.getMonth() : -1;
+
+      const routeStops: any[] = Array.isArray(route.stops) ? route.stops : [];
+      routeStops.forEach((s: any) => {
+        const pLat = toFiniteNumber(s.latitude);
+        const pLng = toFiniteNumber(s.longitude);
+        const isDelivery = s.stopType === "DROP" || s.stopType === "DELIVERY";
+        const distKm = route.estDistanceMeters
+          ? Math.round((Number(route.estDistanceMeters) / 1000) * 10) / 10
+          : null;
+
+        const actualMins =
+          s.actualArrivalTime && s.actualDepartureTime
+            ? Math.max(
+                1,
+                Math.round(
+                  (new Date(s.actualDepartureTime).getTime() -
+                    new Date(s.actualArrivalTime).getTime()) /
+                    60000,
+                ),
+              )
+            : null;
+
+        stops.push({
+          id: s.id || `corp_${s.stopSequence}`,
+          stopNumber: stops.length + 1,
+          type: isDelivery ? "DELIVERY" : "PICKUP",
+          corporateName: corpName,
+          pickupLocation:
+            s.addressText ||
+            (s.employeeName
+              ? `Pickup: ${s.employeeName}`
+              : "Corporate Pickup Point"),
+          deliveryLocation:
+            office.address || office.name || "Corporate Office Hub",
+          latitude: pLat,
+          longitude: pLng,
+          distanceKm: distKm,
+          actualTravelTimeMins: actualMins,
+          scheduledTime: formatTimeOrNull(s.plannedEta),
+          arrivalTime: formatTimeOrNull(s.actualArrivalTime),
+          departureTime: formatTimeOrNull(s.actualDepartureTime),
+          orderStatus: normalizeStopStatus(s.status || route.status),
+          orderAmount: 0,
+          driverEarnings: 0,
+          date: dateStr,
+          day: dayStr,
+          year,
+          monthIndex,
+          passengerCount: 1,
+        });
+      });
+    });
+
+    // 2. Process real commercial trips
+    const commercialStops = actualTrips.map((trip: any, idx: number) => {
       const req = trip.requirement || {};
       const vendor = trip.vendor || req.vendor || {};
       const corpName =
@@ -298,6 +403,8 @@ function RouteEarningsContent() {
         passengerCount: req.quantity ?? undefined,
       };
     });
+
+    return [...stops, ...commercialStops];
   }, [currentDriver]);
 
   // Unique corporate names for filter dropdown
@@ -1790,8 +1897,21 @@ function RouteEarningsContent() {
                   </svg>
 
                   {!hasAnyYearData && (
-                    <div className="text-center text-muted text-sm mt-1">
-                      No trip earnings or distance recorded for {yearFilter}.
+                    <div
+                      className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center p-4 rounded-lg"
+                      style={{
+                        background:
+                          "rgba(var(--bg-surface-rgb, 255, 255, 255), 0.7)",
+                        backdropFilter: "blur(1.5px)",
+                      }}
+                    >
+                      <span className="text-sm font-bold text-primary mb-1">
+                        No Operational Activity in {yearFilter}
+                      </span>
+                      <span className="text-caption text-muted max-w-xs">
+                        Monthly earnings and distance telemetry will update
+                        automatically when trips are completed.
+                      </span>
                     </div>
                   )}
 
@@ -1820,6 +1940,10 @@ function RouteEarningsContent() {
                       <div>
                         Distance:{" "}
                         {monthlyPerformance[hoveredGraphPoint].distance} km
+                      </div>
+                      <div>
+                        Orders:{" "}
+                        {monthlyPerformance[hoveredGraphPoint].orders}
                       </div>
                     </div>
                   )}

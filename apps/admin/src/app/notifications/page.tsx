@@ -29,7 +29,6 @@ import {
   Globe,
   Compass,
   Clock3,
-  Info,
   type LucideIcon,
 } from "lucide-react";
 import { adminApi } from "../../lib/api/client";
@@ -1297,11 +1296,11 @@ export default function NotificationsPage() {
         failureReason: recipient.failureReason,
       };
     }) ?? [];
-  const selectedCampaignDetailsRecipients =
+  const _selectedCampaignDetailsRecipients =
     selectedRecipientDetails?.trackingAvailable
       ? selectedRecipientDetails.recipients
       : liveCampaignRecipients;
-  const selectedCampaignDeliveryCounts =
+  const _selectedCampaignDeliveryCounts =
     selectedRecipientDetails?.trackingAvailable &&
     selectedRecipientDetails.counts
       ? selectedRecipientDetails.counts
@@ -1316,7 +1315,7 @@ export default function NotificationsPage() {
               selectedCampaignLiveDetails.counts.confirmedDelivered,
           }
         : null;
-  const filteredBroadcastRecipients = useMemo(() => {
+  const _filteredBroadcastRecipients = useMemo(() => {
     const recipients = broadcastProgress?.recipients ?? [];
     const query = broadcastProgressSearch.trim().toLowerCase();
     if (!query) return recipients;
@@ -1352,7 +1351,7 @@ export default function NotificationsPage() {
       },
     );
   }, [broadcastProgress?.recipients, broadcastProgressSearch]);
-  const broadcastProgressPercent = broadcastProgress
+  const _broadcastProgressPercent = broadcastProgress
     ? broadcastProgress.counts.targetedDevices > 0
       ? Math.min(
           100,
@@ -1366,7 +1365,7 @@ export default function NotificationsPage() {
         ? 100
         : 0
     : 0;
-  const broadcastPhaseLabel = {
+  const _broadcastPhaseLabel = {
     PREPARING: "Resolving audience",
     SENDING: "Sending to devices",
     SAVING: "Saving campaign results",

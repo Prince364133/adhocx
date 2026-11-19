@@ -7,7 +7,6 @@ import {
   Info,
   Radio,
   Send,
-  Users,
   XCircle,
 } from "lucide-react";
 import { Modal } from "../Modal";

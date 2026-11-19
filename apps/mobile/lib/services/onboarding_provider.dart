@@ -30,6 +30,7 @@ class OnboardingProvider extends ChangeNotifier {
   String _monthlyTrips = '26 - 100 trips / month';
 
   // Step 2 & 3: Identity and Vehicle Information (Driver)
+  String _referralCode = '';
   String _vehicleType = '';
   String _carModel = '';
   String _color = '';
@@ -108,6 +109,13 @@ class OnboardingProvider extends ChangeNotifier {
   String? get aadharBackUrl => _aadharBackUrl;
   String? get panCardUrl => _panCardUrl;
   String? get selfieUrl => _selfieUrl ?? _profilePhotoUrl;
+
+  String get referralCode => _referralCode;
+
+  void setReferralCode(String code) {
+    _referralCode = code.trim();
+    notifyListeners();
+  }
 
   String get insurancePolicyNumber => _insurancePolicyNumber;
   String get insuranceCompany => _insuranceCompany;

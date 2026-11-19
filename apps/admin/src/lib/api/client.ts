@@ -90,6 +90,7 @@ import {
   FeatureFlagItem,
   CreateFeatureFlagPayload,
   UpdateFeatureFlagPayload,
+  AnalyticsTrendsData,
 } from "./types";
 
 export function getApiBaseUrl(): string {
@@ -521,6 +522,21 @@ export const adminApi = {
     }),
 
   // Corporate Vendors & Platform Users
+  createVendor: (data: {
+    organizationName: string;
+    fullName: string;
+    phone: string;
+    email?: string;
+    gstNumber?: string;
+    address?: string;
+    city?: string;
+    verificationStatus?: string;
+  }) =>
+    apiClient<any>("/admin/vendors", {
+      method: "POST",
+      body: data,
+    }),
+
   getVendors: (status?: string, search?: string) => {
     const params = new URLSearchParams();
     if (status && status !== "ALL") params.append("verificationStatus", status);
@@ -1081,6 +1097,19 @@ export const adminApi = {
 
   getOperationalReports: () =>
     apiClient<OperationalReportData>("/admin/reports/analytics"),
+
+  getAnalyticsTrends: (params?: {
+    range?: string;
+    startDate?: string;
+    endDate?: string;
+  }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.range) searchParams.append("range", params.range);
+    if (params?.startDate) searchParams.append("startDate", params.startDate);
+    if (params?.endDate) searchParams.append("endDate", params.endDate);
+    const query = searchParams.toString() ? `?${searchParams.toString()}` : "";
+    return apiClient<AnalyticsTrendsData>(`/admin/reports/analytics-trends${query}`);
+  },
 
   // Platform Finance, Revenue & Payout Operations
   getFinanceDashboard: (params?: {

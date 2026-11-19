@@ -28,6 +28,8 @@ import { RedisService } from '../../redis/redis.service';
 import { resolveJwtSecret } from '../../config/auth.config';
 import { NotificationsService } from '../notifications/notifications.service';
 import { LocationsService } from '../locations/locations.service';
+import { ReferralsService } from '../drivers/referrals/referrals.service';
+import { generateDriverReferralCode } from '../drivers/referrals/referral-code.util';
 import { getPhoneVariants, normalizeIndianPhone, assertPhoneAvailable, sanitizeRealName, isPlaceholderName } from '../../common';
 import { isLocalTestOtpEnabled } from './test-otp.policy';
 
@@ -42,6 +44,7 @@ export class AuthService implements OnModuleInit {
     private readonly redis: RedisService,
     private readonly notifications: NotificationsService,
     @Optional() private readonly locations?: LocationsService,
+    @Optional() private readonly referralsService?: ReferralsService,
   ) {}
 
   async onModuleInit() {
@@ -828,6 +831,7 @@ export class AuthService implements OnModuleInit {
                       phone: effectivePhone || undefined,
                       verificationStatus: 'PENDING',
                       availabilityStatus: 'OFFLINE',
+                      referralCode: generateDriverReferralCode(),
                     },
                   }
                 : undefined,
@@ -847,6 +851,14 @@ export class AuthService implements OnModuleInit {
         });
 
         this.logger.log(`Created new user via OTP: ${user.id} (${user.phone ?? user.email}) with role ${user.role}`);
+
+        if (assignedRole === UserRole.DRIVER && user.driver && dto.referralCode && this.referralsService) {
+          try {
+            await this.referralsService.linkReferralOnSignup(user.driver.id, dto.referralCode);
+          } catch (refErr: any) {
+            this.logger.warn(`Referral linking on OTP signup skipped: ${refErr?.message || refErr}`);
+          }
+        }
       }
     } catch (dbErr: any) {
       if (
@@ -935,7 +947,7 @@ export class AuthService implements OnModuleInit {
    * Google & Apple Social Auth (Pre-Verified Identity, Skips OTP)
    */
   async socialAuth(dto: SocialAuthDto): Promise<AuthResponseDto> {
-    let email = dto.email.trim().toLowerCase();
+    let email: string;
     let fullName = dto.fullName;
     const provider = dto.provider;
 

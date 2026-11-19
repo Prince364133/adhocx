@@ -123,7 +123,7 @@ export const VerificationDetailModal: React.FC<DetailModalProps> = ({
   const isVerified = item.verificationStatus === "VERIFIED";
   const isRejected = item.verificationStatus === "REJECTED";
   const isPending = item.verificationStatus === "PENDING";
-  const isUnderReview = item.verificationStatus === "UNDER_REVIEW";
+  const _isUnderReview = item.verificationStatus === "UNDER_REVIEW";
 
   const statusBg = isVerified
     ? "rgba(16, 185, 129, 0.15)"

@@ -22,6 +22,7 @@ import {
   DriverAvailability,
   UserRole,
   NotificationType,
+  ReferralStatus,
   validateTripTransition,
 } from '@adhocx/contracts';
 import { DatabaseService } from '../../database/database.service';
@@ -29,6 +30,7 @@ import { DispatchService } from '../dispatch/dispatch.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AuditService } from '../audit/audit.service';
 import { LocationsService } from '../locations/locations.service';
+import { ReferralsService } from '../drivers/referrals/referrals.service';
 import { findPendingReviewTrip } from '../reviews/pending-review';
 import { DispatchConfig } from '../dispatch/dispatch.config';
 import { sanitizeRealName } from '../../common';
@@ -49,6 +51,7 @@ export class TripsService {
     @Optional() private readonly locations?: LocationsService,
     @Optional() private readonly pubsub?: RedisPubSubService,
     @Optional() private readonly redis?: RedisService,
+    @Optional() private readonly referralsService?: ReferralsService,
   ) {}
 
   /**
@@ -755,7 +758,7 @@ export class TripsService {
     const totalDriverEarnings = fareAmount + tollCharges + parkingCharges;
     const now = new Date();
 
-    const updated = await this.db.$transaction(async (tx) => {
+    const completionResult = await this.db.$transaction(async (tx) => {
       // 1. Claim the completion atomically: a retried or concurrent request cannot credit twice.
       const claimed = await tx.trip.updateMany({
         where: { id, status: trip.status },
@@ -881,8 +884,11 @@ export class TripsService {
         });
       }
 
-      return updatedTrip;
+      return { updatedTrip, updatedDriver };
     }, { timeout: 30000, maxWait: 10000 });
+
+    const updated = completionResult?.updatedTrip;
+    const updatedDriver = completionResult?.updatedDriver;
 
     if (!updated) {
       // Duplicate completion: return the already-completed trip without a second credit.
@@ -974,6 +980,46 @@ export class TripsService {
       entityId: id,
       metadata: { totalDriverEarnings, tollCharges, parkingCharges },
     });
+
+    // ── Referral Engine Gamification Hooks ─────────────────────────────────
+    if (this.referralsService && updatedDriver) {
+      // 1. Dual-Sided Enhancement: Check if referee reached 10 completed trips for ₹250 welcome bonus
+      if (updatedDriver.totalTrips >= 10) {
+        this.referralsService.checkAndCreditRefereeWelcomeBonus(trip.driverId).then((credited) => {
+          if (credited) {
+            this.notifications.sendPushToUser(driverUserId, {
+              title: '🎁 Welcome Fuel Bonus Credited!',
+              body: 'Congratulations! You completed 10 rides. ₹250 Welcome Fuel Bonus has been added to your withdrawal wallet!',
+              type: NotificationType.WALLET_UPDATE,
+              data: { route: '/wallet' },
+              actionUrl: '/wallet',
+              saveInApp: true,
+            }).catch(() => undefined);
+          }
+        }).catch((err) => this.logger.warn(`Referee welcome bonus hook failed: ${err.message}`));
+      }
+
+      // 2. Goal-Gradient 100-Ride Milestone Unlocked celebration for referrer
+      if (updatedDriver.totalTrips === 100) {
+        this.db.driverReferral.count({
+          where: {
+            referrerDriverId: trip.driverId,
+            status: ReferralStatus.UNLOCKED_READY_TO_CLAIM,
+          },
+        }).then((unlockedCount) => {
+          if (unlockedCount > 0) {
+            this.notifications.sendPushToUser(driverUserId, {
+              title: '🏆 100 Rides Milestone Achieved!',
+              body: `Fantastic milestone! You completed 100 rides. All your referral rewards in the vault are now unlocked and ready to claim to your withdrawal wallet!`,
+              type: NotificationType.WALLET_UPDATE,
+              data: { route: '/profile/referral' },
+              actionUrl: '/profile/referral',
+              saveInApp: true,
+            }).catch(() => undefined);
+          }
+        }).catch((err) => this.logger.warn(`Referral milestone check failed: ${err.message}`));
+      }
+    }
 
     return this.mapToDto(updated);
   }
