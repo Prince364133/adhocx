@@ -17,14 +17,10 @@ import {
   Calendar,
   DollarSign,
   TrendingUp,
-  Activity,
   FileText,
-  ExternalLink,
   Clock,
   Search,
-  Filter,
   CheckCircle2,
-  Navigation,
   Briefcase,
   Truck,
   Plus,
@@ -32,11 +28,8 @@ import {
 import { adminApi } from "../../lib/api/client";
 import {
   VendorListItem,
-  UserListItem,
   CorporateVendorDetail,
-  UserProfileDetail,
   VendorOrderItem,
-  UserOrderItem,
 } from "../../lib/api/types";
 import {
   PageHeader,
@@ -46,7 +39,6 @@ import {
   StatusBadge,
   Button,
   MetricCard,
-  SegmentedTabs,
   FeedbackBanner,
   ConfirmDialog,
   Drawer,
@@ -63,33 +55,12 @@ const VENDOR_STATUS_TABS = [
   { id: "SUSPENDED", label: "Suspended" },
 ];
 
-const USER_STATUS_TABS = [
-  { id: "ALL", label: "All Users" },
-  { id: "ACTIVE", label: "Active" },
-  { id: "SUSPENDED", label: "Inactive / Suspended" },
-  { id: "DEACTIVATED", label: "Blocked" },
-];
-
-const USER_ROLE_FILTERS = [
-  { id: "ALL", label: "All Roles" },
-  { id: "EMPLOYEE", label: "Corporate Employees" },
-  { id: "CORPORATE_MANAGER", label: "Corporate Managers" },
-  { id: "CORPORATE_ADMIN", label: "Corporate Admins" },
-  { id: "VENDOR", label: "Vendor Partners" },
-  { id: "DRIVER", label: "Drivers" },
-];
-
 export default function UsersAndVendorsView({
-  initialSection = "VENDORS",
+  initialSection: _initialSection = "VENDORS",
 }: {
   initialSection?: "VENDORS" | "USERS";
 } = {}) {
   const router = useRouter();
-
-  // Top Level Section Switcher: 'VENDORS' | 'USERS'
-  const [activeSection, setActiveSection] = useState<"VENDORS" | "USERS">(
-    initialSection,
-  );
 
   // Manual Vendor Onboarding Modal State
   const [isOnboardVendorOpen, setIsOnboardVendorOpen] = useState(false);
@@ -111,27 +82,14 @@ export default function UsersAndVendorsView({
   const [vendors, setVendors] = useState<VendorListItem[]>([]);
   const [vendorsLoading, setVendorsLoading] = useState(true);
 
-  // User listing state
-  const [userTab, setUserTab] = useState("ALL");
-  const [userRoleFilter, setUserRoleFilter] = useState("ALL");
-  const [userSearch, setUserSearch] = useState("");
-  const [users, setUsers] = useState<UserListItem[]>([]);
-  const [usersLoading, setUsersLoading] = useState(true);
-
   // Dedicated Full-Page Selection States
   const [selectedVendor, setSelectedVendor] =
     useState<CorporateVendorDetail | null>(null);
-  const [selectedUser, setSelectedUser] = useState<UserProfileDetail | null>(
-    null,
-  );
   const [, setDetailsLoading] = useState(false);
 
   // Edit Modals
   const [editingVendor, setEditingVendor] = useState<
     CorporateVendorDetail | VendorListItem | null
-  >(null);
-  const [editingUser, setEditingUser] = useState<
-    UserProfileDetail | UserListItem | null
   >(null);
   const [editFormData, setEditFormData] = useState<any>({});
   const [editLoading, setEditLoading] = useState(false);
@@ -143,7 +101,6 @@ export default function UsersAndVendorsView({
 
   // Delete Modal
   const [deleteTarget, setDeleteTarget] = useState<{
-    type: "VENDOR" | "USER";
     id: string;
     name: string;
     phone?: string;
@@ -178,10 +135,6 @@ export default function UsersAndVendorsView({
   }, [vendorTab]);
 
   useEffect(() => {
-    loadUsers(userTab, userRoleFilter);
-  }, [userTab, userRoleFilter]);
-
-  useEffect(() => {
     const vendorId = new URLSearchParams(window.location.search).get("vendorId");
     if (!vendorId) return;
 
@@ -192,7 +145,6 @@ export default function UsersAndVendorsView({
       .then((details) => {
         if (active) {
           setSelectedVendor(details);
-          setSelectedUser(null);
         }
       })
       .catch(() => {
@@ -225,22 +177,6 @@ export default function UsersAndVendorsView({
     }
   }
 
-  async function loadUsers(status: string, role: string) {
-    setUsersLoading(true);
-    try {
-      const data = await adminApi
-        .getUsers({
-          status: status !== "ALL" ? status : undefined,
-          role: role !== "ALL" ? role : undefined,
-        })
-        .catch(() => [] as UserListItem[]);
-      const list = Array.isArray(data) ? data : (data as any)?.items || [];
-      setUsers(list);
-    } finally {
-      setUsersLoading(false);
-    }
-  }
-
   // Filtered Vendor List
   const filteredVendors = useMemo(() => {
     if (!vendorSearch) return vendors;
@@ -256,27 +192,12 @@ export default function UsersAndVendorsView({
     );
   }, [vendors, vendorSearch]);
 
-  // Filtered User List
-  const filteredUsers = useMemo(() => {
-    if (!userSearch) return users;
-    const q = userSearch.toLowerCase().trim();
-    return users.filter(
-      (u) =>
-        (u.fullName && u.fullName.toLowerCase().includes(q)) ||
-        (u.phone && u.phone.toLowerCase().includes(q)) ||
-        (u.email && u.email.toLowerCase().includes(q)) ||
-        (u.id && u.id.toLowerCase().includes(q)) ||
-        (u.companyName && u.companyName.toLowerCase().includes(q)),
-    );
-  }, [users, userSearch]);
-
   // Open Full-Page Vendor Details
   async function handleOpenVendorDetails(vendor: VendorListItem) {
     setDetailsLoading(true);
     try {
       const details = await adminApi.getVendorDetails(vendor.id);
       setSelectedVendor(details);
-      setSelectedUser(null);
       setOrderTimeframe("ALL");
       setOrderSearchQuery("");
       setOrderStatusFilter("ALL");
@@ -286,27 +207,6 @@ export default function UsersAndVendorsView({
       setAlert({
         type: "error",
         message: "Failed to load comprehensive vendor details.",
-      });
-    } finally {
-      setDetailsLoading(false);
-    }
-  }
-
-  // Open Full-Page User Details
-  async function handleOpenUserDetails(user: UserListItem) {
-    setDetailsLoading(true);
-    try {
-      const details = await adminApi.getUserDetails(user.id);
-      setSelectedUser(details);
-      setSelectedVendor(null);
-      setOrderTimeframe("ALL");
-      setOrderSearchQuery("");
-      setOrderStatusFilter("ALL");
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    } catch {
-      setAlert({
-        type: "error",
-        message: "Failed to load user profile details.",
       });
     } finally {
       setDetailsLoading(false);
@@ -326,18 +226,6 @@ export default function UsersAndVendorsView({
       email: vendor.email || "",
       gstNumber: vendor.gstNumber || "",
       address: (vendor as any).companyAddress || (vendor as any).address || "",
-    });
-  }
-
-  // Trigger Edit Modal for User
-  function handleOpenEditUser(user: UserListItem | UserProfileDetail) {
-    setEditingUser(user);
-    setEditFormData({
-      fullName: user.fullName || "",
-      phone: user.phone || "",
-      email: user.email || "",
-      address: user.address || "",
-      status: user.status || "ACTIVE",
     });
   }
 
@@ -443,69 +331,22 @@ export default function UsersAndVendorsView({
     }
   }
 
-  // Save Edit User
-  async function handleSaveUserEdit() {
-    if (!editingUser) return;
-    setEditLoading(true);
-    try {
-      await adminApi.updateUser(editingUser.id, {
-        fullName: editFormData.fullName,
-        phone: editFormData.phone,
-        email: editFormData.email,
-        status: editFormData.status,
-        address: editFormData.address,
-      });
-
-      setAlert({
-        type: "success",
-        message: "User profile details updated successfully.",
-      });
-      setEditingUser(null);
-
-      // Refresh data
-      loadUsers(userTab, userRoleFilter);
-      if (selectedUser && selectedUser.id === editingUser.id) {
-        handleOpenUserDetails(editingUser as UserListItem);
-      }
-    } catch (err: unknown) {
-      setAlert({
-        type: "error",
-        message:
-          err instanceof Error ? err.message : "Failed to save user profile.",
-      });
-    } finally {
-      setEditLoading(false);
-    }
-  }
-
   // Execute Account Status Transition
   async function handleExecuteStatusAction(
-    entityType: "VENDOR" | "USER",
+    entityType: "VENDOR",
     id: string,
   ) {
     if (!actionType) return;
     setActionLoading(true);
     try {
-      if (entityType === "VENDOR") {
-        await adminApi.updateVendorStatus(id, actionType, actionReason);
-        setAlert({
-          type: "success",
-          message: `Vendor account transitioned to ${actionType}.`,
-        });
-        loadVendors(vendorTab);
-        if (selectedVendor) {
-          handleOpenVendorDetails(selectedVendor as unknown as VendorListItem);
-        }
-      } else {
-        await adminApi.updateUserStatus(id, actionType, actionReason);
-        setAlert({
-          type: "success",
-          message: `User account transitioned to ${actionType}.`,
-        });
-        loadUsers(userTab, userRoleFilter);
-        if (selectedUser) {
-          handleOpenUserDetails(selectedUser as unknown as UserListItem);
-        }
+      await adminApi.updateVendorStatus(id, actionType, actionReason);
+      setAlert({
+        type: "success",
+        message: `Vendor account transitioned to ${actionType}.`,
+      });
+      loadVendors(vendorTab);
+      if (selectedVendor) {
+        handleOpenVendorDetails(selectedVendor as unknown as VendorListItem);
       }
       setActionType(null);
       setActionReason("");
@@ -524,23 +365,13 @@ export default function UsersAndVendorsView({
     if (!deleteTarget) return;
     setDeleteLoading(true);
     try {
-      if (deleteTarget.type === "VENDOR") {
-        await adminApi.deleteVendor(deleteTarget.id);
-        setAlert({
-          type: "success",
-          message: `Corporate vendor "${deleteTarget.name}" permanently deleted from database.`,
-        });
-        if (selectedVendor?.id === deleteTarget.id) setSelectedVendor(null);
-        loadVendors(vendorTab);
-      } else {
-        await adminApi.deleteUser(deleteTarget.id);
-        setAlert({
-          type: "success",
-          message: `User account "${deleteTarget.name}" permanently deleted from database.`,
-        });
-        if (selectedUser?.id === deleteTarget.id) setSelectedUser(null);
-        loadUsers(userTab, userRoleFilter);
-      }
+      await adminApi.deleteVendor(deleteTarget.id);
+      setAlert({
+        type: "success",
+        message: `Corporate vendor "${deleteTarget.name}" permanently deleted from database.`,
+      });
+      if (selectedVendor?.id === deleteTarget.id) setSelectedVendor(null);
+      loadVendors(vendorTab);
       setDeleteTarget(null);
     } catch (err: unknown) {
       setAlert({
@@ -855,92 +686,6 @@ export default function UsersAndVendorsView({
         </div>
       </Drawer>
 
-      {/* EDIT USER PROFILE DRAWER */}
-      <Drawer
-        isOpen={Boolean(editingUser)}
-        onClose={() => {
-          if (!editLoading) setEditingUser(null);
-        }}
-        width="min(92vw, 500px)"
-        title="Edit User Profile"
-        subtitle="Update user information, contact details, and account standing"
-        icon={<Edit3 size={17} />}
-        footer={
-          <>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setEditingUser(null)}
-              disabled={editLoading}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={handleSaveUserEdit}
-              isLoading={editLoading}
-            >
-              Save Changes
-            </Button>
-          </>
-        }
-      >
-        <div className="flex flex-col gap-4">
-          <Input
-            label="Full Legal Name"
-            value={editFormData.fullName || ""}
-            onChange={(e) =>
-              setEditFormData({ ...editFormData, fullName: e.target.value })
-            }
-          />
-
-          <div
-            className="grid gap-relaxed"
-            style={{ gridTemplateColumns: "repeat(2, 1fr)" }}
-          >
-            <Input
-              label="Phone Number"
-              value={editFormData.phone || ""}
-              onChange={(e) =>
-                setEditFormData({ ...editFormData, phone: e.target.value })
-              }
-            />
-
-            <Input
-              label="Email Address"
-              type="email"
-              value={editFormData.email || ""}
-              onChange={(e) =>
-                setEditFormData({ ...editFormData, email: e.target.value })
-              }
-            />
-          </div>
-
-          <Select
-            label="Account Standing"
-            value={editFormData.status || "ACTIVE"}
-            onChange={(e) =>
-              setEditFormData({ ...editFormData, status: e.target.value })
-            }
-            options={[
-              { value: "ACTIVE", label: "ACTIVE — Normal Operations" },
-              { value: "SUSPENDED", label: "SUSPENDED — Temporary Hold" },
-              { value: "DEACTIVATED", label: "DEACTIVATED / BLOCKED" },
-            ]}
-          />
-
-          <Textarea
-            label="Registered Address"
-            rows={3}
-            value={editFormData.address || ""}
-            onChange={(e) =>
-              setEditFormData({ ...editFormData, address: e.target.value })
-            }
-          />
-        </div>
-      </Drawer>
-
       {/* PERMANENT DELETE CONFIRMATION MODAL */}
       <ConfirmDialog
         isOpen={Boolean(deleteTarget)}
@@ -950,9 +695,7 @@ export default function UsersAndVendorsView({
         onConfirm={handleExecuteDelete}
         variant="danger"
         title={
-          deleteTarget
-            ? `Permanently Delete ${deleteTarget.type === "VENDOR" ? "Corporate Vendor" : "User Account"}?`
-            : "Permanently Delete Record?"
+          deleteTarget ? "Permanently Delete Corporate Vendor?" : "Permanently Delete Record?"
         }
         subtitle="Irreversible database removal"
         description={
@@ -1089,9 +832,7 @@ export default function UsersAndVendorsView({
               variant="danger"
               size="sm"
               onClick={() =>
-                setDeleteTarget({
-                  type: "VENDOR",
-                  id: selectedVendor.id,
+                setDeleteTarget({ id: selectedVendor.id,
                   name: selectedVendor.companyName,
                   phone: selectedVendor.phone,
                 })
@@ -1899,722 +1640,6 @@ export default function UsersAndVendorsView({
   }
 
   /* =========================================================================
-   * 2. FULL-PAGE VIEW: USER DETAILS (Matches Driver Details)
-   * ========================================================================= */
-  if (selectedUser) {
-    const filteredUserOrders = filterOrders(selectedUser.orders || []);
-
-    return (
-      <div className="w-full pb-2">
-        {/* Top Navigation Bar with Back Button and Quick Actions */}
-        <div
-          className="module-bar justify-between mt-snug"
-          style={{ marginBottom: "1.15rem", padding: "0.68rem 1rem" }}
-        >
-          <div
-            className="flex items-center flex-wrap"
-            style={{ gap: "0.65rem" }}
-          >
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setSelectedUser(null);
-                setActionType(null);
-              }}
-              leftIcon={<ArrowLeft size={13} />}
-            >
-              Back to Users List
-            </Button>
-            <div className="flex items-center text-base text-muted gap-compact">
-              <span>Users</span>
-              <span>/</span>
-              <span className="font-bold text-primary">
-                {selectedUser.fullName}
-              </span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 flex-wrap">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handleOpenEditUser(selectedUser)}
-              leftIcon={<Edit3 size={14} />}
-            >
-              Edit Profile
-            </Button>
-
-            {selectedUser.status !== "ACTIVE" && (
-              <Button
-                variant="success"
-                size="sm"
-                onClick={() => setActionType("ACTIVE")}
-              >
-                Activate Account
-              </Button>
-            )}
-
-            {selectedUser.status === "ACTIVE" && (
-              <Button
-                variant="danger"
-                size="sm"
-                onClick={() => setActionType("SUSPENDED")}
-              >
-                Deactivate / Suspend
-              </Button>
-            )}
-
-            {selectedUser.status !== "DEACTIVATED" && (
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => setActionType("DEACTIVATED")}
-              >
-                Block Account
-              </Button>
-            )}
-
-            <Button
-              variant="danger"
-              size="sm"
-              onClick={() =>
-                setDeleteTarget({
-                  type: "USER",
-                  id: selectedUser.id,
-                  name: selectedUser.fullName,
-                  phone: selectedUser.phone,
-                })
-              }
-              leftIcon={<Trash2 size={14} />}
-            >
-              Delete
-            </Button>
-          </div>
-        </div>
-
-        {/* Global Toast Alert */}
-        {alert && !actionType && (
-          <FeedbackBanner
-            type={alert.type}
-            message={alert.message}
-            onDismiss={() => setAlert(null)}
-            style={{ marginBottom: "1.15rem" }}
-          />
-        )}
-
-        {/* User Status Confirm Dialog */}
-        <ConfirmDialog
-          isOpen={Boolean(actionType)}
-          onClose={() => {
-            if (!actionLoading) {
-              setActionType(null);
-              setActionReason("");
-            }
-          }}
-          onConfirm={() => handleExecuteStatusAction("USER", selectedUser.id)}
-          variant={actionType === "ACTIVE" ? "confirm" : "danger"}
-          title={
-            actionType === "ACTIVE"
-              ? "Reactivate Account"
-              : actionType === "SUSPENDED"
-                ? "Deactivate Account"
-                : "Block Account"
-          }
-          subtitle={selectedUser.fullName}
-          description="Confirm this account status transition. Changes apply immediately to active sessions."
-          details={
-            <div>
-              <label className="form-label">
-                Optional Reason / Audit Notes
-              </label>
-              <textarea
-                className="form-textarea"
-                rows={3}
-                placeholder="Enter administrative notes for audit logging..."
-                value={actionReason}
-                onChange={(e) => setActionReason(e.target.value)}
-                disabled={actionLoading}
-              />
-            </div>
-          }
-          confirmLabel={`Execute ${actionType}`}
-          isLoading={actionLoading}
-        />
-
-        {/* 1. TOP PROFILE DETAILS HEADER CARD */}
-        <div
-          className="bg-surface border rounded-xl mb-6 shadow-sm flex flex-row items-center justify-between flex-wrap gap-6"
-          style={{ padding: "1.5rem 1.75rem" }}
-        >
-          {/* User Avatar & Name */}
-          <div className="flex items-center gap-5 flex-wrap">
-            <div
-              className="rounded-full flex items-center justify-center text-brand flex-shrink-0 shadow-sm font-black"
-              style={{
-                width: "68px",
-                height: "68px",
-                background:
-                  "linear-gradient(135deg, rgba(var(--brand-primary-rgb), 0.25), rgba(var(--brand-accent-rgb), 0.12))",
-                border: "1.5px solid rgba(var(--brand-primary-rgb), 0.35)",
-                fontSize: "1.5rem",
-              }}
-            >
-              {selectedUser.profilePhotoUrl ? (
-                <img
-                  src={selectedUser.profilePhotoUrl}
-                  alt={selectedUser.fullName}
-                  className="w-full h-full rounded-full object-cover"
-                />
-              ) : (
-                selectedUser.fullName.slice(0, 2).toUpperCase()
-              )}
-            </div>
-
-            <div>
-              <div
-                className="flex items-center flex-wrap"
-                style={{ gap: "0.65rem" }}
-              >
-                <h2
-                  className="font-extrabold text-primary m-0"
-                  style={{ fontSize: "1.5rem" }}
-                >
-                  {selectedUser.fullName}
-                </h2>
-                <StatusBadge status={selectedUser.status} size="sm" />
-                <span className="code-tag text-sm uppercase">
-                  {selectedUser.role.replace(/_/g, " ")}
-                </span>
-              </div>
-
-              {/* Subtitle details: Phone, Email, Location */}
-              <div className="flex items-center flex-wrap gap-4 mt-2 text-md text-secondary">
-                <div className="flex items-center gap-tight">
-                  <Phone size={14} color="var(--text-brand)" />
-                  <span>{selectedUser.phone}</span>
-                </div>
-                <div className="flex items-center gap-tight">
-                  <Mail size={14} color="var(--text-brand)" />
-                  <span>{selectedUser.email}</span>
-                </div>
-                <div className="flex items-center gap-tight">
-                  <MapPin size={14} color="var(--brand-orange)" />
-                  <span>{selectedUser.city}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Quick User ID & Registration Details */}
-          <div className="flex items-center gap-6 flex-wrap border-l pl-6">
-            <div className="text-left">
-              <div
-                className="text-muted uppercase font-bold text-label"
-                style={{ letterSpacing: "0.05em" }}
-              >
-                User ID
-              </div>
-              <div className="flex items-center gap-tight mt-compact">
-                <span className="code-tag text-base">
-                  {selectedUser.id.slice(0, 12)}...
-                </span>
-                <button
-                  onClick={() => copyToClipboard(selectedUser.id, "user-id")}
-                  className="border-0 cursor-pointer text-muted"
-                  style={{ background: "none", padding: "0.15rem" }}
-                  title="Copy Full User ID"
-                >
-                  {copiedId === "user-id" ? (
-                    <Check size={14} color="var(--color-success)" />
-                  ) : (
-                    <Copy size={14} />
-                  )}
-                </button>
-              </div>
-            </div>
-
-            <div className="text-left">
-              <div
-                className="text-muted uppercase font-bold text-label"
-                style={{ letterSpacing: "0.05em" }}
-              >
-                Registration Date
-              </div>
-              <div className="flex items-center mt-1 font-bold text-primary text-md gap-tight">
-                <Calendar size={14} color="var(--text-brand)" />
-                <span>
-                  {new Date(selectedUser.createdAt).toLocaleDateString(
-                    "en-IN",
-                    { day: "2-digit", month: "short", year: "numeric" },
-                  )}
-                </span>
-              </div>
-            </div>
-
-            {selectedUser.corporateTenantName && (
-              <div className="text-left">
-                <div
-                  className="text-muted uppercase font-bold text-label"
-                  style={{ letterSpacing: "0.05em" }}
-                >
-                  Enterprise Client
-                </div>
-                <div className="font-bold text-md text-brand mt-1">
-                  {selectedUser.corporateTenantName}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* 2. USER SUMMARY CARDS (5 Cards) */}
-        <div
-          className="grid gap-4 mb-6"
-          style={{
-            gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))",
-          }}
-        >
-          <MetricCard
-            label="Total Orders"
-            value={selectedUser.totalOrders}
-            subtext="All booking demands"
-            icon={<Briefcase size={18} color="var(--text-brand)" />}
-            accentColor="var(--text-brand)"
-          />
-          <MetricCard
-            label="Completed Orders"
-            value={selectedUser.completedOrders}
-            subtext={`${selectedUser.totalOrders > 0 ? Math.round((selectedUser.completedOrders / selectedUser.totalOrders) * 100) : 0}% completion`}
-            icon={<CheckCircle2 size={18} color="var(--color-success)" />}
-            accentColor="var(--color-success)"
-          />
-          <MetricCard
-            label="Pending Orders"
-            value={selectedUser.pendingOrders}
-            subtext="Active in queue"
-            icon={<Clock size={18} color="var(--color-warning)" />}
-            accentColor="var(--color-warning)"
-          />
-          <MetricCard
-            label="Cancelled Orders"
-            value={selectedUser.cancelledOrders}
-            subtext="Aborted or expired"
-            icon={<AlertTriangle size={18} color="var(--color-danger)" />}
-            accentColor="var(--color-danger)"
-          />
-          <MetricCard
-            label="Total Amount Spent"
-            value={`₹${selectedUser.totalAmountSpent.toLocaleString("en-IN")}`}
-            subtext="Gross fulfilled value"
-            icon={<DollarSign size={18} color="var(--text-brand)" />}
-            accentColor="var(--brand-purple-text)"
-          />
-        </div>
-
-        {/* 3. USER LOCATION AND ACTIVITY SECTION */}
-        <div
-          className="grid gap-6 mb-6"
-          style={{
-            gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))",
-          }}
-        >
-          {/* Left: Location & Map View */}
-          <div className="bg-surface border rounded-xl p-6 shadow-sm">
-            <div
-              className="flex items-center gap-2 mb-4"
-              style={{ paddingTop: "0.15rem" }}
-            >
-              <Navigation size={18} color="var(--text-brand)" />
-              <h3 className="font-bold text-primary m-0 text-title-md">
-                User Location & Geocoding
-              </h3>
-            </div>
-
-            <div className="flex flex-col mb-5 gap-relaxed">
-              <div>
-                <div className="text-muted uppercase font-bold text-label">
-                  Registered Address
-                </div>
-                <div className="text-md font-semibold text-primary mt-compact">
-                  {selectedUser.address}
-                </div>
-              </div>
-
-              <div
-                className="grid gap-3"
-                style={{ gridTemplateColumns: "repeat(2, 1fr)" }}
-              >
-                <div>
-                  <div className="text-muted uppercase font-bold text-label">
-                    City & State
-                  </div>
-                  <div className="text-md font-semibold text-primary mt-compact">
-                    {selectedUser.city}
-                    {selectedUser.state &&
-                    selectedUser.state !== "Not Available"
-                      ? `, ${selectedUser.state}`
-                      : ""}
-                  </div>
-                </div>
-
-                <div>
-                  <div className="text-muted uppercase font-bold text-label">
-                    Coordinates
-                  </div>
-                  <div
-                    className="text-base font-semibold mt-compact"
-                    style={{
-                      color: selectedUser.latitude
-                        ? "var(--text-primary)"
-                        : "var(--text-muted)",
-                    }}
-                  >
-                    {selectedUser.latitude && selectedUser.longitude
-                      ? `${selectedUser.latitude.toFixed(4)}° N, ${selectedUser.longitude.toFixed(4)}° E`
-                      : "Coordinates not provided"}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Visual Map View Preview */}
-            <div
-              className="w-full rounded-lg border relative overflow-hidden flex items-center justify-center"
-              style={{
-                height: "180px",
-                background: "linear-gradient(135deg, #1e293b, #0f172a)",
-              }}
-            >
-              {/* Background styled grid pattern mimicking map routes */}
-              <div
-                className="absolute"
-                style={{
-                  inset: 0,
-                  opacity: 0.15,
-                  backgroundImage:
-                    "radial-gradient(circle at 2px 2px, rgba(255,255,255,0.4) 1px, transparent 0)",
-                  backgroundSize: "24px 24px",
-                }}
-              />
-
-              {/* Pinpoint Indicator */}
-              <div
-                className="flex flex-col items-center gap-tight"
-                style={{ zIndex: 2 }}
-              >
-                <div
-                  className="rounded-full bg-brand flex items-center justify-center"
-                  style={{
-                    width: "38px",
-                    height: "38px",
-                    color: "#ffffff",
-                    boxShadow: "0 0 16px rgba(var(--brand-primary-rgb), 0.6)",
-                  }}
-                >
-                  <MapPin size={20} />
-                </div>
-                <div
-                  className="rounded-sm font-bold text-label"
-                  style={{
-                    background: "rgba(15, 23, 42, 0.9)",
-                    backdropFilter: "blur(4px)",
-                    padding: "0.25rem 0.6rem",
-                    color: "#ffffff",
-                    border: "1px solid rgba(255, 255, 255, 0.15)",
-                  }}
-                >
-                  {selectedUser.city !== "Not Available"
-                    ? selectedUser.city
-                    : "Registered Base"}
-                </div>
-              </div>
-
-              {selectedUser.latitude && selectedUser.longitude && (
-                <a
-                  href={`https://www.google.com/maps?q=${selectedUser.latitude},${selectedUser.longitude}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="absolute rounded-sm font-semibold no-underline flex items-center text-label"
-                  style={{
-                    bottom: "10px",
-                    right: "10px",
-                    background: "rgba(0, 0, 0, 0.75)",
-                    color: "#ffffff",
-                    padding: "0.3rem 0.6rem",
-                    gap: "0.3rem",
-                    zIndex: 3,
-                  }}
-                >
-                  <span>Open Maps</span>
-                  <ExternalLink size={11} />
-                </a>
-              )}
-            </div>
-          </div>
-
-          {/* Right: Recent Activity History */}
-          <div className="bg-surface border rounded-xl p-6 shadow-sm flex flex-col">
-            <div
-              className="flex items-center gap-2 mb-4"
-              style={{ paddingTop: "0.15rem" }}
-            >
-              <Activity size={18} color="var(--text-brand)" />
-              <h3 className="font-bold text-primary m-0 text-title-md">
-                Recent Login & Audit History
-              </h3>
-            </div>
-
-            {selectedUser.activityLogs &&
-            selectedUser.activityLogs.length > 0 ? (
-              <div
-                className="flex flex-col flex-1 overflow-y-auto gap-relaxed"
-                style={{ maxHeight: "310px" }}
-              >
-                {selectedUser.activityLogs.map((log) => (
-                  <div
-                    key={log.id}
-                    className="py-3 px-4 rounded-md bg-surface-elevated flex flex-col"
-                    style={{
-                      border: "1px solid var(--border-light)",
-                      gap: "0.2rem",
-                    }}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-base font-bold text-primary">
-                        {log.action}
-                      </span>
-                      <span className="text-muted text-label">
-                        {new Date(log.timestamp).toLocaleTimeString("en-IN", {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </span>
-                    </div>
-                    <div className="text-sm text-secondary">
-                      {log.details || "System event recorded"}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="flex items-center justify-center flex-1 p-8 text-center text-muted text-md">
-                No administrative audit anomalies recorded for this user.
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* 4. USER ORDER HISTORY TABLE */}
-        <div className="bg-surface border rounded-xl p-6 mb-6 shadow-sm">
-          <div
-            className="flex items-center justify-between flex-wrap gap-4 mb-5"
-            style={{ paddingTop: "0.15rem" }}
-          >
-            <div>
-              <div className="flex items-center gap-2">
-                <FileText size={20} color="var(--text-brand)" />
-                <h3 className="text-xl font-extrabold text-primary m-0">
-                  User Booking & Order History
-                </h3>
-              </div>
-              <div className="text-base text-muted mt-compact">
-                Breakdown of vehicle reservations, driver assignments, and trip
-                fulfillments
-              </div>
-            </div>
-
-            {/* Filter controls: Daily, Monthly, Yearly */}
-            <div className="flex items-center gap-2 flex-wrap">
-              <div className="flex bg-surface-elevated p-1 rounded-md border gap-1">
-                {[
-                  { id: "ALL", label: "All Time" },
-                  { id: "DAILY", label: "Daily (Today)" },
-                  { id: "MONTHLY", label: "Monthly" },
-                  { id: "YEARLY", label: "Yearly" },
-                ].map((tf) => (
-                  <button
-                    key={tf.id}
-                    onClick={() => setOrderTimeframe(tf.id as any)}
-                    className="border-0 rounded-sm text-sm font-bold cursor-pointer"
-                    style={{
-                      background:
-                        orderTimeframe === tf.id
-                          ? "var(--brand-primary)"
-                          : "transparent",
-                      color:
-                        orderTimeframe === tf.id
-                          ? "#ffffff"
-                          : "var(--text-secondary)",
-                      padding: "0.35rem 0.75rem",
-                    }}
-                  >
-                    {tf.label}
-                  </button>
-                ))}
-              </div>
-
-              {/* Status Filter */}
-              <select
-                value={orderStatusFilter}
-                onChange={(e) => setOrderStatusFilter(e.target.value)}
-                className="rounded-md border bg-surface-elevated text-primary text-base font-semibold"
-                style={{ padding: "0.4rem 0.75rem" }}
-              >
-                <option value="ALL">All Statuses</option>
-                <option value="POSTED">POSTED</option>
-                <option value="DISPATCHING">DISPATCHING</option>
-                <option value="FULFILLED">FULFILLED</option>
-                <option value="COMPLETED">COMPLETED</option>
-                <option value="CANCELLED">CANCELLED</option>
-              </select>
-
-              {/* Search Orders */}
-              <div className="relative">
-                <Search
-                  size={14}
-                  style={{
-                    position: "absolute",
-                    left: "0.75rem",
-                    top: "50%",
-                    transform: "translateY(-50%)",
-                    color: "var(--text-muted)",
-                  }}
-                />
-                <input
-                  type="text"
-                  placeholder="Search orders..."
-                  value={orderSearchQuery}
-                  onChange={(e) => setOrderSearchQuery(e.target.value)}
-                  className="rounded-md border bg-surface-elevated text-primary text-base"
-                  style={{
-                    padding: "0.4rem 0.75rem 0.4rem 2.2rem",
-                    width: "180px",
-                  }}
-                />
-              </div>
-            </div>
-          </div>
-
-          <DataTable
-            columns={[
-              {
-                key: "orderId",
-                label: "Order ID",
-                sortable: true,
-                render: (o: UserOrderItem) => (
-                  <span className="code-tag">{o.orderId}</span>
-                ),
-              },
-              {
-                key: "orderDate",
-                label: "Order Date",
-                sortable: true,
-                render: (o: UserOrderItem) => (
-                  <span className="text-base text-secondary">
-                    {new Date(o.orderDate).toLocaleDateString("en-IN", {
-                      day: "2-digit",
-                      month: "short",
-                      year: "numeric",
-                    })}
-                  </span>
-                ),
-              },
-              {
-                key: "serviceDetails",
-                label: "Service / Requirement",
-                render: (o: UserOrderItem) => (
-                  <span className="text-base font-semibold text-primary">
-                    {o.serviceDetails}
-                  </span>
-                ),
-              },
-              {
-                key: "assignedDriver",
-                label: "Assigned Driver / Vendor",
-                render: (o: UserOrderItem) => (
-                  <div className="text-base">
-                    <div
-                      className="font-semibold"
-                      style={{
-                        color:
-                          o.assignedDriver !== "Not Assigned"
-                            ? "var(--text-primary)"
-                            : "var(--text-muted)",
-                      }}
-                    >
-                      {o.assignedDriver}
-                    </div>
-                    <div className="text-muted text-label">
-                      {o.assignedVendor}
-                    </div>
-                  </div>
-                ),
-              },
-              {
-                key: "pickupLocation",
-                label: "Pickup Location",
-                render: (o: UserOrderItem) => (
-                  <div
-                    className="text-base text-secondary whitespace-nowrap overflow-hidden text-ellipsis"
-                    style={{ maxWidth: "200px" }}
-                    title={o.pickupLocation}
-                  >
-                    {o.pickupLocation}
-                  </div>
-                ),
-              },
-              {
-                key: "deliveryLocation",
-                label: "Delivery Location",
-                render: (o: UserOrderItem) => (
-                  <div
-                    className="text-base text-secondary whitespace-nowrap overflow-hidden text-ellipsis"
-                    style={{ maxWidth: "200px" }}
-                    title={o.deliveryLocation}
-                  >
-                    {o.deliveryLocation}
-                  </div>
-                ),
-              },
-              {
-                key: "orderAmount",
-                label: "Amount",
-                sortable: true,
-                render: (o: UserOrderItem) => (
-                  <span className="font-extrabold text-primary text-md">
-                    ₹{o.orderAmount.toLocaleString("en-IN")}
-                  </span>
-                ),
-              },
-              {
-                key: "paymentStatus",
-                label: "Payment",
-                render: (o: UserOrderItem) => (
-                  <StatusBadge status={o.paymentStatus} size="sm" />
-                ),
-              },
-              {
-                key: "orderStatus",
-                label: "Status",
-                render: (o: UserOrderItem) => (
-                  <StatusBadge status={o.orderStatus} size="sm" />
-                ),
-              },
-            ]}
-            data={filteredUserOrders}
-            keyExtractor={(o) => o.id}
-            loading={false}
-            emptyTitle="No orders on file"
-            emptySubtitle="No booking transactions match the active criteria for this user account."
-          />
-        </div>
-        {sharedDialogs}
-      </div>
-    );
-  }
-
-  /* =========================================================================
    * 3. MAIN LISTING VIEW: CORPORATE VENDORS & USERS HUB
    * ========================================================================= */
   const vendorColumns: Column<VendorListItem>[] = [
@@ -2723,9 +1748,7 @@ export default function UsersAndVendorsView({
             size="sm"
             onClick={(e) => {
               e.stopPropagation();
-              setDeleteTarget({
-                type: "VENDOR",
-                id: u.id,
+              setDeleteTarget({ id: u.id,
                 name: u.companyName || u.contactPerson,
                 phone: u.phone,
               });
@@ -2740,132 +1763,11 @@ export default function UsersAndVendorsView({
     },
   ];
 
-  const userColumns: Column<UserListItem>[] = [
-    {
-      key: "fullName",
-      label: "User Name & Contact",
-      sortable: true,
-      render: (u) => (
-        <div className="flex items-center gap-3">
-          <div
-            className="rounded-full flex items-center justify-center font-extrabold text-brand flex-shrink-0 text-body"
-            style={{
-              width: "38px",
-              height: "38px",
-              background:
-                "linear-gradient(135deg, rgba(var(--brand-primary-rgb), 0.2), rgba(var(--brand-accent-rgb), 0.08))",
-              border: "1px solid rgba(var(--brand-primary-rgb), 0.25)",
-            }}
-          >
-            {u.fullName ? u.fullName.slice(0, 2).toUpperCase() : "U"}
-          </div>
-          <div>
-            <div className="font-bold text-primary text-value">
-              {u.fullName}
-            </div>
-            <div className="text-sm text-secondary mt-snug">
-              {u.phone !== "Not Available"
-                ? u.phone
-                : u.email || "Platform User"}
-            </div>
-          </div>
-        </div>
-      ),
-    },
-    {
-      key: "role",
-      label: "Role & Type",
-      sortable: true,
-      render: (u) => (
-        <span className="code-tag uppercase text-label">
-          {u.role.replace(/_/g, " ")}
-        </span>
-      ),
-    },
-    {
-      key: "status",
-      label: "Account Status",
-      sortable: true,
-      render: (u) => <StatusBadge status={u.status} size="sm" />,
-    },
-    {
-      key: "email",
-      label: "Email Address",
-      render: (u) => (
-        <span className="text-base text-secondary">{u.email}</span>
-      ),
-    },
-    {
-      key: "createdAt",
-      label: "Registered Date",
-      sortable: true,
-      render: (u) => (
-        <span className="text-sm text-muted">
-          {new Date(u.createdAt).toLocaleDateString("en-IN", {
-            day: "2-digit",
-            month: "short",
-            year: "numeric",
-          })}
-        </span>
-      ),
-    },
-    {
-      key: "actions",
-      label: "Action",
-      align: "right",
-      render: (u) => (
-        <div className="flex justify-end items-center gap-snug">
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleOpenUserDetails(u);
-            }}
-          >
-            View Details →
-          </Button>
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleOpenEditUser(u);
-            }}
-            title="Edit User Profile"
-            style={{ padding: "0.35rem 0.65rem" }}
-          >
-            <Edit3 size={13} style={{ marginRight: "0.25rem" }} /> Edit
-          </Button>
-
-          <Button
-            variant="danger"
-            size="sm"
-            onClick={(e) => {
-              e.stopPropagation();
-              setDeleteTarget({
-                type: "USER",
-                id: u.id,
-                name: u.fullName,
-                phone: u.phone,
-              });
-            }}
-            title="Permanently Delete User from Database"
-            style={{ padding: "0.35rem 0.65rem" }}
-          >
-            <Trash2 size={13} style={{ marginRight: "0.25rem" }} /> Delete
-          </Button>
-        </div>
-      ),
-    },
-  ];
-
   return (
     <div className="admin-page">
       <PageHeader
-        title="Users & Corporate Vendors"
-        subtitle="Lifecycle oversight of enterprise clients, retail passengers, and vendor accounts across the AdhocX platform"
+        title="Corporate Vendors"
+        subtitle="Lifecycle oversight of corporate vendor organizations, enterprise fleet partners, and transport providers across the AdhocX platform"
         liveStatus="Accounts Active"
         actions={
           <Button
@@ -2888,104 +1790,41 @@ export default function UsersAndVendorsView({
         />
       )}
 
-      {/* TOP-LEVEL DUAL-SECTION SWITCHER */}
-      <SegmentedTabs
-        activeTab={activeSection}
-        onChange={setActiveSection}
-        tabs={[
-          {
-            id: "VENDORS",
-            label: "Corporate Vendors",
-            count: vendors.length,
-            icon: <Building2 size={15} />,
-          },
-          {
-            id: "USERS",
-            label: "Users & Enterprise Accounts",
-            count: users.length,
-            icon: <Users size={15} />,
-          },
-        ]}
-      />
-
-      {/* SECTION 1: CORPORATE VENDORS TABLE */}
-      {activeSection === "VENDORS" && (
-        <div>
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
-            <div className="flex-1">
-              <FilterBar
-                tabs={VENDOR_STATUS_TABS}
-                activeTab={vendorTab}
-                onTabChange={setVendorTab}
-                search={vendorSearch}
-                onSearchChange={setVendorSearch}
-                searchPlaceholder="Search by company name, contact, phone, or email..."
-              />
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="primary"
-                size="md"
-                onClick={() => setIsOnboardVendorOpen(true)}
-                leftIcon={<Plus size={15} />}
-              >
-                Onboard Vendor
-              </Button>
-            </div>
+      {/* CORPORATE VENDORS TABLE */}
+      <div>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+          <div className="flex-1">
+            <FilterBar
+              tabs={VENDOR_STATUS_TABS}
+              activeTab={vendorTab}
+              onTabChange={setVendorTab}
+              search={vendorSearch}
+              onSearchChange={setVendorSearch}
+              searchPlaceholder="Search by company name, contact, phone, or email..."
+            />
           </div>
-
-          <DataTable
-            columns={vendorColumns}
-            data={filteredVendors}
-            keyExtractor={(u) => u.id}
-            loading={vendorsLoading}
-            onRowClick={(u) => handleOpenVendorDetails(u)}
-            emptyTitle="No corporate vendor accounts found"
-            emptySubtitle={`No vendor organizations match the filter criteria "${vendorTab}".`}
-          />
+          <div className="flex items-center gap-2">
+            <Button
+              variant="primary"
+              size="md"
+              onClick={() => setIsOnboardVendorOpen(true)}
+              leftIcon={<Plus size={15} />}
+            >
+              Onboard Vendor
+            </Button>
+          </div>
         </div>
-      )}
 
-      {/* SECTION 2: PLATFORM USERS TABLE */}
-      {activeSection === "USERS" && (
-        <div>
-          <FilterBar
-            tabs={USER_STATUS_TABS}
-            activeTab={userTab}
-            onTabChange={setUserTab}
-            search={userSearch}
-            onSearchChange={setUserSearch}
-            searchPlaceholder="Search by user name, phone, email, or user ID..."
-            extraFilters={
-              <div className="flex items-center gap-2">
-                <Filter size={15} color="var(--text-muted)" />
-                <select
-                  value={userRoleFilter}
-                  onChange={(e) => setUserRoleFilter(e.target.value)}
-                  className="rounded-md border bg-surface-elevated text-primary text-base font-semibold"
-                  style={{ padding: "0.45rem 0.85rem" }}
-                >
-                  {USER_ROLE_FILTERS.map((r) => (
-                    <option key={r.id} value={r.id}>
-                      {r.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            }
-          />
-
-          <DataTable
-            columns={userColumns}
-            data={filteredUsers}
-            keyExtractor={(u) => u.id}
-            loading={usersLoading}
-            onRowClick={(u) => handleOpenUserDetails(u)}
-            emptyTitle="No platform user accounts found"
-            emptySubtitle={`No user records match the filter criteria "${userTab}".`}
-          />
-        </div>
-      )}
+        <DataTable
+          columns={vendorColumns}
+          data={filteredVendors}
+          keyExtractor={(u) => u.id}
+          loading={vendorsLoading}
+          onRowClick={(u) => handleOpenVendorDetails(u)}
+          emptyTitle="No corporate vendor accounts found"
+          emptySubtitle={`No vendor organizations match the filter criteria "${vendorTab}".`}
+        />
+      </div>
 
       {sharedDialogs}
     </div>

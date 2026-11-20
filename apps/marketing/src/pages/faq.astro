@@ -106,8 +106,8 @@ const jsonLd = {
 ---
 
 <BaseLayout
-  title="Enterprise ETS & Corporate Mobility FAQ — AdhocX Hyderabad"
-  description="Exhaustive answers to enterprise questions on AdhocX employee transport software, PostGIS routing, 3-way match billing, driver background checks, and night escort safety compliance."
+  title="Employee Transport & Corporate Cab FAQ | AdhocX"
+  description="Answers on AdhocX employee transport software, routing, billing, driver background checks and night-shift escort safety compliance."
   canonical="https://www.adhocx.com/faq"
   activeNav="resources"
   jsonLd={jsonLd}
@@ -142,6 +142,7 @@ const jsonLd = {
       </div>
 
       <!-- FAQ Accordion List -->
+      <h2 class="faq-sr-heading">Employee transport, billing, safety and driver questions</h2>
       <div class="faq-list">
         {faqs.map((faq, index) => (
           <details class="faq-item" data-category={faq.category}>
@@ -165,9 +166,9 @@ const jsonLd = {
 
       <!-- Bottom Inquiries Help Card -->
       <div class="faq-cta-card">
-        <h3 class="faq-cta-title">
+        <h2 class="faq-cta-title">
           Have a Specific RFP or Technical Inquiry?
-        </h3>
+        </h2>
         <p class="faq-cta-desc">
           Our enterprise engineering and operations directors in HITEC City are available to review your shift matrices and compliance requirements.
         </p>
@@ -365,6 +366,18 @@ const jsonLd = {
 
   .faq-badge-wrapper {
     margin-bottom: 0.65rem;
+  }
+
+  .faq-sr-heading {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
   }
 
   .faq-category-badge {

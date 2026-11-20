@@ -113,7 +113,7 @@ function getIndiaDateKey(value?: string | null) {
   return `${values.year}-${values.month}-${values.day}`;
 }
 
-function getMonthKey(value?: string | null) {
+function _getMonthKey(value?: string | null) {
   const dateKey = getIndiaDateKey(value);
   return dateKey ? dateKey.slice(0, 7) : null;
 }
@@ -127,14 +127,14 @@ function formatINR(value?: number | null) {
   }).format(value);
 }
 
-function formatCompactINR(value: number) {
+function _formatCompactINR(value: number) {
   return `₹${new Intl.NumberFormat("en-IN", {
     notation: "compact",
     maximumFractionDigits: 1,
   }).format(value)}`;
 }
 
-function formatCompactNumber(value: number) {
+function _formatCompactNumber(value: number) {
   return new Intl.NumberFormat("en-IN", {
     notation: "compact",
     maximumFractionDigits: 1,
@@ -147,7 +147,7 @@ function isActiveRequirement(requirement: RequirementListItem) {
   );
 }
 
-function isPendingPayout(settlement: FinanceSettlementReportItem) {
+function _isPendingPayout(settlement: FinanceSettlementReportItem) {
   return PENDING_PAYOUT_STATUSES.has(settlement.status.toUpperCase());
 }
 

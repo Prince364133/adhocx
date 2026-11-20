@@ -46,7 +46,8 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
       return "Push Notifications & Campaign Hub";
     if (pathname.startsWith("/verifications")) return "Verification Center";
     if (pathname.startsWith("/drivers")) return "Driver Fleet Management";
-    if (pathname.startsWith("/users")) return "Users & Corporate Vendors";
+    if (pathname.startsWith("/users") || pathname.startsWith("/vendors"))
+      return "Corporate Vendors";
     if (pathname.startsWith("/requirements")) return "Requirements & Sourcing";
     if (pathname.startsWith("/assignments")) return "Assignment Operations";
     if (pathname.startsWith("/trips")) return "Trips & Telemetry Tracking";

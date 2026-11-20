@@ -8,7 +8,6 @@ import {
   LayoutDashboard,
   ShieldCheck,
   Car,
-  Users,
   CreditCard,
   WalletCards,
   Tag,
@@ -52,7 +51,7 @@ const navSections: NavSection[] = [
         icon: ShieldCheck,
       },
       { href: "/drivers", label: "Driver Fleet", icon: Car },
-      { href: "/users", label: "Users & Vendors", icon: Users },
+      { href: "/users", label: "Corporate Vendors", icon: Building2 },
     ],
   },
   {
@@ -181,21 +180,23 @@ export const Sidebar: React.FC = () => {
       {/* Bottom Sticky/Fixed Wrapper */}
       <div className="sidebar-bottom-fixed-wrapper">
         {/* Tactical Fleet Flight Control Launcher */}
-        <div className="sidebar-fleet-container">
-          <a
-            href={OPS_PORTAL_URL || "http://localhost:7004"}
-            target="_blank"
-            rel="noopener noreferrer"
-            title="Open Tactical Fleet Operations (:7004)"
-            className="sidebar-fleet-btn"
-          >
-            <div className="sidebar-fleet-content">
-              <Radio size={15} style={{ flexShrink: 0 }} />
-              {isHovered && <span>Fleet Ops (:7004)</span>}
-            </div>
-            {isHovered && <ExternalLink size={13} style={{ flexShrink: 0 }} />}
-          </a>
-        </div>
+        {OPS_PORTAL_URL && (
+          <div className="sidebar-fleet-container">
+            <a
+              href={OPS_PORTAL_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Open Tactical Fleet Operations"
+              className="sidebar-fleet-btn"
+            >
+              <div className="sidebar-fleet-content">
+                <Radio size={15} style={{ flexShrink: 0 }} />
+                {isHovered && <span>Fleet Ops</span>}
+              </div>
+              {isHovered && <ExternalLink size={13} style={{ flexShrink: 0 }} />}
+            </a>
+          </div>
+        )}
 
         {/* Administrative User & Logout Footer */}
         <div className="sidebar-bottom-fixed">
@@ -203,7 +204,12 @@ export const Sidebar: React.FC = () => {
             className="sidebar-profile-card"
             title={
               !isHovered
-                ? `${adminUser?.fullName || "Administrator"} (${adminUser?.email || "admin@adhocx.com"})`
+                ? [
+                    adminUser?.fullName || "Administrator",
+                    adminUser?.email || adminUser?.phone,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")
                 : undefined
             }
           >
@@ -215,9 +221,11 @@ export const Sidebar: React.FC = () => {
                 <span className="sidebar-user-name">
                   {adminUser?.fullName || "Administrator"}
                 </span>
-                <span className="sidebar-user-email">
-                  {adminUser?.email || "admin@adhocx.com"}
-                </span>
+                {(adminUser?.email || adminUser?.phone) && (
+                  <span className="sidebar-user-email">
+                    {adminUser.email || adminUser.phone}
+                  </span>
+                )}
               </div>
             )}
           </div>
@@ -237,8 +245,7 @@ export const Sidebar: React.FC = () => {
           </button>
         </div>
       </div>
-
-      <ConfirmDialog
+       <ConfirmDialog
         isOpen={showLogoutConfirm}
         onClose={() => setShowLogoutConfirm(false)}
         onConfirm={handleLogout}

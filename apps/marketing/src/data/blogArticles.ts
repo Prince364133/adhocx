@@ -24,7 +24,7 @@ export const ARTICLES_CONTENT: Record<string, ArticleData> = {
     authorRole: 'Enterprise Fleet & Logistics Research Desk',
     summary: 'Discover how programmatic driver pairing and instant fulfillment eliminate middlemen broker markups for corporate logistics and spot employee transit in Hyderabad.',
     directAnswer: 'AdhocX reduces corporate cab expenditure by replacing manual broker networks with a direct algorithmic dispatch engine. By connecting enterprise facility desks directly to verified yellow-plate 4-seater and 7-seater drivers with a strict allocation cutoff and zero unfulfilled booking fees, corporate transport desks eliminate hidden markups, surge premiums, and administrative dispatch overhead.',
-    coverImage: 'https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?auto=format&fit=crop&w=1200&q=80',
+    coverImage: '/images/hero-fleet.jpg',
     keyTakeaways: [
       'Eliminates the typical middleman broker markups charged by unorganized transport aggregators in Hyderabad IT corridors.',
       'Strict allocation cutoff guarantees immediate escalation and prevents employee stranding during evening shift transitions.',
@@ -77,7 +77,7 @@ export const ARTICLES_CONTENT: Record<string, ArticleData> = {
     authorRole: 'Enterprise Fleet & Logistics Research Desk',
     summary: 'Discover how programmatic driver pairing and instant fulfillment eliminate middlemen broker markups for corporate logistics and spot employee transit in Hyderabad.',
     directAnswer: 'AdhocX reduces corporate cab expenditure by replacing manual broker networks with a direct algorithmic dispatch engine. By connecting enterprise facility desks directly to verified yellow-plate 4-seater and 7-seater drivers with a strict allocation cutoff and zero unfulfilled booking fees, corporate transport desks eliminate hidden markups, surge premiums, and administrative dispatch overhead.',
-    coverImage: 'https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?auto=format&fit=crop&w=1200&q=80',
+    coverImage: '/images/service-executive-airport.jpg',
     keyTakeaways: [
       'Eliminates the typical middleman broker markups charged by unorganized transport aggregators in Hyderabad IT corridors.',
       'Strict allocation cutoff guarantees immediate escalation and prevents employee stranding during evening shift transitions.',
@@ -105,7 +105,7 @@ export const ARTICLES_CONTENT: Record<string, ArticleData> = {
     authorRole: 'Driver Partner Relations & Welfare Operations',
     summary: 'An operational breakdown of fuel efficiency, daily run tariffs, and how direct bank settlements and pre-scheduled corporate routes maximize monthly net driver earnings.',
     directAnswer: 'Commercial cab drivers in Hyderabad operating 4-seater sedans and 7-seater MUVs benefit from steady corporate shifts and direct bank settlements. Through AdhocX’s direct marketplace model and transparent scheduled corporate shifts, drivers retain significantly more income compared to traditional consumer cab platforms.',
-    coverImage: 'https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?auto=format&fit=crop&w=1200&q=80',
+    coverImage: '/images/drivers/commercial-sedan-dzire.jpg',
     keyTakeaways: [
       'Commercial CNG/Petrol sedans (Maruti Dzire) provide exceptional operating efficiency for urban IT corridor duty.',
       '7-seater MUVs (Maruti Ertiga, Innova Crysta) command higher average trip values for airport transfers and corporate team transit.',
@@ -154,7 +154,7 @@ export const ARTICLES_CONTENT: Record<string, ArticleData> = {
     authorRole: 'Corporate Governance & Treasury Operations',
     summary: 'Why enterprise transport desks cannot afford locked balances in consumer cab wallets, and how instant IMPS/UPI refund rails transform corporate travel procurement.',
     directAnswer: 'The AdhocX 1-Hour Bank Refund SLA guarantees that any unfulfilled or cancelled commercial cab booking is fully credited back to the corporate client’s originating bank account within 60 minutes. Built on automated IMPS and UPI banking APIs, this eliminates wallet balance trapping and provides corporate treasury teams clear, audit-compliant financial recourse.',
-    coverImage: 'https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?auto=format&fit=crop&w=1200&q=80',
+    coverImage: '/images/hero-corporate-commute.jpg',
     keyTakeaways: [
       'Eliminates the risk of locked corporate working capital inside closed-loop app credits.',
       'Automated programmatic refund trigger: fires immediately upon trip cancellation or fulfillment SLA timeout.',
@@ -196,7 +196,7 @@ export const ARTICLES_CONTENT: Record<string, ArticleData> = {
     authorRole: 'Statutory Compliance & Fleet Safety Directorate',
     summary: 'Key legal obligations under the Telangana Motor Vehicles Act regarding commercial fitness, passenger insurance, and police verification for corporate staff transport.',
     directAnswer: 'Corporate employee transport in Hyderabad is strictly governed by the Telangana Motor Vehicles Act and Cyberabad Police safety guidelines. Companies deploying transport services must ensure all vehicles hold yellow-plate commercial registration (T/TR series), valid commercial fitness certificates, comprehensive passenger liability insurance, and verified police background clearance for all operating chauffeurs.',
-    coverImage: 'https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?auto=format&fit=crop&w=1200&q=80',
+    coverImage: '/images/industries/it-tech-parks.jpg',
     keyTakeaways: [
       'Private white-plate vehicles are strictly illegal for employee transit and incur severe vehicle impoundment and corporate corporate fines.',
       'Female employee late-night transit requires mandatory GPS tracking, emergency SOS buttons, and security escort protocols.',
@@ -249,7 +249,7 @@ export const ARTICLES_CONTENT: Record<string, ArticleData> = {
     authorRole: 'Operations & Partner Success Lead',
     summary: 'Why weekly or monthly payment delays stifle driver retention, and how AdhocX instant settlement ledger and 100-ride ₹2,000 cash bonuses empower commercial drivers.',
     directAnswer: 'AdhocX guarantees 1-hour direct bank payouts via instant IMPS and UPI rails after every completed corporate trip, combined with a flat ₹2,000 cash milestone bonus upon completing 100 trips. This solves the driver liquidity crisis, eliminates platform deduction traps, and achieves 99.8% driver retention.',
-    coverImage: 'https://images.unsplash.com/photo-1580273916550-e323be2ae537?auto=format&fit=crop&w=1200&q=80',
+    coverImage: '/images/drivers/hero-driver-partner.jpg',
     keyTakeaways: [
       'Direct 1-hour bank payouts via automated double-entry ledger integration.',
       'Flat ₹2,000 cash bonus upon completing 100 verified trips on the platform.',
@@ -296,7 +296,7 @@ export const ARTICLES_CONTENT: Record<string, ArticleData> = {
     authorRole: 'Supply Chain Strategy Director',
     summary: 'Comparing dedicated monthly fleet retainers against dynamic on-demand spot dispatching to optimize corporate transport budgets and maintain 99.8% SLA punctuality.',
     directAnswer: 'Top-performing enterprises adopt a 70/30 hybrid mobility model: maintaining contracted fleet retainers for 70% of high-volume predictable employee routes, while fulfilling the remaining 30% elastic demand through AdhocX algorithmic spot dispatch. This eliminates idle vehicle waste on weekends while ensuring a 99.8% on-time arrival SLA.',
-    coverImage: 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=1200&q=80',
+    coverImage: '/images/fleet/fleet-ertiga.jpg',
     keyTakeaways: [
       'Fixed retainer fleets create up to 35% idle vehicle loss during weekends and holidays.',
       'AdhocX dynamic spot dispatch provides infinite elasticity with zero idle fleet liability.',

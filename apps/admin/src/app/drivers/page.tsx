@@ -69,7 +69,7 @@ const formatCurrency = (amount: number) =>
 
 /**
  * Computes performance aggregates and time-series data for a driver
- * strictly from actual trip records returned by the API.
+ * strictly from actual trip records returned by the API. If no data exists, zeroes are returned without mock numbers.
  */
 function computeDriverPerformance(driver: DriverDetail, selectedYear: number) {
   const actualTrips = Array.isArray(driver.trips) ? driver.trips : [];
@@ -222,7 +222,6 @@ function computeDriverPerformance(driver: DriverDetail, selectedYear: number) {
       const d = new Date(raw);
       return !Number.isNaN(d.getTime()) && d.getFullYear() === yr;
     });
-
     const completed = tripsThisYear.filter(
       (t) => t.status === "COMPLETED",
     ).length;

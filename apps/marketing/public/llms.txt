@@ -1,0 +1,32 @@
+# AdhocX
+
+> AdhocX is a B2B corporate ground-transport platform based in Hyderabad, India. It combines employee transport software (ETS) with a network of verified commercial yellow-plate 4-seater and 7-seater cabs, so companies can run shift commutes, night-shift transport for women employees, executive and airport transfers, and monthly corporate cab rental with GPS tracking and consolidated GST billing.
+
+AdhocX is operated by Estemporaneo Technologies Private Limited. Primary service area: Hyderabad (HITEC City, Gachibowli, Financial District, Madhapur) and Telangana. Site: https://www.adhocx.com. Contact details: https://www.adhocx.com/contact
+
+## Services and product
+- [Employee transport services](https://www.adhocx.com/services): shift pickups and drops, night-shift safety, executive and airport cabs for corporates.
+- [Employee Transport Software (ETS)](https://www.adhocx.com/ets): route planning, corporate client portal, employee app, driver app, live GPS tracking.
+- [Corporate cab sourcing and fleet rental](https://www.adhocx.com/vendors): 4-seater and 7-seater yellow-plate fleets, SLA-backed fulfilment.
+- [Industries served](https://www.adhocx.com/industries): IT parks, BPO and GCC night shifts, BFSI, healthcare.
+- [Pricing](https://www.adhocx.com/pricing): corporate contract pricing, monthly rates, automated billing.
+- [Safety and compliance](https://www.adhocx.com/safety): night escort protocols, women-employee safety, verified drivers and vehicles.
+
+## Apps
+- [Employee app](https://www.adhocx.com/employee-app): cab booking, live tracking, pickup ETAs, SOS.
+- [Driver partner app](https://www.adhocx.com/driver-app): onboarding and scheduled corporate trips for commercial cab owners.
+- [Drivers](https://www.adhocx.com/drivers): driver partner network and payouts.
+
+## Answers and guides
+- [FAQ](https://www.adhocx.com/faq): common questions on employee transport, billing, safety and drivers.
+- [Insights and reports](https://www.adhocx.com/blogs): articles on corporate mobility, fleet costs, driver economics and Telangana transport compliance.
+- [About](https://www.adhocx.com/about)
+- [Contact](https://www.adhocx.com/contact)
+
+## Policies
+- [Terms](https://www.adhocx.com/terms)
+- [Privacy](https://www.adhocx.com/privacy)
+
+## Optional
+- [RSS feed](https://www.adhocx.com/rss.xml)
+- [Sitemap](https://www.adhocx.com/sitemap.xml)

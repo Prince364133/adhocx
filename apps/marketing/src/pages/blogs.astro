@@ -1,62 +1,8 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+import { ARTICLES_CONTENT } from '../data/blogArticles';
 
-const posts = [
-  {
-    slug: 'ground-spend-benchmark-2026-telangana-corporate-fleets',
-    title: 'Ground Spend Benchmark 2026: What 200+ Enterprise Programmes Pay per Trip',
-    category: 'Benchmark Report',
-    readTime: '8 min read',
-    date: 'Oct 28, 2026',
-    author: 'AdhocX Research & Mobility Desk',
-    summary: 'A comprehensive benchmark analysis of corporate employee transit, airport runs, and spot cab spend across Telangana (Hyderabad Tech Parks) and regional hubs by vehicle class and contract model.'
-  },
-  {
-    slug: 'switching-transport-vendors-30-day-guide',
-    title: 'Switching Transport Vendors: A 30-Day Transition Playbook Without Service Gaps',
-    category: 'Operations Guide',
-    readTime: '6 min read',
-    date: 'Oct 15, 2026',
-    author: 'AdhocX Procurement Advisory',
-    summary: 'How corporate facility managers and procurement leads successfully transition from legacy cab operators and unorganized WhatsApp desks to automated B2B dispatch without disrupting daily employee shifts.'
-  },
-  {
-    slug: 'eliminating-corporate-fleet-chaos-in-telangana-and-regional-parks',
-    title: 'Solving Last-Minute Corporate Fleet Drops in Telangana & Regional Tech Parks',
-    category: 'Enterprise Mobility',
-    readTime: '5 min read',
-    date: 'Sep 15, 2026',
-    author: 'AdhocX Logistics Team',
-    summary: 'Why traditional WhatsApp dispatch groups fail high-growth tech companies across HITEC City, Gachibowli, and Financial District, and how programmatic dispatch restores enterprise trust.'
-  },
-  {
-    slug: 'driver-economics-commercial-fleets',
-    title: 'Driver Economics: Why Yellow-Plate Commercial Drivers Earn More with AdhocX',
-    category: 'Driver Welfare',
-    readTime: '4 min read',
-    date: 'Sep 10, 2026',
-    author: 'Partner Relations',
-    summary: 'A deep dive into verified commercial driver onboarding, transparent rate-card payouts, and fast direct bank settlements for commercial yellow-board cabs.'
-  },
-  {
-    slug: 'how-automated-bank-refunds-work-in-corporate-transport',
-    title: 'How AdhocX Automates 1-Hour Bank Refunds & SLA Guarantees',
-    category: 'Engineering & Ops',
-    readTime: '6 min read',
-    date: 'Aug 28, 2026',
-    author: 'AdhocX Engineering',
-    summary: 'Under the hood of our automated banking integrations that eliminate weeks of accounting reconciliation and return unfulfilled funds in 60 minutes.'
-  },
-  {
-    slug: 'commercial-vehicle-safety-and-statutory-compliance-guide',
-    title: 'Commercial Fleet Compliance: Yellow Plate vs White Plate Risks for Corporates',
-    category: 'Compliance & Safety',
-    readTime: '7 min read',
-    date: 'Aug 14, 2026',
-    author: 'Legal & Compliance Desk',
-    summary: 'The legal liabilities corporate travel desks face under Telangana State Transport Aggregator regulations when using unverified private cars, and how 100% yellow-board verification protects your enterprise.'
-  }
-];
+const posts = Object.values(ARTICLES_CONTENT);
 
 const glossaryItems = [
   {
@@ -95,8 +41,8 @@ const jsonLd = {
 ---
 
 <BaseLayout
-  title="AdhocX Insights — Corporate Fleet Mobility, Driver Welfare & Benchmark Reports"
-  description="Explore benchmark reports and operational analyses on corporate transport management, driver partner economics, fleet economics, and Telangana transport compliance."
+  title="Corporate Mobility Insights & Reports | AdhocX"
+  description="Benchmark reports and guides on corporate transport management, driver economics, fleet costs and Telangana transport compliance."
   canonical="https://www.adhocx.com/blogs"
   activeNav="blogs"
   jsonLd={jsonLd}
@@ -194,7 +140,7 @@ const jsonLd = {
                 <span style="font-size: 0.75rem; color: var(--color-text-muted);">{post.readTime}</span>
               </div>
               <h3 class="h3-title" style="font-size: 1.15rem; margin-bottom: var(--space-2);">
-                {post.title}
+                <a href={`/blogs/${post.slug}`} style="color: inherit; text-decoration: none;">{post.title}</a>
               </h3>
               <p class="body-text" style="color: var(--color-text-secondary); margin-bottom: var(--space-4);">
                 {post.summary}
@@ -202,7 +148,7 @@ const jsonLd = {
             </div>
             <div style="border-top: 1px solid var(--color-border); padding-top: var(--space-3); display: flex; justify-content: space-between; align-items: center;">
               <span style="font-size: 0.75rem; color: var(--color-text-muted);">{post.date}</span>
-              <a href="/vendors#corporate-form" style="font-size: 0.875rem; font-weight: 600; color: var(--color-primary-600);">
+              <a href={`/blogs/${post.slug}`} style="font-size: 0.875rem; font-weight: 600; color: var(--color-primary-600);">
                 Read Article →
               </a>
             </div>

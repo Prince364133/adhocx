@@ -32,6 +32,19 @@ class _ReferralScreenState extends State<ReferralScreen> {
     _loadDashboard();
   }
 
+  String _computeFallbackReferralCode() {
+    final authUser = AuthService.instance.currentUser;
+    final uid = authUser?.id?.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').toUpperCase() ?? '';
+    final phoneDigits = (authUser?.phone ?? '').replaceAll(RegExp(r'\D'), '');
+
+    if (uid.length >= 6) {
+      return uid.substring(uid.length - 6);
+    } else if (phoneDigits.length >= 6) {
+      return 'AX${phoneDigits.substring(phoneDigits.length - 4)}';
+    }
+    return 'AX7K2M';
+  }
+
   Future<void> _loadDashboard({bool forceRefresh = false}) async {
     try {
       final data = await DriverService.instance.getReferralDashboard(forceRefresh: forceRefresh);
@@ -41,17 +54,16 @@ class _ReferralScreenState extends State<ReferralScreen> {
           _isLoading = false;
         });
       }
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[ReferralScreen] Error loading dashboard: $e');
       if (mounted) {
         setState(() {
           _isLoading = false;
           if (_dashboardData == null) {
             final authUser = AuthService.instance.currentUser;
-            final clean = (authUser?.phone ?? '').replaceAll(RegExp(r'\D'), '');
-            final p10 = clean.length >= 10 ? clean.substring(clean.length - 10) : clean;
             _dashboardData = {
               'phone': authUser?.phone,
-              'referralCode': p10,
+              'referralCode': _computeFallbackReferralCode(),
               'vaultLockedRupees': 0,
               'claimableRupees': 0,
               'claimedRupees': 0,
@@ -169,14 +181,13 @@ class _ReferralScreenState extends State<ReferralScreen> {
   }
 
   Future<void> _shareOnWhatsApp(String code, String phone) async {
-    final authPhone = AuthService.instance.currentUser?.phone ?? '';
-    final effective = phone.isNotEmpty ? phone : (authPhone.isNotEmpty ? authPhone : code);
-    final cleanDigits = effective.replaceAll(RegExp(r'\D'), '');
-    final sharePhone = cleanDigits.length >= 10 ? cleanDigits.substring(cleanDigits.length - 10) : (code.isNotEmpty ? code : cleanDigits);
+    final effective = (code.isNotEmpty && code != 'ADHOCX' && code != 'LOADING...')
+        ? (code.length > 6 ? code.substring(0, 6) : code)
+        : _computeFallbackReferralCode();
 
     final message =
         'Namaste! Join AdhocX as a Driver Partner and earn guaranteed distance-based payouts.\n\n'
-        'Use my Referral Phone Number: *$sharePhone* during registration!\n\n'
+        'Use my Referral Code: *$effective* during registration!\n\n'
         'Download the AdhocX Driver App from Google Play Store:\n'
         'https://play.google.com/store/apps/details?id=com.adhocx.app';
 
@@ -236,14 +247,14 @@ class _ReferralScreenState extends State<ReferralScreen> {
   }
 
   Widget _buildShareCodeCard(bool isDark) {
+    final rawCode = _dashboardData?['referralCode']?.toString().trim().toUpperCase() ?? '';
     final authPhone = AuthService.instance.currentUser?.phone ?? '';
     final rawPhone = (_dashboardData?['phone']?.toString() ?? '').isNotEmpty
         ? _dashboardData!['phone'].toString()
         : authPhone;
-    final rawCode = _dashboardData?['referralCode']?.toString() ?? '';
-    final cleanPhone = rawPhone.replaceAll(RegExp(r'\D'), '');
-    final phone10 = cleanPhone.length >= 10 ? cleanPhone.substring(cleanPhone.length - 10) : cleanPhone;
-    final displayCode = phone10.isNotEmpty ? phone10 : (rawCode.isNotEmpty ? rawCode : cleanPhone);
+    final displayCode = (rawCode.isNotEmpty && rawCode != 'ADHOCX' && rawCode != 'LOADING...')
+        ? (rawCode.length > 6 ? rawCode.substring(0, 6) : rawCode)
+        : _computeFallbackReferralCode();
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -282,7 +293,7 @@ class _ReferralScreenState extends State<ReferralScreen> {
                       style: AppTypography.h4(color: isDark ? Colors.white : AppColors.textPrimaryLight),
                     ),
                     Text(
-                      context.tr('Friends sign up using your registered phone number. You earn ₹500 for each verified driver!'),
+                      context.tr('Friends sign up using your referral code. You earn ₹500 when they complete 100 rides!'),
                       style: AppTypography.caption(
                         color: isDark ? Colors.white70 : AppColors.textSecondaryLight,
                       ),
@@ -293,7 +304,7 @@ class _ReferralScreenState extends State<ReferralScreen> {
             ],
           ),
           const SizedBox(height: AppSpacing.md),
-          // Referral Code (Phone Number) Box
+          // Unique 6-Character Referral Code Box
           Container(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
             decoration: BoxDecoration(
@@ -308,7 +319,7 @@ class _ReferralScreenState extends State<ReferralScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      context.tr('YOUR REFERRAL CODE (PHONE NUMBER)'),
+                      context.tr('YOUR UNIQUE REFERRAL CODE'),
                       style: TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.w600,
@@ -318,15 +329,11 @@ class _ReferralScreenState extends State<ReferralScreen> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      displayCode.isNotEmpty
-                          ? displayCode
-                          : (rawPhone.isNotEmpty
-                              ? rawPhone
-                              : (authPhone.isNotEmpty ? authPhone : 'Loading...')),
+                      displayCode,
                       style: const TextStyle(
-                        fontSize: 22,
+                        fontSize: 24,
                         fontWeight: FontWeight.w800,
-                        letterSpacing: 1.5,
+                        letterSpacing: 2.0,
                         color: AppColors.primaryLight,
                       ),
                     ),
@@ -334,8 +341,8 @@ class _ReferralScreenState extends State<ReferralScreen> {
                 ),
                 IconButton(
                   icon: const Icon(Icons.copy_rounded, color: AppColors.primary),
-                  tooltip: context.tr('Copy Phone Number'),
-                  onPressed: () => _copyToClipboard(displayCode.isNotEmpty ? displayCode : rawPhone, context.tr('Referral Phone Number')),
+                  tooltip: context.tr('Copy Referral Code'),
+                  onPressed: () => _copyToClipboard(displayCode, context.tr('Referral Code')),
                 ),
               ],
             ),
@@ -344,7 +351,7 @@ class _ReferralScreenState extends State<ReferralScreen> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 4),
             child: Text(
-              context.tr('New drivers enter your mobile number while registering to link you as their referrer.'),
+              context.tr('New drivers enter your 6-character referral code while registering to link you as their referrer.'),
               style: TextStyle(fontSize: 11, color: isDark ? Colors.white60 : AppColors.textSecondaryLight),
             ),
           ),
@@ -374,15 +381,10 @@ class _ReferralScreenState extends State<ReferralScreen> {
   }
 
   Widget _buildVaultMilestoneCard(bool isDark) {
-    final completedRides = (_dashboardData?['completedRides'] as num?)?.toInt() ?? 0;
-    final milestoneRides = (_dashboardData?['milestoneRides'] as num?)?.toInt() ?? 100;
-    final milestoneReached = _dashboardData?['milestoneReached'] == true;
-    final ridesRemaining = (_dashboardData?['ridesRemainingToMilestone'] as num?)?.toInt() ?? 0;
     final vaultLocked = (_dashboardData?['vaultLockedRupees'] as num?)?.toInt() ?? 0;
     final claimable = (_dashboardData?['claimableRupees'] as num?)?.toInt() ?? 0;
     final claimed = (_dashboardData?['claimedRupees'] as num?)?.toInt() ?? 0;
-
-    final progress = (completedRides / milestoneRides).clamp(0.0, 1.0);
+    final hasClaimable = claimable > 0;
 
     return Container(
       width: double.infinity,
@@ -423,7 +425,7 @@ class _ReferralScreenState extends State<ReferralScreen> {
                   ),
                 ],
               ),
-              if (milestoneReached && claimable > 0)
+              if (hasClaimable)
                 TextButton.icon(
                   style: TextButton.styleFrom(
                     backgroundColor: Colors.white,
@@ -453,7 +455,7 @@ class _ReferralScreenState extends State<ReferralScreen> {
             textBaseline: TextBaseline.alphabetic,
             children: [
               Text(
-                '₹${claimable > 0 ? claimable : vaultLocked}',
+                '₹${hasClaimable ? claimable : vaultLocked}',
                 style: const TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.w900,
@@ -462,62 +464,77 @@ class _ReferralScreenState extends State<ReferralScreen> {
               ),
               const SizedBox(width: AppSpacing.xs),
               Text(
-                milestoneReached
-                    ? (claimable > 0 ? context.tr('Ready to Claim!') : context.tr('Claimed to Wallet'))
+                hasClaimable
+                    ? context.tr('Ready to Claim!')
                     : context.tr('Locked in Vault'),
                 style: TextStyle(
-                  color: milestoneReached ? Colors.amberAccent : Colors.white70,
+                  color: hasClaimable ? Colors.greenAccent : Colors.white70,
                   fontWeight: FontWeight.w600,
                   fontSize: 14,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.md),
-          // Milestone Progress Bar
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                '${context.tr('100-Ride Milestone:')} $completedRides / $milestoneRides',
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
-              ),
-              Text(
-                milestoneReached ? context.tr('UNLOCKED ✓') : '$ridesRemaining ${context.tr('left')}',
-                style: TextStyle(
-                  color: milestoneReached ? Colors.greenAccent : Colors.amberAccent,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 12,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(AppRadius.full),
-            child: LinearProgressIndicator(
-              value: progress,
-              minHeight: 10,
-              backgroundColor: Colors.white24,
-              valueColor: AlwaysStoppedAnimation<Color>(
-                milestoneReached ? Colors.greenAccent : Colors.amberAccent,
-              ),
-            ),
-          ),
           const SizedBox(height: AppSpacing.sm),
+          // Explanation
           Text(
-            milestoneReached
-                ? context.tr('Milestone reached! You can now transfer all referral earnings to your withdrawal wallet.')
-                : '$ridesRemaining ${context.tr('more completed rides required to unlock instant wallet transfers.')}',
+            hasClaimable
+                ? context.tr('Referred drivers completed their 100-ride milestone! Tap CLAIM ALL or claim individually below.')
+                : context.tr('You get ₹500 for each driver you refer once they complete 100 rides. Live ride progress for each driver is shown below:'),
             style: const TextStyle(color: Colors.white70, fontSize: 12),
           ),
-          if (claimed > 0) ...[
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              '${context.tr('Total Claimed to Date:')} ₹$claimed',
-              style: const TextStyle(color: Colors.white60, fontSize: 11),
+          const SizedBox(height: AppSpacing.md),
+          // Breakdown Row
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(AppRadius.md),
             ),
-          ],
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                Column(
+                  children: [
+                    Text(
+                      '₹$vaultLocked',
+                      style: const TextStyle(color: Colors.amberAccent, fontWeight: FontWeight.bold, fontSize: 14),
+                    ),
+                    Text(
+                      context.tr('Locked (In Progress)'),
+                      style: const TextStyle(color: Colors.white60, fontSize: 10),
+                    ),
+                  ],
+                ),
+                Container(width: 1, height: 24, color: Colors.white24),
+                Column(
+                  children: [
+                    Text(
+                      '₹$claimable',
+                      style: const TextStyle(color: Colors.greenAccent, fontWeight: FontWeight.bold, fontSize: 14),
+                    ),
+                    Text(
+                      context.tr('Ready to Claim'),
+                      style: const TextStyle(color: Colors.white60, fontSize: 10),
+                    ),
+                  ],
+                ),
+                Container(width: 1, height: 24, color: Colors.white24),
+                Column(
+                  children: [
+                    Text(
+                      '₹$claimed',
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                    ),
+                    Text(
+                      context.tr('Total Claimed'),
+                      style: const TextStyle(color: Colors.white60, fontSize: 10),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -609,9 +626,17 @@ class _ReferralScreenState extends State<ReferralScreen> {
     final isClaimable = ref['isClaimable'] == true;
     final isClaimingThis = _claimingId == id;
 
-    final isPendingKyc = status == 'PENDING_VERIFICATION';
+    final refereeCompletedRides = (ref['refereeCompletedRides'] as num?)?.toInt() ?? 0;
+    final milestoneRides = (ref['milestoneRides'] as num?)?.toInt() ?? 100;
+    final progressPercentage = (ref['progressPercentage'] as num?)?.toInt() ?? 
+        ((refereeCompletedRides / milestoneRides) * 100).clamp(0, 100).toInt();
+    final ridesRemaining = (ref['ridesRemaining'] as num?)?.toInt() ?? 
+        (milestoneRides - refereeCompletedRides).clamp(0, milestoneRides);
+    final isMilestoneDone = refereeCompletedRides >= milestoneRides;
+
+    final isPendingKyc = status == 'PENDING_VERIFICATION' && ref['isKycVerified'] != true;
     final isClaimed = status == 'CLAIMED';
-    final isUnlocked = status == 'UNLOCKED_READY_TO_CLAIM';
+    final isUnlocked = status == 'UNLOCKED_READY_TO_CLAIM' || (isMilestoneDone && !isPendingKyc && !isClaimed);
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -687,16 +712,87 @@ class _ReferralScreenState extends State<ReferralScreen> {
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.md),
+          const SizedBox(height: AppSpacing.sm),
+          // Live Ride Progress Indicator for Referred Driver
+          Container(
+            padding: const EdgeInsets.all(AppSpacing.sm),
+            decoration: BoxDecoration(
+              color: isDark ? AppColors.surfaceElevatedDark : AppColors.surfaceElevatedLight,
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              border: Border.all(
+                color: isMilestoneDone
+                    ? AppColors.accentGreen.withValues(alpha: 0.3)
+                    : (isDark ? AppColors.borderSubtleDark : AppColors.borderSubtleLight),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          isMilestoneDone ? Icons.check_circle_rounded : Icons.directions_car_filled_rounded,
+                          size: 15,
+                          color: isMilestoneDone ? AppColors.accentGreen : AppColors.primary,
+                        ),
+                        const SizedBox(width: 5),
+                        Text(
+                          '${context.tr('Live Progress:')} $refereeCompletedRides / $milestoneRides ${context.tr('rides')}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: (isMilestoneDone ? AppColors.accentGreen : AppColors.primary).withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(AppRadius.xs),
+                      ),
+                      child: Text(
+                        '$progressPercentage%',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: isMilestoneDone ? AppColors.accentGreen : AppColors.primary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(AppRadius.full),
+                  child: LinearProgressIndicator(
+                    value: (refereeCompletedRides / milestoneRides).clamp(0.0, 1.0),
+                    minHeight: 7,
+                    backgroundColor: isDark ? Colors.white12 : Colors.black12,
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      isMilestoneDone ? AppColors.accentGreen : AppColors.primary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
           // Action / Status Row
           if (isPendingKyc)
             Row(
               children: [
                 const Icon(Icons.hourglass_top_rounded, size: 16, color: Colors.orange),
                 const SizedBox(width: 6),
-                Text(
-                  context.tr('KYC Under Review — Reward unlocks upon approval'),
-                  style: const TextStyle(fontSize: 12, color: Colors.orange, fontWeight: FontWeight.w500),
+                Expanded(
+                  child: Text(
+                    context.tr('KYC Under Review — Reward unlocks upon approval & 100 rides completion'),
+                    style: const TextStyle(fontSize: 12, color: Colors.orange, fontWeight: FontWeight.w500),
+                  ),
                 ),
               ],
             )
@@ -715,32 +811,47 @@ class _ReferralScreenState extends State<ReferralScreen> {
                 ),
               ],
             )
-          else if (isUnlocked)
+          else if (isUnlocked && isClaimable)
             SizedBox(
               width: double.infinity,
               height: 42,
               child: ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: isClaimable ? AppColors.accentGreen : Colors.grey.shade400,
+                  backgroundColor: AppColors.accentGreen,
                   foregroundColor: Colors.white,
                   elevation: 0,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
                 ),
-                onPressed: isClaimable && !isClaimingThis ? () => _claimReward(id) : null,
+                onPressed: !isClaimingThis ? () => _claimReward(id) : null,
                 icon: isClaimingThis
                     ? const SizedBox(
                         width: 16,
                         height: 16,
                         child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                       )
-                    : Icon(isClaimable ? Icons.account_balance_wallet_rounded : Icons.lock_rounded, size: 16),
+                    : const Icon(Icons.account_balance_wallet_rounded, size: 16),
                 label: Text(
-                  isClaimable
-                      ? '${context.tr('Add to Withdrawal Wallet')} (+₹$rewardRupees)'
-                      : context.tr('Locked — Complete 100 Rides to Claim'),
+                  '${context.tr('Add to Withdrawal Wallet')} (+₹$rewardRupees)',
                   style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                 ),
               ),
+            )
+          else
+            Row(
+              children: [
+                Icon(Icons.lock_clock_rounded, size: 16, color: isDark ? Colors.white60 : Colors.grey.shade600),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    '$ridesRemaining ${context.tr('more completed rides required to unlock ₹500')}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isDark ? Colors.white60 : Colors.grey.shade600,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
             ),
         ],
       ),

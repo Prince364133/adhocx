@@ -4,20 +4,31 @@ import { generateDriverReferralCode } from '../src/modules/drivers/referrals/ref
 const prisma = new PrismaClient();
 
 async function backfillReferralCodes() {
-  console.log('🔄 Backfilling referral codes for existing drivers without a code...');
+  console.log('🔄 Backfilling unique 6-character referral codes for all drivers...');
   
-  const driversWithoutCode = await prisma.driver.findMany({
-    where: { referralCode: null },
-    select: { id: true, fullName: true, phone: true },
+  const allDrivers = await prisma.driver.findMany({
+    select: { id: true, fullName: true, phone: true, referralCode: true },
   });
 
-  console.log(`Found ${driversWithoutCode.length} drivers needing referral codes.`);
+  const driversNeedingCode = allDrivers.filter((d) => {
+    if (!d.referralCode) return true;
+    const c = d.referralCode.trim().toUpperCase();
+    if (c === 'ADHOCX') return true;
+    if (c.length !== 6) return true;
+    if (!/^[A-Z0-9]{6}$/.test(c)) return true;
+    if (!/[A-Z]/.test(c)) return true;
+    if (/^\d{6}$/.test(c)) return true;
+    return false;
+  });
+
+  console.log(`Found ${driversNeedingCode.length} drivers needing unique 6-character referral codes.`);
 
   let updatedCount = 0;
-  for (const driver of driversWithoutCode) {
+  for (const driver of driversNeedingCode) {
     let assigned = false;
-    for (let attempts = 0; attempts < 10; attempts++) {
+    for (let attempts = 0; attempts < 30; attempts++) {
       const code = generateDriverReferralCode();
+      if (code === 'ADHOCX') continue;
       const existing = await prisma.driver.findUnique({
         where: { referralCode: code },
         select: { id: true },
@@ -38,7 +49,7 @@ async function backfillReferralCodes() {
     }
   }
 
-  console.log(`\n🎉 Successfully backfilled ${updatedCount}/${driversWithoutCode.length} driver referral codes.`);
+  console.log(`\n🎉 Successfully backfilled ${updatedCount}/${driversNeedingCode.length} driver referral codes.`);
   await prisma.$disconnect();
 }
 

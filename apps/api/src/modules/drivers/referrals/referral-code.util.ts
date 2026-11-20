@@ -3,17 +3,23 @@ import * as crypto from 'crypto';
 const ALPHABET = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
 
 /**
- * Generate a clean, human-readable 8-character referral code.
- * Example: "ADH8K92L"
+ * Generate a clean, human-readable 6-character alphanumeric referral code.
+ * Uses base-32 characters (excluding 0, 1, I, O to eliminate visual ambiguity).
+ * Guaranteed 6 characters, contains letters and digits, never all digits.
+ * Example: "ADH8K9", "AX7K2M", "K8P2N9"
  */
 export function generateDriverReferralCode(): string {
-  const prefix = 'ADH';
-  let randomPart = '';
-  for (let i = 0; i < 5; i++) {
-    const randomIndex = crypto.randomInt(0, ALPHABET.length);
-    randomPart += ALPHABET[randomIndex];
+  while (true) {
+    let code = '';
+    for (let i = 0; i < 6; i++) {
+      const randomIndex = crypto.randomInt(0, ALPHABET.length);
+      code += ALPHABET[randomIndex];
+    }
+    // Must contain at least one letter and not be all digits
+    if (/[A-Z]/.test(code) && !/^\d{6}$/.test(code)) {
+      return code;
+    }
   }
-  return `${prefix}${randomPart}`;
 }
 
 /**

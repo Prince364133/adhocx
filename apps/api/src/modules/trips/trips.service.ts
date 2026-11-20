@@ -22,7 +22,6 @@ import {
   DriverAvailability,
   UserRole,
   NotificationType,
-  ReferralStatus,
   validateTripTransition,
 } from '@adhocx/contracts';
 import { DatabaseService } from '../../database/database.service';
@@ -999,25 +998,20 @@ export class TripsService {
         }).catch((err) => this.logger.warn(`Referee welcome bonus hook failed: ${err.message}`));
       }
 
-      // 2. Goal-Gradient 100-Ride Milestone Unlocked celebration for referrer
-      if (updatedDriver.totalTrips === 100) {
-        this.db.driverReferral.count({
-          where: {
-            referrerDriverId: trip.driverId,
-            status: ReferralStatus.UNLOCKED_READY_TO_CLAIM,
-          },
-        }).then((unlockedCount) => {
-          if (unlockedCount > 0) {
-            this.notifications.sendPushToUser(driverUserId, {
-              title: '🏆 100 Rides Milestone Achieved!',
-              body: `Fantastic milestone! You completed 100 rides. All your referral rewards in the vault are now unlocked and ready to claim to your withdrawal wallet!`,
+      // 2. Goal-Gradient 100-Ride Milestone Unlocked check for referee
+      if (updatedDriver.totalTrips >= 100) {
+        this.referralsService.onRefereeCompletedMilestone(trip.driverId).then((result) => {
+          if (result?.unlocked && result?.referrerUserId) {
+            this.notifications.sendPushToUser(result.referrerUserId, {
+              title: '🎉 ₹500 Referral Reward Unlocked!',
+              body: `Fantastic! Your referred driver partner ${result.refereeName} has completed 100 rides. ₹500 is now unlocked and ready to claim to your withdrawal wallet!`,
               type: NotificationType.WALLET_UPDATE,
               data: { route: '/profile/referral' },
               actionUrl: '/profile/referral',
               saveInApp: true,
             }).catch(() => undefined);
           }
-        }).catch((err) => this.logger.warn(`Referral milestone check failed: ${err.message}`));
+        }).catch((err) => this.logger.warn(`Referee milestone check failed: ${err.message}`));
       }
     }
 

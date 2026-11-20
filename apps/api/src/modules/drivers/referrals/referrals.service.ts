@@ -60,8 +60,9 @@ export class ReferralsService {
   }
 
   /**
-   * Ensure the given driver has a unique referral code.
-   * By default, the driver's registered 10-digit phone number is used as their primary referral code.
+   * Ensure the given driver has a unique permanent 6-character alphanumeric referral code.
+   * If the driver currently has no code, or an invalid/old format code (e.g. 10-digit phone, 8 chars, or ADHOCX),
+   * a fresh, permanent 6-character alphanumeric code is generated and saved to the database.
    */
   async ensureDriverReferralCode(driverId: string): Promise<string> {
     const driver = await this.db.driver.findFirst({
@@ -83,51 +84,56 @@ export class ReferralsService {
       throw new NotFoundException('Driver not found');
     }
 
-    const rawPhone = driver.phone || driver.user?.phone || '';
-    const cleanDigits = rawPhone.replace(/\D/g, '');
-    const phone10 = cleanDigits.length >= 10 ? cleanDigits.slice(-10) : cleanDigits;
+    const currentCode = driver.referralCode?.trim().toUpperCase();
+    const isAlreadyValid6Char =
+      currentCode &&
+      currentCode.length === 6 &&
+      /^[A-Z0-9]{6}$/.test(currentCode) &&
+      /[A-Z]/.test(currentCode) &&
+      !/^\d{6}$/.test(currentCode) &&
+      currentCode !== 'ADHOCX';
 
-    if (phone10) {
-      try {
-        if (driver.referralCode !== phone10) {
-          await this.db.driver.update({
-            where: { id: driver.id },
-            data: {
-              referralCode: phone10,
-              ...(driver.phone ? {} : (driver.user?.phone ? { phone: driver.user.phone } : {})),
-            },
-          });
-        }
-      } catch (err: any) {
-        this.logger.warn(`Could not sync referral code / phone for driver ${driver.id}: ${err?.message}`);
-      }
-      return phone10;
+    if (isAlreadyValid6Char) {
+      return currentCode;
     }
 
-    if (driver.referralCode) {
-      return driver.referralCode;
-    }
-
-    // Fallback if driver has no phone registered
-    for (let attempts = 0; attempts < 10; attempts++) {
+    // Generate and persist a permanent, collision-free 6-character alphanumeric code
+    for (let attempts = 0; attempts < 30; attempts++) {
       const candidateCode = generateDriverReferralCode();
-      const existing = await this.db.driver.findUnique({
+      if (candidateCode === 'ADHOCX') continue;
+      const collision = await this.db.driver.findUnique({
         where: { referralCode: candidateCode },
         select: { id: true },
       });
-      if (!existing) {
+      if (!collision) {
         try {
           await this.db.driver.update({
             where: { id: driver.id },
             data: { referralCode: candidateCode },
           });
-          this.logger.log(`Assigned referral code ${candidateCode} to driver ${driver.id}`);
-        } catch (_) {}
-        return candidateCode;
+          this.logger.log(`Assigned unique 6-char referral code ${candidateCode} to driver ${driver.id}`);
+          return candidateCode;
+        } catch (err: any) {
+          this.logger.warn(`Collision or update retry on referral code ${candidateCode}: ${err?.message}`);
+        }
       }
     }
 
-    return driver.id.slice(0, 8).toUpperCase();
+    // Deterministic collision fallback: 6-character uppercase alphanumeric (never ADHOCX)
+    const seed = (driver.id.replace(/[^A-Z0-9]/gi, '') + 'ADH8K9').toUpperCase();
+    let fallback = seed.slice(0, 6);
+    if (fallback === 'ADHOCX' || !/[A-Z]/.test(fallback) || /^\d{6}$/.test(fallback)) {
+      fallback = 'AX7K2M';
+    }
+
+    try {
+      await this.db.driver.update({
+        where: { id: driver.id },
+        data: { referralCode: fallback },
+      });
+    } catch (_) {}
+
+    return fallback;
   }
 
   /**
@@ -143,7 +149,7 @@ export class ReferralsService {
       return { valid: false, message: 'Invalid referral code or phone format.' };
     }
 
-    // Try finding by referral code first
+    // 1. Try finding by referral code first
     let referrer = await this.db.driver.findFirst({
       where: {
         referralCode: { equals: normalized, mode: 'insensitive' },
@@ -157,27 +163,51 @@ export class ReferralsService {
       },
     });
 
-    // If not found and input looks like a phone number (10 digits)
-    if (!referrer && /^\d{10}$/.test(normalized)) {
-      const phoneVariants = [
-        normalized,
-        `+91${normalized}`,
-        `91${normalized}`,
-        `+91 ${normalized}`,
-      ];
+    // 2. If not found, try matching by userId or id suffix (e.g. 6-char hex suffix like '2BFEFB')
+    if (!referrer && /^[A-Z0-9]{6}$/.test(normalized)) {
+      try {
+        const pattern = `%${normalized}`;
+        const candidates: any[] = await this.db.$queryRaw`
+          SELECT id, "fullName", phone, "vehicleType", "verificationStatus"
+          FROM "Driver"
+          WHERE UPPER(REPLACE(id::text, '-', '')) LIKE ${pattern}
+             OR UPPER(REPLACE("userId"::text, '-', '')) LIKE ${pattern}
+          LIMIT 1
+        `;
+        if (candidates && candidates.length > 0) {
+          referrer = candidates[0];
+        }
+      } catch (_) {}
+    }
 
-      referrer = await this.db.driver.findFirst({
-        where: {
-          phone: { in: phoneVariants },
-        },
-        select: {
-          id: true,
-          fullName: true,
-          phone: true,
-          vehicleType: true,
-          verificationStatus: true,
-        },
-      });
+    // 3. If not found, try matching by registered mobile number (10-digit clean or international)
+    if (!referrer) {
+      const cleanDigits = rawIdentifier.replace(/\D/g, '');
+      const phone10 = cleanDigits.length >= 10 ? cleanDigits.slice(-10) : '';
+      if (phone10) {
+        const phoneVariants = [
+          phone10,
+          `+91${phone10}`,
+          `91${phone10}`,
+          `+91 ${phone10}`,
+        ];
+
+        referrer = await this.db.driver.findFirst({
+          where: {
+            OR: [
+              { phone: { in: phoneVariants } },
+              { user: { phone: { in: phoneVariants } } },
+            ],
+          },
+          select: {
+            id: true,
+            fullName: true,
+            phone: true,
+            vehicleType: true,
+            verificationStatus: true,
+          },
+        });
+      }
     }
 
     if (!referrer) {
@@ -256,27 +286,96 @@ export class ReferralsService {
   async onRefereeKycApproved(refereeDriverId: string): Promise<void> {
     const referral = await this.db.driverReferral.findUnique({
       where: { refereeDriverId },
+      include: { refereeDriver: true },
     });
 
     if (!referral) return;
 
-    if (referral.status === ReferralStatus.PENDING_VERIFICATION) {
-      await this.db.driverReferral.update({
-        where: { id: referral.id },
-        data: {
-          status: ReferralStatus.UNLOCKED_READY_TO_CLAIM,
-          refereeVerifiedAt: new Date(),
-        },
-      });
+    const refereeTrips = await this.db.trip.count({
+      where: {
+        driverId: refereeDriverId,
+        status: TripStatus.COMPLETED,
+      },
+    });
+    const refereeRides = Math.max(referral.refereeDriver?.totalTrips || 0, refereeTrips);
+    const isMilestoneCompleted = refereeRides >= REFERRAL_MILESTONE_RIDES;
 
-      this.logger.log(
-        `Referral ${referral.id} unlocked: referee ${refereeDriverId} is verified. Ready for referrer ${referral.referrerDriverId} to claim after milestone.`,
-      );
-    }
+    await this.db.driverReferral.update({
+      where: { id: referral.id },
+      data: {
+        refereeVerifiedAt: new Date(),
+        status: isMilestoneCompleted
+          ? ReferralStatus.UNLOCKED_READY_TO_CLAIM
+          : referral.status,
+      },
+    });
+
+    this.logger.log(
+      `Referee KYC approved for ${refereeDriverId}. Rides: ${refereeRides}/${REFERRAL_MILESTONE_RIDES}. Status: ${isMilestoneCompleted ? 'UNLOCKED_READY_TO_CLAIM' : referral.status}`,
+    );
   }
 
   /**
-   * Fetch driver referral dashboard stats, 100-ride milestone, and list of referees.
+   * Hook called when a referee driver completes a trip.
+   * Unlocks ₹500 reward for the referrer if referee has completed 100 rides.
+   */
+  async onRefereeCompletedMilestone(refereeDriverId: string): Promise<{
+    unlocked: boolean;
+    referrerUserId?: string;
+    refereeName?: string;
+  } | null> {
+    const referral = await this.db.driverReferral.findUnique({
+      where: { refereeDriverId },
+      include: {
+        refereeDriver: true,
+        referrerDriver: { select: { id: true, userId: true } },
+      },
+    });
+
+    if (!referral) return null;
+
+    if (referral.status !== ReferralStatus.PENDING_VERIFICATION) {
+      return null;
+    }
+
+    const refereeTrips = await this.db.trip.count({
+      where: {
+        driverId: refereeDriverId,
+        status: TripStatus.COMPLETED,
+      },
+    });
+    const refereeRides = Math.max(referral.refereeDriver?.totalTrips || 0, refereeTrips);
+
+    if (refereeRides < REFERRAL_MILESTONE_RIDES) {
+      return null;
+    }
+
+    const isKycVerified =
+      String(referral.refereeDriver?.verificationStatus) === 'VERIFIED';
+
+    if (!isKycVerified) {
+      return null;
+    }
+
+    await this.db.driverReferral.update({
+      where: { id: referral.id },
+      data: {
+        status: ReferralStatus.UNLOCKED_READY_TO_CLAIM,
+        refereeVerifiedAt: referral.refereeVerifiedAt || new Date(),
+      },
+    });
+
+    this.logger.log(`Referral ${referral.id} unlocked: referee ${refereeDriverId} completed 100 rides milestone.`);
+
+    return {
+      unlocked: true,
+      referrerUserId: referral.referrerDriver.userId,
+      refereeName: referral.refereeDriver?.fullName || 'Driver Partner',
+    };
+  }
+
+  /**
+   * Fetch driver referral dashboard stats, live referee progress, and list of referees.
    */
   async getDashboard(userId: string): Promise<DriverReferralDashboardDto> {
     let driver: any = await this.db.driver.findFirst({
@@ -297,6 +396,7 @@ export class ReferralsService {
                 phone: true,
                 vehiclePhotoUrl: true,
                 verificationStatus: true,
+                totalTrips: true,
               },
             },
           },
@@ -340,61 +440,96 @@ export class ReferralsService {
     const referralCode = await this.ensureDriverReferralCode(driver.id);
     const effectivePhone = driver.phone || driver.user?.phone || undefined;
 
-    // Compute effective completed trips
-    const completedTripsCount = await this.db.trip.count({
-      where: {
-        driverId: driver.id,
-        status: TripStatus.COMPLETED,
-      },
-    });
-    const completedRides = Math.max(driver.totalTrips || 0, completedTripsCount);
-    const milestoneReached = completedRides >= REFERRAL_MILESTONE_RIDES;
-    const ridesRemainingToMilestone = Math.max(0, REFERRAL_MILESTONE_RIDES - completedRides);
-
     let vaultLockedRupees = 0;
     let claimableRupees = 0;
     let claimedRupees = 0;
     let verifiedCount = 0;
+    let completedMilestonesCount = 0;
 
     const referralsMade = (driver.referralsMade || []) as any[];
-    const referees = referralsMade.map((ref: any) => {
-      const rewardRs = Math.round(ref.rewardPaise / 100);
-      const isVerified =
-        ref.status === ReferralStatus.UNLOCKED_READY_TO_CLAIM ||
-        ref.status === ReferralStatus.CLAIMED;
 
-      if (isVerified) {
-        verifiedCount++;
-      }
+    // Fetch live completed trip counts for all referee drivers in parallel
+    const refereeTripCounts = await Promise.all(
+      referralsMade.map(async (ref: any) => {
+        if (!ref.refereeDriverId) return 0;
+        return this.db.trip.count({
+          where: {
+            driverId: ref.refereeDriverId,
+            status: TripStatus.COMPLETED,
+          },
+        });
+      }),
+    );
 
-      if (ref.status === ReferralStatus.CLAIMED) {
-        claimedRupees += rewardRs;
-      } else if (ref.status === ReferralStatus.UNLOCKED_READY_TO_CLAIM) {
+    const referees = await Promise.all(
+      referralsMade.map(async (ref: any, index: number) => {
+        const rewardRs = Math.round(ref.rewardPaise / 100);
+        const actualTrips = refereeTripCounts[index];
+        const refereeCompletedRides = Math.max(ref.refereeDriver?.totalTrips || 0, actualTrips);
+        const milestoneRides = REFERRAL_MILESTONE_RIDES;
+        const milestoneReached = refereeCompletedRides >= milestoneRides;
+        const ridesRemaining = Math.max(0, milestoneRides - refereeCompletedRides);
+        const progressPercentage = Math.min(100, Math.round((refereeCompletedRides / milestoneRides) * 100));
+
+        const isKycVerified =
+          String(ref.refereeDriver?.verificationStatus) === 'VERIFIED';
+
+        if (isKycVerified) {
+          verifiedCount++;
+        }
+
         if (milestoneReached) {
+          completedMilestonesCount++;
+        }
+
+        let currentStatus = ref.status;
+        // Auto-unlock if referee reached 100 rides and is verified, but referral was still PENDING_VERIFICATION
+        if (milestoneReached && isKycVerified && ref.status === ReferralStatus.PENDING_VERIFICATION) {
+          currentStatus = ReferralStatus.UNLOCKED_READY_TO_CLAIM;
+          try {
+            await this.db.driverReferral.update({
+              where: { id: ref.id },
+              data: {
+                status: ReferralStatus.UNLOCKED_READY_TO_CLAIM,
+                refereeVerifiedAt: ref.refereeVerifiedAt || new Date(),
+              },
+            });
+          } catch (_) {}
+        }
+
+        const isClaimable =
+          currentStatus === ReferralStatus.UNLOCKED_READY_TO_CLAIM &&
+          milestoneReached &&
+          isKycVerified;
+
+        if (currentStatus === ReferralStatus.CLAIMED) {
+          claimedRupees += rewardRs;
+        } else if (isClaimable) {
           claimableRupees += rewardRs;
         } else {
           vaultLockedRupees += rewardRs;
         }
-      } else if (ref.status === ReferralStatus.PENDING_VERIFICATION) {
-        vaultLockedRupees += rewardRs;
-      }
 
-      const isClaimable =
-        milestoneReached && ref.status === ReferralStatus.UNLOCKED_READY_TO_CLAIM;
-
-      return {
-        id: ref.id,
-        refereeName: ref.refereeDriver?.fullName || 'Driver Partner',
-        refereePhoneMasked: maskPhoneNumber(ref.refereeDriver?.phone),
-        refereePhotoUrl: ref.refereeDriver?.vehiclePhotoUrl || undefined,
-        status: ref.status,
-        rewardRupees: rewardRs,
-        isClaimable,
-        createdAt: ref.createdAt.toISOString(),
-        refereeVerifiedAt: ref.refereeVerifiedAt?.toISOString(),
-        claimedAt: ref.claimedAt?.toISOString(),
-      };
-    });
+        return {
+          id: ref.id,
+          refereeDriverId: ref.refereeDriverId,
+          refereeName: ref.refereeDriver?.fullName || 'Driver Partner',
+          refereePhoneMasked: maskPhoneNumber(ref.refereeDriver?.phone),
+          refereePhotoUrl: ref.refereeDriver?.vehiclePhotoUrl || undefined,
+          status: currentStatus,
+          rewardRupees: rewardRs,
+          isClaimable,
+          refereeCompletedRides,
+          milestoneRides,
+          ridesRemaining,
+          progressPercentage,
+          isKycVerified,
+          createdAt: ref.createdAt.toISOString(),
+          refereeVerifiedAt: ref.refereeVerifiedAt?.toISOString(),
+          claimedAt: ref.claimedAt?.toISOString(),
+        };
+      }),
+    );
 
     const tierInfo = this.getTierInfo(verifiedCount);
 
@@ -403,13 +538,15 @@ export class ReferralsService {
       phone: effectivePhone,
       totalReferrals: driver.referralsMade.length,
       verifiedReferrals: verifiedCount,
+      activeRefereesCount: driver.referralsMade.length - completedMilestonesCount,
+      completedMilestonesCount,
       vaultLockedRupees,
       claimableRupees,
       claimedRupees,
-      completedRides,
+      completedRides: 0,
       milestoneRides: REFERRAL_MILESTONE_RIDES,
-      milestoneReached,
-      ridesRemainingToMilestone,
+      milestoneReached: completedMilestonesCount > 0,
+      ridesRemainingToMilestone: 0,
       currentTier: tierInfo.tier,
       currentRewardRupees: tierInfo.rewardRupees,
       nextTier: tierInfo.nextTier,
@@ -419,7 +556,7 @@ export class ReferralsService {
   }
 
   /**
-   * Only the referring driver receives ₹500 per verified driver upon reaching their 100-ride milestone.
+   * Only the referring driver receives ₹500 per verified driver upon the referee reaching their 100-ride milestone.
    * The referee driver receives no bonus.
    */
   async checkAndCreditRefereeWelcomeBonus(_driverId: string): Promise<boolean> {
@@ -428,30 +565,21 @@ export class ReferralsService {
 
   /**
    * Claim a single referral reward into the driver's withdrawal wallet.
-   * Requires driver to have reached 100 completed trips milestone.
+   * Requires the REFEREE driver to have completed the 100 rides milestone and passed KYC.
    */
   async claimReward(userId: string, referralId: string): Promise<ClaimReferralResponseDto> {
-    const driver = await this.db.driver.findUnique({
-      where: { userId },
+    const driver = await this.db.driver.findFirst({
+      where: {
+        OR: [
+          { userId },
+          { id: userId },
+        ],
+      },
       select: { id: true, fullName: true, totalTrips: true, walletBalance: true },
     });
 
     if (!driver) {
       throw new NotFoundException('Driver profile not found');
-    }
-
-    const completedTripsCount = await this.db.trip.count({
-      where: {
-        driverId: driver.id,
-        status: TripStatus.COMPLETED,
-      },
-    });
-    const completedRides = Math.max(driver.totalTrips || 0, completedTripsCount);
-
-    if (completedRides < REFERRAL_MILESTONE_RIDES) {
-      throw new BadRequestException(
-        `100 completed rides milestone required to claim referral rewards. Current progress: ${completedRides}/${REFERRAL_MILESTONE_RIDES} rides.`,
-      );
     }
 
     const referral = await this.db.driverReferral.findFirst({
@@ -461,7 +589,12 @@ export class ReferralsService {
       },
       include: {
         refereeDriver: {
-          select: { fullName: true },
+          select: {
+            id: true,
+            fullName: true,
+            totalTrips: true,
+            verificationStatus: true,
+          },
         },
       },
     });
@@ -474,7 +607,25 @@ export class ReferralsService {
       throw new BadRequestException('This referral reward has already been claimed into your wallet.');
     }
 
-    if (referral.status !== ReferralStatus.UNLOCKED_READY_TO_CLAIM) {
+    // Verify the REFEREE driver has completed the 100-ride milestone
+    const refereeTrips = await this.db.trip.count({
+      where: {
+        driverId: referral.refereeDriverId,
+        status: TripStatus.COMPLETED,
+      },
+    });
+    const refereeRides = Math.max(referral.refereeDriver?.totalTrips || 0, refereeTrips);
+
+    if (refereeRides < REFERRAL_MILESTONE_RIDES) {
+      throw new BadRequestException(
+        `Referred driver partner has completed ${refereeRides}/${REFERRAL_MILESTONE_RIDES} rides. They must complete 100 rides to unlock your ₹500 reward.`,
+      );
+    }
+
+    const isKycVerified =
+      String(referral.refereeDriver?.verificationStatus) === 'VERIFIED';
+
+    if (!isKycVerified) {
       throw new BadRequestException(
         'This referral is pending KYC verification of the referred driver and cannot be claimed yet.',
       );
@@ -488,7 +639,7 @@ export class ReferralsService {
       const updatedReferral = await tx.driverReferral.updateMany({
         where: {
           id: referralId,
-          status: ReferralStatus.UNLOCKED_READY_TO_CLAIM,
+          status: { in: [ReferralStatus.UNLOCKED_READY_TO_CLAIM, ReferralStatus.PENDING_VERIFICATION] },
         },
         data: {
           status: ReferralStatus.CLAIMED,
@@ -518,7 +669,7 @@ export class ReferralsService {
           balanceAfter: updatedDriver.walletBalance,
           referenceType: 'REFERRAL_BONUS',
           referenceId: referral.id,
-          description: `Referral Bonus: Onboarding ${referral.refereeDriver?.fullName || 'Driver Partner'} (+â‚¹${rewardRupees})`,
+          description: `Referral Bonus: Referred driver ${referral.refereeDriver?.fullName || referral.refereeDriverId} completed 100 rides (+₹${rewardRupees})`,
         },
       });
     }, { timeout: 30000, maxWait: 10000 });
@@ -533,16 +684,21 @@ export class ReferralsService {
       claimedAmountRupees: rewardRupees,
       newWalletBalance: Number(updatedDriver?.walletBalance || 0),
       claimedReferralIds: [referralId],
-      message: `â‚¹${rewardRupees} has been successfully added to your withdrawal wallet!`,
+      message: `₹${rewardRupees} has been successfully added to your withdrawal wallet!`,
     };
   }
 
   /**
-   * Bulk claim all unlocked rewards for the driver.
+   * Bulk claim all unlocked rewards for the driver where referee reached 100 rides.
    */
   async claimAllRewards(userId: string): Promise<ClaimReferralResponseDto> {
-    const driver = await this.db.driver.findUnique({
-      where: { userId },
+    const driver = await this.db.driver.findFirst({
+      where: {
+        OR: [
+          { userId },
+          { id: userId },
+        ],
+      },
       select: { id: true, fullName: true, totalTrips: true, walletBalance: true },
     });
 
@@ -550,34 +706,34 @@ export class ReferralsService {
       throw new NotFoundException('Driver profile not found');
     }
 
-    const completedTripsCount = await this.db.trip.count({
-      where: {
-        driverId: driver.id,
-        status: TripStatus.COMPLETED,
-      },
-    });
-    const completedRides = Math.max(driver.totalTrips || 0, completedTripsCount);
-
-    if (completedRides < REFERRAL_MILESTONE_RIDES) {
-      throw new BadRequestException(
-        `100 completed rides milestone required to claim referral rewards. Current progress: ${completedRides}/${REFERRAL_MILESTONE_RIDES} rides.`,
-      );
-    }
-
-    const eligibleReferrals = await this.db.driverReferral.findMany({
+    const candidateReferrals = await this.db.driverReferral.findMany({
       where: {
         referrerDriverId: driver.id,
-        status: ReferralStatus.UNLOCKED_READY_TO_CLAIM,
+        status: { in: [ReferralStatus.UNLOCKED_READY_TO_CLAIM, ReferralStatus.PENDING_VERIFICATION] },
       },
       include: {
         refereeDriver: {
-          select: { fullName: true },
+          select: { id: true, fullName: true, totalTrips: true, verificationStatus: true },
         },
       },
     });
 
+    const eligibleReferrals: any[] = [];
+    for (const ref of candidateReferrals) {
+      const actualTrips = await this.db.trip.count({
+        where: { driverId: ref.refereeDriverId, status: TripStatus.COMPLETED },
+      });
+      const refereeRides = Math.max(ref.refereeDriver?.totalTrips || 0, actualTrips);
+      const isKycVerified =
+        String(ref.refereeDriver?.verificationStatus) === 'VERIFIED';
+
+      if (refereeRides >= REFERRAL_MILESTONE_RIDES && isKycVerified) {
+        eligibleReferrals.push(ref);
+      }
+    }
+
     if (eligibleReferrals.length === 0) {
-      throw new BadRequestException('No eligible referral rewards to claim at this time.');
+      throw new BadRequestException('No eligible referral rewards to claim at this time (requires referred driver to complete 100 rides & pass KYC).');
     }
 
     let totalRewardRupees = 0;
@@ -593,7 +749,7 @@ export class ReferralsService {
       await tx.driverReferral.updateMany({
         where: {
           id: { in: claimedIds },
-          status: ReferralStatus.UNLOCKED_READY_TO_CLAIM,
+          status: { in: [ReferralStatus.UNLOCKED_READY_TO_CLAIM, ReferralStatus.PENDING_VERIFICATION] },
         },
         data: {
           status: ReferralStatus.CLAIMED,
@@ -619,7 +775,7 @@ export class ReferralsService {
           balanceAfter: updatedDriver.walletBalance,
           referenceType: 'REFERRAL_BONUS_BULK',
           referenceId: driver.id,
-          description: `Referral Bonus: Bulk claim for ${claimedIds.length} driver(s) (+â‚¹${totalRewardRupees})`,
+          description: `Referral Bonus: Bulk claim for ${claimedIds.length} driver(s) completing 100 rides (+₹${totalRewardRupees})`,
         },
       });
     }, { timeout: 30000, maxWait: 10000 });
@@ -634,7 +790,7 @@ export class ReferralsService {
       claimedAmountRupees: totalRewardRupees,
       newWalletBalance: Number(updatedDriver?.walletBalance || 0),
       claimedReferralIds: claimedIds,
-      message: `â‚¹${totalRewardRupees} has been successfully added to your withdrawal wallet!`,
+      message: `₹${totalRewardRupees} has been successfully added to your withdrawal wallet!`,
     };
   }
 }

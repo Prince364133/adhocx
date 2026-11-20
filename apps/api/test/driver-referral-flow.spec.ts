@@ -125,17 +125,43 @@ describe('Driver Referral Flow & 100-Ride Milestone Guard', () => {
     });
   });
 
-  describe('KYC Approval Trigger', () => {
-    it('6. Automatically unlocks referral when referee KYC is approved', async () => {
+  describe('Referee 100-Ride Milestone & KYC Approval', () => {
+    it('6. Does not unlock referral on KYC if referee has not completed 100 rides', async () => {
       db.driverReferral.findUnique.mockResolvedValue({
         id: 'referral-uuid-1',
         referrerDriverId: mockReferrerDriver.id,
         refereeDriverId: mockRefereeDriver.id,
         status: ReferralStatus.PENDING_VERIFICATION,
+        refereeDriver: { ...mockRefereeDriver, totalTrips: 15 },
       });
+      db.trip.count.mockResolvedValue(15);
 
       await service.onRefereeKycApproved(mockRefereeDriver.id);
 
+      expect(db.driverReferral.update).toHaveBeenCalledWith({
+        where: { id: 'referral-uuid-1' },
+        data: {
+          status: ReferralStatus.PENDING_VERIFICATION,
+          refereeVerifiedAt: expect.any(Date),
+        },
+      });
+    });
+
+    it('7. Unlocks referral when referee completes 100 rides and is KYC verified', async () => {
+      db.driverReferral.findUnique.mockResolvedValue({
+        id: 'referral-uuid-1',
+        referrerDriverId: mockReferrerDriver.id,
+        refereeDriverId: mockRefereeDriver.id,
+        status: ReferralStatus.PENDING_VERIFICATION,
+        refereeDriver: { ...mockRefereeDriver, totalTrips: 100, verificationStatus: 'VERIFIED' },
+        referrerDriver: { id: mockReferrerDriver.id, userId: mockReferrerDriver.userId },
+      });
+      db.trip.count.mockResolvedValue(100);
+
+      const result = await service.onRefereeCompletedMilestone(mockRefereeDriver.id);
+
+      expect(result?.unlocked).toBe(true);
+      expect(result?.referrerUserId).toBe(mockReferrerDriver.userId);
       expect(db.driverReferral.update).toHaveBeenCalledWith({
         where: { id: 'referral-uuid-1' },
         data: {
@@ -147,10 +173,15 @@ describe('Driver Referral Flow & 100-Ride Milestone Guard', () => {
   });
 
   describe('100-Ride Milestone Guard & Vault Claims', () => {
-    it('7. Rejects reward claim if driver has completed only 99 rides (Milestone not reached)', async () => {
-      db.driver.findUnique.mockResolvedValue({
-        ...mockReferrerDriver,
-        totalTrips: 99,
+    it('8. Rejects reward claim if referee driver has completed only 99 rides (Milestone not reached)', async () => {
+      db.driver.findFirst.mockResolvedValue(mockReferrerDriver);
+      db.driverReferral.findFirst.mockResolvedValue({
+        id: 'referral-uuid-1',
+        referrerDriverId: mockReferrerDriver.id,
+        refereeDriverId: mockRefereeDriver.id,
+        rewardPaise: 50000,
+        status: ReferralStatus.PENDING_VERIFICATION,
+        refereeDriver: { ...mockRefereeDriver, totalTrips: 99, verificationStatus: 'VERIFIED' },
       });
       db.trip.count.mockResolvedValue(99);
 
@@ -159,28 +190,25 @@ describe('Driver Referral Flow & 100-Ride Milestone Guard', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('8. Successfully claims reward when driver reaches 100 rides milestone and credits wallet', async () => {
-      db.driver.findUnique
-        .mockResolvedValueOnce({
-          ...mockReferrerDriver,
-          totalTrips: 100,
-        })
-        .mockResolvedValueOnce({
-          walletBalance: 1700.0,
-        });
+    it('9. Successfully claims reward when referee driver reaches 100 rides milestone and credits referrer wallet', async () => {
+      db.driver.findFirst.mockResolvedValue(mockReferrerDriver);
       db.trip.count.mockResolvedValue(100);
 
       db.driverReferral.findFirst.mockResolvedValue({
         id: 'referral-uuid-1',
         referrerDriverId: mockReferrerDriver.id,
         refereeDriverId: mockRefereeDriver.id,
-        rewardPaise: 50000, // â‚¹500
+        rewardPaise: 50000, // ₹500
         status: ReferralStatus.UNLOCKED_READY_TO_CLAIM,
-        refereeDriver: { fullName: 'Suresh Patel' },
+        refereeDriver: { ...mockRefereeDriver, fullName: 'Suresh Patel', totalTrips: 100, verificationStatus: 'VERIFIED' },
       });
 
       db.driverReferral.updateMany.mockResolvedValue({ count: 1 });
       db.driver.update.mockResolvedValue({
+        ...mockReferrerDriver,
+        walletBalance: 1700.0,
+      });
+      db.driver.findUnique.mockResolvedValue({
         ...mockReferrerDriver,
         walletBalance: 1700.0,
       });
@@ -204,17 +232,14 @@ describe('Driver Referral Flow & 100-Ride Milestone Guard', () => {
       });
     });
 
-    it('9. Rejects duplicate claim if referral was already claimed', async () => {
-      db.driver.findUnique.mockResolvedValue({
-        ...mockReferrerDriver,
-        totalTrips: 105,
-      });
-      db.trip.count.mockResolvedValue(105);
+    it('10. Rejects duplicate claim if referral was already claimed', async () => {
+      db.driver.findFirst.mockResolvedValue(mockReferrerDriver);
 
       db.driverReferral.findFirst.mockResolvedValue({
         id: 'referral-uuid-1',
         referrerDriverId: mockReferrerDriver.id,
         status: ReferralStatus.CLAIMED,
+        refereeDriver: { ...mockRefereeDriver, totalTrips: 105, verificationStatus: 'VERIFIED' },
       });
 
       await expect(
@@ -222,18 +247,17 @@ describe('Driver Referral Flow & 100-Ride Milestone Guard', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('10. Prevents concurrent race condition via optimistic lock check', async () => {
-      db.driver.findUnique.mockResolvedValue({
-        ...mockReferrerDriver,
-        totalTrips: 100,
-      });
+    it('11. Prevents concurrent race condition via optimistic lock check', async () => {
+      db.driver.findFirst.mockResolvedValue(mockReferrerDriver);
       db.trip.count.mockResolvedValue(100);
 
       db.driverReferral.findFirst.mockResolvedValue({
         id: 'referral-uuid-1',
         referrerDriverId: mockReferrerDriver.id,
+        refereeDriverId: mockRefereeDriver.id,
         rewardPaise: 50000,
         status: ReferralStatus.UNLOCKED_READY_TO_CLAIM,
+        refereeDriver: { ...mockRefereeDriver, totalTrips: 100, verificationStatus: 'VERIFIED' },
       });
 
       // Another transaction updated count first -> 0 rows updated
@@ -242,6 +266,22 @@ describe('Driver Referral Flow & 100-Ride Milestone Guard', () => {
       await expect(
         service.claimReward(mockReferrerDriver.userId, 'referral-uuid-1'),
       ).rejects.toThrow(ConflictException);
+    });
+  });
+
+  describe('6-Character Unique Referral Code Generator', () => {
+    it('12. Generates a unique 6-character alphanumeric referral code', async () => {
+      db.driver.findFirst.mockResolvedValue({
+        id: 'new-driver-id-333',
+        referralCode: null,
+      });
+      db.driver.findUnique.mockResolvedValue(null);
+      db.driver.update.mockResolvedValue({ id: 'new-driver-id-333' });
+
+      const code = await service.ensureDriverReferralCode('new-driver-id-333');
+      expect(code).toHaveLength(6);
+      expect(/^[A-Z0-9]{6}$/.test(code)).toBe(true);
+      expect(/[A-Z]/.test(code)).toBe(true); // not all digits
     });
   });
 
