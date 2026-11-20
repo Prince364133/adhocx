@@ -16,6 +16,7 @@ import {
   ShieldCheck,
   Plus,
   Trash2,
+  Settings,
 } from 'lucide-react';
 import { adminApi } from '@/lib/api/client';
 import {
@@ -26,6 +27,7 @@ import {
   PeakHourWindow,
 } from '@/lib/api/types';
 import { Card, Button, StatusBadge, BottomSheet } from '@/components/common';
+import { VehicleCategoriesDrawer } from '../VehicleCategoriesDrawer';
 
 export type MatrixRole = 'vendor' | 'driver' | 'unified';
 
@@ -116,6 +118,9 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
 
   // Search Filter
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Vehicle Categories & Fleet Capacities Drawer
+  const [isCategoriesDrawerOpen, setIsCategoriesDrawerOpen] = useState(false);
 
   // Bottom Sheet 1: Configure Pricing
   const [isConfigureSheetOpen, setIsConfigureSheetOpen] = useState(false);
@@ -1368,6 +1373,15 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
 
           <Button
             variant="secondary"
+            leftIcon={<Settings size={15} />}
+            onClick={() => setIsCategoriesDrawerOpen(true)}
+            title="Manage vehicle categories and fleet capacities"
+          >
+            Vehicle Categories
+          </Button>
+
+          <Button
+            variant="secondary"
             leftIcon={<Clock size={15} />}
             onClick={() => setIsPeakSheetOpen(true)}
           >
@@ -1462,6 +1476,28 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
               </button>
             );
           })}
+
+          <button
+            onClick={() => setIsCategoriesDrawerOpen(true)}
+            title="Manage vehicle categories, fleet capacities, and add new vehicles"
+            style={{
+              padding: '0.45rem 0.85rem',
+              borderRadius: '999px',
+              border: '1px dashed var(--border)',
+              background: 'var(--bg-surface-elevated)',
+              color: 'var(--text-secondary)',
+              fontWeight: 600,
+              fontSize: '0.825rem',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <Settings size={13} />
+            <span>Manage</span>
+          </button>
         </div>
 
         {/* Search Input */}
@@ -2485,6 +2521,13 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
           </Button>
         </div>
       </BottomSheet>
+
+      {/* Vehicle Categories & Fleet Capacities Slide-out Drawer */}
+      <VehicleCategoriesDrawer
+        isOpen={isCategoriesDrawerOpen}
+        onClose={() => setIsCategoriesDrawerOpen(false)}
+        onCategoriesUpdated={() => loadPlans(selectedPlanId)}
+      />
     </div>
   );
 }
