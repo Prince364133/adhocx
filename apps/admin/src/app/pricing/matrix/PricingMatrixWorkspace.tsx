@@ -1265,8 +1265,11 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
           hasEscort: role === 'vendor' ? simIncludeEscort : false,
         });
         if (!cancelled) setSimResult(res);
-      } catch {
-        if (!cancelled) setSimResult(null);
+      } catch (err: any) {
+        if (!cancelled) {
+          const errMsg = err?.message || 'We are not currently operating in this service area.';
+          setSimResult({ error: errMsg } as any);
+        }
       } finally {
         if (!cancelled) setSimulating(false);
       }

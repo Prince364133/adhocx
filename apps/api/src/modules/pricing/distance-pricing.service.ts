@@ -567,13 +567,15 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
     const match = sorted.find((s) => distanceMeters > s.minDistanceMExclusive && distanceMeters <= s.maxDistanceMInclusive);
     if (!match) {
       const maxConfigured = sorted[sorted.length - 1]?.maxDistanceMInclusive ?? 0;
+      const maxConfiguredKm = Number((maxConfigured / 1000).toFixed(1));
+      const maxKmDisplay = maxConfigured % 1000 === 0 ? (maxConfigured / 1000).toString() : (maxConfigured / 1000).toFixed(1);
+      const requestedKm = Number((distanceMeters / 1000).toFixed(1));
       this.logger.warn(`[pricing] metric=missing_slab plan=${plan.id} distance_m=${distanceMeters} max_m=${maxConfigured}`);
       throw pricingError(
         HttpStatus.UNPROCESSABLE_ENTITY,
         PricingErrorCode.DISTANCE_NOT_CONFIGURED,
-        `No price is configured for ${(distanceMeters / 1000).toFixed(1)} km (plan v${plan.version} covers up to ${(maxConfigured / 1000).toFixed(1)} km). ` +
-          'An administrator can add the missing distance band in Pricing Management.',
-        { distanceMeters, maxConfiguredMeters: maxConfigured },
+        `We are not currently operating in this service area. Our services are currently available for routes up to ${maxKmDisplay} km.`,
+        { distanceMeters, maxConfiguredMeters: maxConfigured, requestedKm, maxConfiguredKm, outOfRange: true },
       );
     }
     return { ...match, ...slabRates(match, isPeak) };
@@ -906,12 +908,13 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
 
     if (!match) {
       const maxConfiguredKm = Number((maxConfiguredMeters / 1000).toFixed(1));
+      const maxKmDisplay = maxConfiguredMeters % 1000 === 0 ? (maxConfiguredMeters / 1000).toString() : (maxConfiguredMeters / 1000).toFixed(1);
       const requestedKm = Number((distanceMeters / 1000).toFixed(1));
       throw new HttpException(
         {
           statusCode: HttpStatus.UNPROCESSABLE_ENTITY,
           code: PricingErrorCode.DISTANCE_NOT_CONFIGURED,
-          message: `Distance (${requestedKm} km) exceeds maximum configured slab (${maxConfiguredKm} km).`,
+          message: `We are not currently operating in this service area. Our services are currently available for routes up to ${maxKmDisplay} km.`,
           maxConfiguredKm,
           requestedKm,
           outOfRange: true,

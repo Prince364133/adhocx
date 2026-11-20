@@ -611,7 +611,7 @@ class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirement
                                   : (_loadingQuote
                                       ? 'Resolving pricing slab...'
                                       : (_quoteError != null
-                                          ? 'Route exceeds available pricing bands'
+                                          ? _quoteError!
                                           : 'Select locations to get quote'))),
                           style: TextStyle(
                             fontSize: 11,
