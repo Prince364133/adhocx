@@ -31,9 +31,11 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
     PENDING: { bgLight: '#FEF3C7', textLight: '#B45309', borderLight: '#FCD34D', bgDark: 'rgba(245, 158, 11, 0.16)', textDark: '#FBBF24', borderDark: 'rgba(245, 158, 11, 0.35)' },
     INVESTIGATING: { bgLight: '#FEF3C7', textLight: '#B45309', borderLight: '#FCD34D', bgDark: 'rgba(245, 158, 11, 0.18)', textDark: '#FBBF24', borderDark: 'rgba(245, 158, 11, 0.4)' },
 
-    // Blue / Purple (In Transit, Assigned)
+    // Blue / Purple (In Transit, Assigned, Reassigned)
     IN_TRANSIT: { bgLight: '#F3E8FF', textLight: '#5728B2', borderLight: '#D8B4FE', bgDark: 'rgba(115, 61, 217, 0.18)', textDark: '#B794F4', borderDark: 'rgba(115, 61, 217, 0.35)' },
     ASSIGNED: { bgLight: '#F3E8FF', textLight: '#5728B2', borderLight: '#D8B4FE', bgDark: 'rgba(115, 61, 217, 0.18)', textDark: '#B794F4', borderDark: 'rgba(115, 61, 217, 0.35)' },
+    REASSIGNED: { bgLight: '#E0E7FF', textLight: '#4338CA', borderLight: '#C7D2FE', bgDark: 'rgba(99, 102, 241, 0.18)', textDark: '#818CF8', borderDark: 'rgba(99, 102, 241, 0.4)' },
+    UNASSIGNED: { bgLight: '#FEF3C7', textLight: '#D97706', borderLight: '#FCD34D', bgDark: 'rgba(217, 119, 6, 0.18)', textDark: '#FBBF24', borderDark: 'rgba(217, 119, 6, 0.4)' },
     PLANNED: { bgLight: '#EFF6FF', textLight: '#2563EB', borderLight: '#BFDBFE', bgDark: 'rgba(59, 130, 246, 0.16)', textDark: '#93C5FD', borderDark: 'rgba(59, 130, 246, 0.3)' },
     ACKNOWLEDGED: { bgLight: '#EFF6FF', textLight: '#2563EB', borderLight: '#BFDBFE', bgDark: 'rgba(59, 130, 246, 0.16)', textDark: '#93C5FD', borderDark: 'rgba(59, 130, 246, 0.3)' },
 

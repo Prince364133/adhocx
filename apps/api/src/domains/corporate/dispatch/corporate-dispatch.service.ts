@@ -275,7 +275,7 @@ export class CorporateDispatchService {
 
   @Optional() @Inject(RateCardService) private readonly rateCardService?: RateCardService;
 
-  private getEligibilityService(): DriverEligibilityService {
+  public getEligibilityService(): DriverEligibilityService {
     return this.driverEligibilityService ?? new DriverEligibilityService(this.db);
   }
 
@@ -1647,7 +1647,7 @@ export class CorporateDispatchService {
    * by another route in between, in which case that driver could briefly receive two offers.
    * Swap for a Lua compare-and-delete once RedisService exposes one.
    */
-  private async releaseDriverHold(client: any, driverId: string, routeId: string): Promise<void> {
+  public async releaseDriverHold(client: any, driverId: string, routeId: string): Promise<void> {
     const key = CorporateDispatchKeys.driverHold(driverId);
     if ((await client.get(key)) === routeId) {
       await client.del(key);

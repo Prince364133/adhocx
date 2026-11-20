@@ -1,8 +1,10 @@
 'use client';
 
 import React, { Suspense, useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
+  ArrowLeft,
   Building2,
   CheckCircle2,
   Mail,
@@ -54,10 +56,10 @@ function EmployeesDirectoryContent() {
   const searchParams = useSearchParams();
   const urlTenantId = searchParams.get('tenantId')?.trim() || '';
 
-  const [tenants, setTenants] = useState<CorporateTenantOption[]>([]);
   const [selectedTenantId, setSelectedTenantId] = useState<string>(urlTenantId);
+  const [tenantResolved, setTenantResolved] = useState<boolean>(Boolean(urlTenantId));
   const [selectedTenant, setSelectedTenant] = useState<CorporateTenantOption | null>(null);
-  const [tenantsLoading, setTenantsLoading] = useState(true);
+  const [tenantLoading, setTenantLoading] = useState(true);
 
   const [employees, setEmployees] = useState<CorporateEmployeeItem[]>([]);
   const [pagination, setPagination] = useState({ total: 0, page: 1, limit: 25, totalPages: 1 });
@@ -104,52 +106,44 @@ function EmployeesDirectoryContent() {
   const [deletingEmployee, setDeletingEmployee] = useState<CorporateEmployeeItem | null>(null);
   const [deletingLoading, setDeletingLoading] = useState(false);
 
-  // Load tenants on mount
+  // Resolve tenant ID from URL or local storage
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setTenantsLoading(true);
+    if (urlTenantId) {
+      setSelectedTenantId(urlTenantId);
+      setTenantResolved(true);
       try {
-        const res = await opsApi.getTenants({ page: 1, limit: 100, minimal: true });
-        const items = res?.items ?? [];
-        if (cancelled) return;
-        setTenants(items);
+        localStorage.setItem(COMPANY_STORAGE_KEY, urlTenantId);
+        window.dispatchEvent(new Event('adhocx:ops-tenant-changed'));
+      } catch {}
+      return;
+    }
 
-        let remembered = '';
-        try {
-          remembered = localStorage.getItem(COMPANY_STORAGE_KEY)?.trim() || '';
-        } catch {}
+    let remembered = '';
+    try {
+      remembered = localStorage.getItem(COMPANY_STORAGE_KEY)?.trim() || '';
+    } catch {}
 
-        const initial =
-          (urlTenantId && items.find((t) => t.id === urlTenantId)?.id) ||
-          (remembered && items.find((t) => t.id === remembered)?.id) ||
-          items[0]?.id ||
-          '';
+    if (remembered) {
+      setSelectedTenantId(remembered);
+      setTenantResolved(true);
+      router.replace(`/employees?tenantId=${encodeURIComponent(remembered)}`);
+      return;
+    }
 
-        setSelectedTenantId(initial);
-        if (initial) {
-          try {
-            localStorage.setItem(COMPANY_STORAGE_KEY, initial);
-          } catch {}
-        }
-      } catch (err: any) {
-        if (!cancelled) setErrorMsg(err?.message || 'Could not load corporate clients.');
-      } finally {
-        if (!cancelled) setTenantsLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [urlTenantId]);
+    setSelectedTenantId('');
+    setTenantResolved(true);
+    setTenantLoading(false);
+  }, [urlTenantId, router]);
 
-  // Load selected tenant details (for offices list)
+  // Load selected tenant details (for company name, code & offices list)
   useEffect(() => {
     if (!selectedTenantId) {
       setSelectedTenant(null);
+      setTenantLoading(false);
       return;
     }
     let cancelled = false;
+    setTenantLoading(true);
     void opsApi
       .getTenant(selectedTenantId)
       .then((detail) => {
@@ -162,9 +156,15 @@ function EmployeesDirectoryContent() {
             : detail.offices?.[0]?.id || '',
         }));
       })
-      .catch(() => {
-        if (!cancelled) setSelectedTenant(null);
+      .catch((err: any) => {
+        if (cancelled) return;
+        setSelectedTenant(null);
+        setErrorMsg(err?.message || 'Could not load company details.');
+      })
+      .finally(() => {
+        if (!cancelled) setTenantLoading(false);
       });
+
     return () => {
       cancelled = true;
     };
@@ -200,20 +200,6 @@ function EmployeesDirectoryContent() {
     }, 180);
     return () => clearTimeout(timer);
   }, [loadEmployees]);
-
-  function handleChangeTenant(nextId: string) {
-    setSelectedTenantId(nextId);
-    setOfficeFilter('');
-    setPage(1);
-    setNotice(null);
-    try {
-      if (nextId) {
-        localStorage.setItem(COMPANY_STORAGE_KEY, nextId);
-        window.dispatchEvent(new Event('adhocx:ops-tenant-changed'));
-        router.replace(`/employees?tenantId=${encodeURIComponent(nextId)}`);
-      }
-    } catch {}
-  }
 
   function openCreateModal() {
     setErrorMsg(null);
@@ -337,6 +323,35 @@ function EmployeesDirectoryContent() {
 
   const offices = selectedTenant?.offices ?? [];
 
+  if (tenantResolved && !selectedTenantId) {
+    return (
+      <div style={{ maxWidth: 720, margin: '40px auto' }}>
+        <div
+          style={{
+            padding: 40,
+            textAlign: 'center',
+            backgroundColor: 'var(--bg-surface)',
+            borderRadius: 12,
+            border: '1px solid var(--border-subtle)',
+          }}
+        >
+          <Building2 size={38} style={{ color: 'var(--brand-primary, #5728B2)', marginBottom: 12 }} />
+          <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+            Select a Company from Company Hub
+          </h1>
+          <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '8px 0 20px' }}>
+            Employees are scoped per corporate client. Choose a company from the hub to view its employees.
+          </p>
+          <Link href="/" style={{ textDecoration: 'none' }}>
+            <Button variant="primary" leftIcon={<ArrowLeft size={15} />}>
+              Go to Company Hub
+            </Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: 1440, margin: '0 auto' }}>
       {/* Header */}
@@ -369,16 +384,29 @@ function EmployeesDirectoryContent() {
             <Users size={20} />
           </div>
           <div>
-            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: 'var(--text-primary)' }}>
-              Corporate Employees Directory
-            </h1>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: 'var(--text-primary)' }}>
+                {selectedTenant?.name || 'Company'} · Corporate Employees
+              </h1>
+              {selectedTenant?.code && (
+                <span className="code-tag">{selectedTenant.code}</span>
+              )}
+            </div>
             <p style={{ margin: '2px 0 0', fontSize: 13, color: 'var(--text-secondary)' }}>
-              Manage commuters across onboarded companies, including auto-registered riders from manual and planned routes.
+              Manage commuters, office hub allocations, and commuter account provisioning for this company.
             </p>
           </div>
         </div>
 
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
+          <Link
+            href={`/routes?tenantId=${encodeURIComponent(selectedTenantId)}`}
+            style={{ textDecoration: 'none' }}
+          >
+            <Button variant="outline" leftIcon={<ArrowLeft size={15} />}>
+              Back to Routes
+            </Button>
+          </Link>
           <Button
             variant="outline"
             leftIcon={<RefreshCw size={14} className={loading ? 'spin' : undefined} />}
@@ -410,23 +438,6 @@ function EmployeesDirectoryContent() {
           border: '1px solid var(--border-subtle)',
         }}
       >
-        <div>
-          <label style={labelStyle}>Corporate Client</label>
-          <select
-            value={selectedTenantId}
-            disabled={tenantsLoading}
-            onChange={(e) => handleChangeTenant(e.target.value)}
-            style={inputStyle}
-          >
-            {tenants.length === 0 && <option value="">No companies onboarded</option>}
-            {tenants.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name} ({t.code})
-              </option>
-            ))}
-          </select>
-        </div>
-
         <div>
           <label style={labelStyle}>Search Employee</label>
           <div style={{ position: 'relative' }}>
@@ -549,7 +560,7 @@ function EmployeesDirectoryContent() {
           )}
         </div>
 
-        {!selectedTenantId && !tenantsLoading ? (
+        {!selectedTenantId && !tenantLoading ? (
           <div style={{ padding: '48px', textAlign: 'center', color: 'var(--text-muted)' }}>
             <Building2 size={32} style={{ marginBottom: 8 }} />
             <div>No corporate clients found. Onboard a company first to manage employees.</div>
