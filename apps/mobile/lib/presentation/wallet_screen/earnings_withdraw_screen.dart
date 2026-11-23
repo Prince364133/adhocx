@@ -25,6 +25,7 @@ class _EarningsWithdrawScreenState extends State<EarningsWithdrawScreen> {
   int _selectedPreset = 1000;
   bool _isLoading = false;
   double _availableBalance = 0.0;
+  double _pendingPayout = 0.0;
   Map<String, dynamic> _bankDetails = {};
 
   @override
@@ -48,8 +49,11 @@ class _EarningsWithdrawScreenState extends State<EarningsWithdrawScreen> {
       if (summary is Map && mounted) {
         final bal =
             double.tryParse((summary['walletBalance'] ?? 0).toString()) ?? 0.0;
+        final pending =
+            double.tryParse((summary['pendingSettlements'] ?? 0).toString()) ?? 0.0;
         setState(() {
           _availableBalance = bal;
+          _pendingPayout = pending;
           if (bal >= 1000) {
             _amountController.text =
                 (bal > 5000 ? 5000 : bal).toInt().toString();
@@ -386,6 +390,49 @@ class _EarningsWithdrawScreenState extends State<EarningsWithdrawScreen> {
                           ],
                         ),
                       ),
+                      if (_pendingPayout > 0) ...[
+                        const SizedBox(height: AppSpacing.md),
+                        InkWell(
+                          onTap: () => context.pushReplacement(AppRoutes.earningsWithdrawalDetailsScreen),
+                          borderRadius: BorderRadius.circular(AppRadius.md),
+                          child: Container(
+                            padding: const EdgeInsets.all(AppSpacing.md),
+                            decoration: BoxDecoration(
+                              color: isDark ? AppColors.info.withValues(alpha: 0.15) : AppColors.info.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(AppRadius.md),
+                              border: Border.all(color: AppColors.info.withValues(alpha: 0.3)),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.hourglass_top_rounded, color: AppColors.info, size: 20),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        '₹${_pendingPayout.toStringAsFixed(0)} Payout In Progress',
+                                        style: AppTypography.body(
+                                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        'You have a withdrawal currently being processed to your bank. Tap to track status.',
+                                        style: AppTypography.caption(
+                                          color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const Icon(Icons.chevron_right, color: AppColors.info),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: AppSpacing.xl),
 
                       // ── Withdrawal Amount Input Box ────────────────────────
