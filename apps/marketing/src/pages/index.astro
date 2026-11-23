@@ -286,17 +286,65 @@ const jsonLd = [
                 decoding="async"
               />
             </div>
+
+            <!-- Mobile-Optimized Executive Metric Cards Strip (Visible on mobile/tablet to guarantee readability of key metrics) -->
+            <div class="hero-dashboard-mobile-metrics" aria-label="Key console metrics">
+              <div class="dash-metric-pill">
+                <span class="dash-metric-label">Total Employees</span>
+                <span class="dash-metric-val">2,846</span>
+                <span class="dash-metric-badge badge-green">+12.4%</span>
+              </div>
+              <div class="dash-metric-pill">
+                <span class="dash-metric-label">Scheduled Trips</span>
+                <span class="dash-metric-val">412</span>
+                <span class="dash-metric-badge badge-purple">+15.2%</span>
+              </div>
+              <div class="dash-metric-pill">
+                <span class="dash-metric-label">Active Fleet</span>
+                <span class="dash-metric-val">96 Cabs</span>
+                <span class="dash-metric-badge badge-green">Live</span>
+              </div>
+              <div class="dash-metric-pill">
+                <span class="dash-metric-label">On-Time SLA</span>
+                <span class="dash-metric-val">99.8%</span>
+                <span class="dash-metric-badge badge-orange">Verified</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- Lightbox Modal for Dashboard Zoom -->
+  <!-- Lightbox Modal for Dashboard Zoom (Responsive full view with smooth pan on mobile) -->
   <div class="dashboard-lightbox-modal" id="dashboard-lightbox" role="dialog" aria-modal="true" aria-label="Console Overview Large View">
     <div class="dashboard-lightbox-content">
-      <button type="button" class="dashboard-lightbox-close" id="btn-close-lightbox" aria-label="Close modal">✕</button>
-      <img src="/images/corporate-dashboard.png" alt="AdhocX Corporate Operations Console - Detailed View" class="dashboard-lightbox-img" width="1024" height="479" loading="lazy" decoding="async" />
+      <div class="dashboard-lightbox-header">
+        <div class="dashboard-lightbox-title-wrap">
+          <div class="topbar-controls">
+            <span class="control-dot dot-close"></span>
+            <span class="control-dot dot-min"></span>
+            <span class="control-dot dot-max"></span>
+          </div>
+          <span class="dashboard-lightbox-title">portal.adhocx.com/overview</span>
+          <span class="dashboard-lightbox-live">Live Operations</span>
+        </div>
+        <button type="button" class="dashboard-lightbox-close" id="btn-close-lightbox" aria-label="Close modal">✕</button>
+      </div>
+      <div class="dashboard-lightbox-scroll-area">
+        <img src="/images/corporate-dashboard.png" alt="AdhocX Corporate Operations Console - Detailed View" class="dashboard-lightbox-img" width="1024" height="479" loading="lazy" decoding="async" />
+      </div>
+      <div class="dashboard-lightbox-hint">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="15 18 9 12 15 6"></polyline>
+          <polyline points="9 18 3 12 9 6"></polyline>
+        </svg>
+        <span>Swipe horizontally to explore high-res console</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="9 18 15 12 9 6"></polyline>
+          <polyline points="15 18 21 12 15 6"></polyline>
+        </svg>
+      </div>
     </div>
   </div>
 

@@ -131,7 +131,7 @@ const jsonLd = {
         <p class="body-large">Curated insights for facilities directors, corporate travel leads, and commercial driver partners.</p>
       </div>
 
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: var(--space-6);">
+      <div class="articles-grid">
         {posts.map(post => (
           <div class="card" style="display: flex; flex-direction: column; justify-content: space-between;" data-animate>
             <div>
@@ -250,4 +250,32 @@ const jsonLd = {
       white-space: nowrap;
     }
   }
+
+  .articles-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: var(--space-6);
+  }
+
+  @media (max-width: 768px) {
+    .articles-grid {
+      display: flex !important;
+      overflow-x: auto !important;
+      scroll-snap-type: x mandatory;
+      gap: 1rem !important;
+      padding-bottom: 0.85rem;
+      padding-left: 2px;
+      padding-right: 2px;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: thin;
+    }
+
+    .articles-grid > .card {
+      flex: 0 0 280px !important;
+      max-width: 82vw;
+      scroll-snap-align: start;
+      margin-bottom: 0;
+    }
+  }
+
 </style>
