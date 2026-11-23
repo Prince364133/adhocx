@@ -80,8 +80,8 @@ describe('AdhocX Unified Platform: 10 Comprehensive Feature Simulations (Direct 
     expect(priceFor(10001)).toMatchObject({ vendorRupees: 650, driverRupees: 520 });
     expect(priceFor(22400)).toMatchObject({ vendorRupees: 950, driverRupees: 780 });
     expect(priceFor(40000)).toMatchObject({ vendorRupees: 1400, driverRupees: 1150 });
-    // Beyond the last configured band: no guessed price.
-    expect(() => priceFor(40001)).toThrow(/No price is configured/);
+    // Beyond the last configured band: out of service area.
+    expect(() => priceFor(40001)).toThrow(/We are not currently operating in this service area/);
   });
 
   // =========================================================================

@@ -299,7 +299,7 @@ describe('PRD 11: acceptance criteria', () => {
   it('an admin can add a >40-45 km slab without code changes', async () => {
     const { svc } = build({ distanceM: 42000 });
     const v1 = await publishPlan(svc, 'ALL');
-    await expect(svc.createVendorQuote({ pickup: PICKUP, drop: DROP } as any, 'v')).rejects.toThrow(/No price is configured/);
+    await expect(svc.createVendorQuote({ pickup: PICKUP, drop: DROP } as any, 'v')).rejects.toThrow(/We are not currently operating in this service area/);
     const draft = await svc.createDraftPlan({ vehicleCategory: 'ALL', cloneFromPlanId: v1.id } as any, ADMIN);
     await svc.updateDraftSlabs(
       draft.id,
