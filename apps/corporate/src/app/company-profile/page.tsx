@@ -1,7 +1,7 @@
 'use client';
 
 import React, { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
-import { Building2, CircleAlert, FileText, MapPin, Network, Plus, Search, Shield, Users, X } from 'lucide-react';
+import { Building2, CircleAlert, FileText, MapPin, Network, Search, Shield, Users, X } from 'lucide-react';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { ApiError } from '../../lib/api/client';
 import { tenantApi, usersApi } from '../../lib/api/corporate';
@@ -96,14 +96,14 @@ type ProfileDialog =
 const SECTIONS: Array<{ id: SectionId; label: string; icon: React.ReactNode }> = [
   {
     id: 'organization',
-    label: 'Organization Details',
+    label: 'Organization',
     icon: <Building2 size={16} />,
   },
-  { id: 'legal', label: 'Legal & Tax Details', icon: <FileText size={16} /> },
-  { id: 'offices', label: 'Offices & Sites', icon: <MapPin size={16} /> },
+  { id: 'legal', label: 'Legal & tax', icon: <FileText size={16} /> },
+  { id: 'offices', label: 'Offices & sites', icon: <MapPin size={16} /> },
   { id: 'departments', label: 'Departments', icon: <Network size={16} /> },
-  { id: 'zones', label: 'Transport Zones', icon: <MapPin size={16} /> },
-  { id: 'users', label: 'Users & Roles', icon: <Users size={16} /> },
+  { id: 'zones', label: 'Transport zones', icon: <MapPin size={16} /> },
+  { id: 'users', label: 'Users & roles', icon: <Users size={16} /> },
 ];
 
 const initialOfficeDraft: OfficeDraft = {
@@ -437,14 +437,8 @@ export default function CompanyProfilePage() {
   const profileDepartments = departments;
   const profileZones = transportZones;
   const profileUsers = corporateUsers;
-  const canCreateOffice = can('offices:write') && can('offices:read') && !officeScope;
-  const canEditOffice = can('offices:write') && can('offices:read');
-  const canCreateDepartment = can('departments:write');
   const canReadZones = can('zones:read');
-  const canManageZones = can('zones:write');
   const canReadUsers = can('users:read') && !officeScope;
-  const canManageUsers = can('users:invite');
-  const canEditProfile = can('tenant:write');
   const profileCompletionFields = profileTenant
     ? [
         profileTenant.name,
@@ -548,40 +542,6 @@ export default function CompanyProfilePage() {
     setSelectedZone(null);
     setSelectedUser(null);
     setFeedback(null);
-  }
-
-  function editOrganization() {
-    if (!profileTenant) return;
-    setOrganizationDraft({
-      name: profileTenant.name ?? '',
-      industry: profileTenant.industry ?? '',
-      website: profileTenant.website ?? '',
-      logoUrl: profileTenant.logoUrl ?? '',
-      registeredAddress: profileTenant.registeredAddress ?? '',
-      city: profileTenant.city ?? '',
-      state: profileTenant.state ?? '',
-      pinCode: profileTenant.pinCode ?? '',
-      country: profileTenant.country ?? '',
-      primaryContactName: profileTenant.primaryContactName ?? '',
-      primaryContactEmail: profileTenant.primaryContactEmail ?? '',
-      primaryContactPhone: profileTenant.primaryContactPhone ?? '',
-    });
-    setFeedback(null);
-    setEditingOrganization(true);
-  }
-
-  function editLegal() {
-    if (!profileTenant) return;
-    setLegalDraft({
-      legalEntityName: profileTenant.legalEntityName ?? '',
-      gstin: profileTenant.gstin ?? '',
-      cin: profileTenant.cin ?? '',
-      registeredBusinessAddress: profileTenant.registeredBusinessAddress ?? '',
-      billingAddress: profileTenant.billingAddress ?? '',
-      billingSameAsRegistered: profileTenant.billingSameAsRegistered ?? true,
-    });
-    setFeedback(null);
-    setEditingLegal(true);
   }
 
   async function submitOrganization(event: FormEvent<HTMLFormElement>) {
@@ -722,57 +682,6 @@ export default function CompanyProfilePage() {
       submissionInProgress.current = false;
       setSubmitting(false);
     }
-  }
-
-  function openOfficeEditor(office: Office) {
-    setSelectedOffice(office);
-    setOfficeDraft({
-      code: office.code ?? '',
-      name: office.name ?? '',
-      city: office.city ?? '',
-      state: office.state ?? '',
-      pinCode: office.pinCode ?? office.pincode ?? '',
-      country: office.country ?? 'India',
-      addressText: office.addressText || office.address || '',
-      latitude: office.latitude != null ? String(office.latitude) : '',
-      longitude: office.longitude != null ? String(office.longitude) : '',
-      contactName: office.contactName ?? '',
-      contactEmail: office.contactEmail ?? '',
-      contactPhone: office.contactPhone ?? '',
-      isActive: office.isActive ?? true,
-    });
-    setFeedback(null);
-    setDialog('edit-office');
-  }
-
-  function openDepartmentEditor(department: Department) {
-    setSelectedDepartment(department);
-    setDepartmentDraft({
-      code: department.code ?? '',
-      name: department.name ?? '',
-      departmentHead: department.departmentHead ?? '',
-      officeId: department.officeId ?? '',
-      description: department.description ?? '',
-      isActive: department.isActive ?? true,
-    });
-    setFeedback(null);
-    setDialog('edit-department');
-  }
-
-  function openZoneEditor(zone: TransportZone) {
-    setSelectedZone(zone);
-    setZoneDraft({
-      officeId: zone.officeId ?? '',
-      code: zone.code ?? '',
-      name: zone.name ?? '',
-      serviceArea: zone.serviceArea ?? '',
-      description: zone.description ?? '',
-      pickupLocationsText: (zone.pickupLocations ?? []).join('\n'),
-      dropLocationsText: (zone.dropLocations ?? []).join('\n'),
-      isActive: zone.isActive ?? true,
-    });
-    setFeedback(null);
-    setDialog('edit-zone');
   }
 
   async function submitOffice(event: FormEvent<HTMLFormElement>) {
@@ -1076,18 +985,6 @@ export default function CompanyProfilePage() {
     }
   }
 
-  function openUserEditor(corporateUser: CorporateUser) {
-    setSelectedUser(corporateUser);
-    setUserDraft({
-      fullName: corporateUser.fullName ?? '',
-      email: corporateUser.email ?? '',
-      phone: corporateUser.phone ?? '',
-      corporateRole: isCorporateRole(corporateUser.corporateRole) ? corporateUser.corporateRole : 'READ_ONLY',
-      officeIds: corporateUser.corporateOfficeIds ?? [],
-    });
-    setDialog('edit-user');
-  }
-
   function toggleOffice(officeId: string) {
     setUserDraft((current) => ({
       ...current,
@@ -1101,84 +998,60 @@ export default function CompanyProfilePage() {
     <div className={styles.page}>
       <header className={styles.pageHeader}>
         <div className={styles.titleBlock}>
-          <div className={styles.eyebrow}>
-            <Building2 size={13} /> Corporate workspace
-          </div>
-          <h1 className={styles.pageTitle}>Company Profile</h1>
+          <nav className={styles.breadcrumbs} aria-label="Breadcrumb">
+            <span>Corporate workspace</span>
+            <span aria-hidden="true">›</span>
+            <span>Company profile</span>
+          </nav>
+          <h1 className={styles.pageTitle}>{profileTenant?.name ?? 'Company Profile'}</h1>
           <p className={styles.pageSubtitle}>
-            Manage your organization details, offices, departments, transport zones and user access.
+            {profileTenant
+              ? `${profileTenant.primaryContactName || 'Company account'} · ${profileTenant.code}`
+              : 'Manage your organization details, offices, departments, transport zones and user access.'}
           </p>
         </div>
-        {profileTenant && (
-          <div className={styles.tenantSummary}>
-            <div className={styles.tenantMark}>
-              <Building2 size={20} />
-            </div>
-            <div className={styles.tenantMeta}>
-              <span className={styles.tenantName}>{profileTenant.name}</span>
-              <span className={styles.tenantCode}>Tenant code · {profileTenant.code}</span>
-            </div>
-            <StatusBadge status={profileTenant.status} size="sm" />
-          </div>
-        )}
       </header>
 
       {profileTenant && (
         <section className={styles.profileOverview} aria-label="Company profile overview">
-          <article className={styles.overviewCard}>
-            <div className={`${styles.overviewIcon} ${styles.overviewIconPurple}`}>
-              <Building2 size={18} />
+          <div className={styles.summaryIdentity}>
+            <div className={styles.organizationLogo}>
+              {profileTenant.logoUrl ? (
+                <img src={profileTenant.logoUrl} alt={`${profileTenant.name} logo`} />
+              ) : (
+                <Building2 size={28} />
+              )}
             </div>
-            <div className={styles.overviewMain}>
-              <div className={styles.overviewLabel}>Profile completeness</div>
-              <div className={styles.overviewValueRow}>
-                <strong>{profileCompletion}%</strong>
-                <span>
-                  {completedProfileFields} of {profileCompletionFields.length} details
-                </span>
+            <div className={styles.organizationIdentity}>
+              <div className={styles.summaryNameRow}>
+                <h2>{profileTenant.name}</h2>
+                <StatusBadge status={profileTenant.status} size="sm" />
               </div>
-              <div
-                className={styles.progressTrack}
-                role="progressbar"
-                aria-label="Profile completeness"
-                aria-valuemin={0}
-                aria-valuemax={100}
-                aria-valuenow={profileCompletion}
-              >
-                <div className={styles.progressFill} style={{ width: `${profileCompletion}%` }} />
-              </div>
+              <p>
+                {valueOrDash(profileTenant.industry)} ·{' '}
+                {profileTenant.city || profileTenant.state || 'Location not set'}
+              </p>
             </div>
-          </article>
-          <article className={styles.overviewCard}>
-            <div className={`${styles.overviewIcon} ${styles.overviewIconBlue}`}>
-              <MapPin size={18} />
+          </div>
+          <div className={styles.summaryStats}>
+            <div className={styles.summaryStat}>
+              <strong>{profileOffices.length}</strong>
+              <span>Offices</span>
             </div>
-            <div className={styles.overviewMain}>
-              <div className={styles.overviewLabel}>Office locations</div>
-              <div className={styles.overviewValueRow}>
-                <strong>{profileOffices.length}</strong>
-                <span>sites in this organization</span>
-              </div>
+            <div className={styles.summaryStat}>
+              <strong>{profileTenant._count?.employees ?? '—'}</strong>
+              <span>Employees</span>
             </div>
-          </article>
-          <article className={styles.overviewCard}>
-            <div className={`${styles.overviewIcon} ${styles.overviewIconGreen}`}>
-              <Users size={18} />
+            <div className={styles.summaryStat}>
+              <strong>{profileCompletion}%</strong>
+              <span>Profile complete</span>
             </div>
-            <div className={styles.overviewMain}>
-              <div className={styles.overviewLabel}>Employees</div>
-              <div className={styles.overviewValueRow}>
-                <strong>{profileTenant._count?.employees ?? '—'}</strong>
-                <span>in the company account</span>
-              </div>
-            </div>
-          </article>
+          </div>
         </section>
       )}
 
       <main className={styles.profileLayout}>
         <nav className={styles.sectionNav} aria-label="Company profile sections">
-          <div className={styles.navHeading}>Profile sections</div>
           {SECTIONS.map((section) => {
             const active = activeSection === section.id;
             return (
@@ -1213,6 +1086,10 @@ export default function CompanyProfilePage() {
             </Card>
           ) : (
             <>
+              <div className={styles.currentSection}>
+                <span>{SECTIONS.find((section) => section.id === activeSection)?.icon}</span>
+                {SECTIONS.find((section) => section.id === activeSection)?.label}
+              </div>
               {feedback && (
                 <div role={feedback.kind === 'error' ? 'alert' : 'status'}>
                   <Notice error={feedback.kind === 'error'}>{feedback.text}</Notice>
@@ -1223,16 +1100,7 @@ export default function CompanyProfilePage() {
                 <Card>
                   <SectionHeading
                     title="Organization details"
-                    description="Organization identity, registered address and primary contact."
-                    action={
-                      canEditProfile ? (
-                        <div className={styles.headingActions}>
-                          {canEditProfile && !editingOrganization && (
-                            <ActionButton onClick={editOrganization}>Edit details</ActionButton>
-                          )}
-                        </div>
-                      ) : undefined
-                    }
+                    description="Company identity, registered office, and primary contact."
                   />
                   {editingOrganization ? (
                     <form onSubmit={submitOrganization} className={styles.profileForm}>
@@ -1387,63 +1255,26 @@ export default function CompanyProfilePage() {
                       </div>
                     </form>
                   ) : (
-                    <>
-                      <div className={styles.organizationHero}>
-                        <div className={styles.organizationLogo}>
-                          {profileTenant.logoUrl ? (
-                            <img src={profileTenant.logoUrl} alt={`${profileTenant.name} logo`} />
-                          ) : (
-                            <Building2 size={28} />
-                          )}
-                        </div>
-                        <div className={styles.organizationIdentity}>
-                          <h3>{profileTenant.name}</h3>
-                          <p>
-                            {valueOrDash(profileTenant.industry)}{' '}
-                            · Tenant code {profileTenant.code}
-                          </p>
-                        </div>
-                        <StatusBadge status={profileTenant.status} size="sm" />
-                      </div>
-                      <div className={styles.detailsGrid}>
-                        <Detail
-                          label="Company website"
-                          value={valueOrDash(profileTenant.website)}
-                        />
-                        <Detail
-                          label="Registered address"
-                          value={valueOrDash(profileTenant.registeredAddress)}
-                        />
-                        <Detail
-                          label="City"
-                          value={valueOrDash(profileTenant.city)}
-                        />
-                        <Detail
-                          label="State"
-                          value={valueOrDash(profileTenant.state)}
-                        />
-                        <Detail
-                          label="PIN code"
-                          value={valueOrDash(profileTenant.pinCode)}
-                        />
-                        <Detail
-                          label="Country"
-                          value={valueOrDash(profileTenant.country)}
-                        />
-                        <Detail
-                          label="Primary contact"
-                          value={valueOrDash(profileTenant.primaryContactName)}
-                        />
-                        <Detail
-                          label="Contact email"
-                          value={valueOrDash(profileTenant.primaryContactEmail)}
-                        />
-                        <Detail
-                          label="Contact phone"
-                          value={valueOrDash(profileTenant.primaryContactPhone)}
-                        />
-                      </div>
-                    </>
+                    <div className={`${styles.detailsGrid} ${styles.organizationDetails}`}>
+                      <Detail label="Company code" value={profileTenant.code} />
+                      <Detail label="Industry" value={profileTenant.industry} />
+                      <Detail label="Website" value={profileTenant.website} />
+                      <Detail label="Primary contact" value={profileTenant.primaryContactName} />
+                      <Detail label="Contact email" value={profileTenant.primaryContactEmail} />
+                      <Detail label="Contact phone" value={profileTenant.primaryContactPhone} />
+                      <Detail
+                        label="Registered address"
+                        value={[
+                          profileTenant.registeredAddress,
+                          profileTenant.city,
+                          profileTenant.state,
+                          profileTenant.pinCode,
+                          profileTenant.country,
+                        ]
+                          .filter((part) => part?.trim())
+                          .join(', ')}
+                      />
+                    </div>
                   )}
                 </Card>
               )}
@@ -1453,15 +1284,6 @@ export default function CompanyProfilePage() {
                   <SectionHeading
                     title="Legal & tax details"
                     description="Legal entity, registration and billing information."
-                    action={
-                      canEditProfile ? (
-                        <div className={styles.headingActions}>
-                          {canEditProfile && !editingLegal && (
-                            <ActionButton onClick={editLegal}>Edit details</ActionButton>
-                          )}
-                        </div>
-                      ) : undefined
-                    }
                   />
                   {editingLegal ? (
                     <form onSubmit={submitLegal} className={styles.profileForm}>
@@ -1571,20 +1393,6 @@ export default function CompanyProfilePage() {
                   <SectionHeading
                     title="Offices & sites"
                     description={`Office locations and contact details for ${profileTenant.name}.`}
-                    action={
-                      canCreateOffice ? (
-                        <ActionButton
-                          onClick={() => {
-                            setSelectedOffice(null);
-                            setOfficeDraft(initialOfficeDraft);
-                            setFeedback(null);
-                            setDialog('office');
-                          }}
-                        >
-                          <Plus size={14} /> Add office
-                        </ActionButton>
-                      ) : undefined
-                    }
                   />
                   <SearchBox
                     value={search}
@@ -1603,7 +1411,7 @@ export default function CompanyProfilePage() {
                           <Th>Address</Th>
                           <Th>Employees</Th>
                           <Th>Status</Th>
-                          <Th>Actions</Th>
+                          <Th>Details</Th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1624,12 +1432,7 @@ export default function CompanyProfilePage() {
                               )}
                             </Td>
                             <Td>
-                              <div className={styles.rowActions}>
-                                <TextAction onClick={() => setSelectedOffice(office)}>View</TextAction>
-                                {canEditOffice && (
-                                  <TextAction onClick={() => openOfficeEditor(office)}>Edit</TextAction>
-                                )}
-                              </div>
+                              <TextAction onClick={() => setSelectedOffice(office)}>View</TextAction>
                             </Td>
                           </tr>
                         ))}
@@ -1646,20 +1449,6 @@ export default function CompanyProfilePage() {
                   <SectionHeading
                     title="Departments"
                     description={`Departments and office assignments for ${profileTenant.name}.`}
-                    action={
-                      canCreateDepartment ? (
-                        <ActionButton
-                          onClick={() => {
-                            setSelectedDepartment(null);
-                            setDepartmentDraft(initialDepartmentDraft);
-                            setFeedback(null);
-                            setDialog('department');
-                          }}
-                        >
-                          <Plus size={14} /> Add department
-                        </ActionButton>
-                      ) : undefined
-                    }
                   />
                   <SearchBox value={search} onChange={setSearch} placeholder="Search departments by name, code, head or office" />
                   {sectionLoading ? (
@@ -1680,7 +1469,7 @@ export default function CompanyProfilePage() {
                           <Th>Office</Th>
                           <Th>Employees</Th>
                           <Th>Status</Th>
-                          <Th>Actions</Th>
+                          <Th>Details</Th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1697,12 +1486,7 @@ export default function CompanyProfilePage() {
                               <StatusBadge status={department.isActive ? 'ACTIVE' : 'INACTIVE'} size="sm" />
                             </Td>
                             <Td>
-                              <div className={styles.rowActions}>
-                                <TextAction onClick={() => setSelectedDepartment(department)}>View</TextAction>
-                                {canCreateDepartment && (
-                                  <TextAction onClick={() => openDepartmentEditor(department)}>Edit</TextAction>
-                                )}
-                              </div>
+                              <TextAction onClick={() => setSelectedDepartment(department)}>View</TextAction>
                             </Td>
                           </tr>
                         ))}
@@ -1719,24 +1503,6 @@ export default function CompanyProfilePage() {
                   <SectionHeading
                     title="Transport zones"
                     description={`Service areas, pickup corridors, and office assignments for ${profileTenant.name}.`}
-                    action={
-                      canManageZones ? (
-                        <ActionButton
-                          disabled={profileOffices.length === 0}
-                          onClick={() => {
-                            setSelectedZone(null);
-                            setZoneDraft({
-                              ...initialZoneDraft,
-                              officeId: profileOffices[0]?.id ?? '',
-                            });
-                            setFeedback(null);
-                            setDialog('zone');
-                          }}
-                        >
-                          <Plus size={14} /> Add transport zone
-                        </ActionButton>
-                      ) : undefined
-                    }
                   />
                   {!canReadZones ? (
                     <EmptyState>Your role does not have permission to view transport zones.</EmptyState>
@@ -1765,7 +1531,7 @@ export default function CompanyProfilePage() {
                               <Th>Service area</Th>
                               <Th>Pickup / Drop points</Th>
                               <Th>Status</Th>
-                              <Th>Actions</Th>
+                              <Th>Details</Th>
                             </tr>
                           </thead>
                           <tbody>
@@ -1784,19 +1550,14 @@ export default function CompanyProfilePage() {
                                   <StatusBadge status={zone.isActive ? 'ACTIVE' : 'INACTIVE'} size="sm" />
                                 </Td>
                                 <Td>
-                                  <div className={styles.rowActions}>
-                                    <TextAction
-                                      onClick={() => {
-                                        setSelectedZone(zone);
-                                        setDialog('view-zone');
-                                      }}
-                                    >
-                                      View
-                                    </TextAction>
-                                    {canManageZones && (
-                                      <TextAction onClick={() => openZoneEditor(zone)}>Edit</TextAction>
-                                    )}
-                                  </div>
+                                  <TextAction
+                                    onClick={() => {
+                                      setSelectedZone(zone);
+                                      setDialog('view-zone');
+                                    }}
+                                  >
+                                    View
+                                  </TextAction>
                                 </Td>
                               </tr>
                             ))}
@@ -1815,24 +1576,6 @@ export default function CompanyProfilePage() {
                   <SectionHeading
                     title="Users & roles"
                     description="Corporate portal accounts, assigned roles and office access."
-                    action={
-                      canManageUsers ? (
-                        <ActionButton
-                          onClick={() => {
-                            setUserDraft({
-                              fullName: '',
-                              email: '',
-                              phone: '',
-                              corporateRole: 'READ_ONLY',
-                              officeIds: [],
-                            });
-                            setDialog('invite');
-                          }}
-                        >
-                          <Plus size={14} /> Invite user
-                        </ActionButton>
-                      ) : undefined
-                    }
                   />
                   {!canReadUsers ? (
                     <EmptyState>
@@ -1865,7 +1608,7 @@ export default function CompanyProfilePage() {
                               <Th>Assigned offices</Th>
                               <Th>Permissions</Th>
                               <Th>Account status</Th>
-                              <Th>Actions</Th>
+                              <Th>Details</Th>
                             </tr>
                           </thead>
                           <tbody>
@@ -1897,33 +1640,14 @@ export default function CompanyProfilePage() {
                                   <StatusBadge status={corporateUser.status} size="sm" />
                                 </Td>
                                 <Td>
-                                  {canManageUsers ? (
-                                    <div className={styles.rowActions}>
-                                      <TextAction
-                                        onClick={() => {
-                                          setSelectedUser(corporateUser);
-                                          setDialog('view-user');
-                                        }}
-                                      >
-                                        View
-                                      </TextAction>
-                                      <TextAction
-                                        disabled={corporateUser.id === user?.id}
-                                        onClick={() => openUserEditor(corporateUser)}
-                                      >
-                                        {corporateUser.id === user?.id ? 'Your account' : 'Edit'}
-                                      </TextAction>
-                                    </div>
-                                  ) : (
-                                    <TextAction
-                                      onClick={() => {
-                                        setSelectedUser(corporateUser);
-                                        setDialog('view-user');
-                                      }}
-                                    >
-                                      View
-                                    </TextAction>
-                                  )}
+                                  <TextAction
+                                    onClick={() => {
+                                      setSelectedUser(corporateUser);
+                                      setDialog('view-user');
+                                    }}
+                                  >
+                                    View
+                                  </TextAction>
                                 </Td>
                               </tr>
                             ))}
