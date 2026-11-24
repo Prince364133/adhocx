@@ -8,6 +8,7 @@ import type { Dashboard } from '../../lib/api/types';
 import { useSession } from '../../lib/auth/SessionContext';
 
 const MAX_RANGE_DAYS = 93;
+const ACTIVE_ROUTE_STATUSES = new Set(['PLANNED', 'DISPATCHING', 'ASSIGNED', 'IN_TRANSIT']);
 
 interface DateRange {
   from: string;
@@ -24,6 +25,9 @@ interface DashboardData {
   dashboard: Dashboard;
   totalEmployees: number;
   dailyTrips: DailyTripCount[];
+  activeRoutes: number;
+  inactiveRoutes: number;
+  assignedCabs: number;
 }
 
 function getTodayInIndia(): string {
@@ -195,10 +199,10 @@ export default function CompanyOverviewPage() {
     ])
       .then(([dashboard, report, tenant]) => {
         if (report.truncated) {
-          throw new Error('The trips report exceeded its 50,000-row limit, so daily trip frequency cannot be shown accurately for this date range.');
+          throw new Error('The trips report exceeded its 50,000-row limit, so route and cab statistics cannot be shown accurately for this date range.');
         }
         if (report.rows.length !== dashboard.trips.total) {
-          throw new Error('The trips report did not match the dashboard total. Refresh the dashboard before relying on this chart.');
+          throw new Error('The trips report did not match the dashboard total. Refresh the dashboard before relying on these statistics.');
         }
         if (typeof tenant._count?.employees !== 'number') {
           throw new Error('The tenant API response did not include the employee count.');
@@ -217,11 +221,21 @@ export default function CompanyOverviewPage() {
           dailyTrips.push({ date, label: formatDay(date), trips: tripCountByDate.get(date) ?? 0 });
         }
 
+        const activeRoutes = report.rows.filter((route) => ACTIVE_ROUTE_STATUSES.has(route.status)).length;
+        const assignedCabs = new Set(
+          report.rows
+            .map((route) => route.vehicleNumber?.trim().toUpperCase())
+            .filter((vehicleNumber): vehicleNumber is string => Boolean(vehicleNumber)),
+        ).size;
+
         if (active) {
           setData({
             dashboard,
             totalEmployees: tenant._count.employees,
             dailyTrips,
+            activeRoutes,
+            inactiveRoutes: dashboard.trips.total - activeRoutes,
+            assignedCabs,
           });
         }
       })
@@ -374,6 +388,35 @@ export default function CompanyOverviewPage() {
         ) : null}
       </section>
 
+      <section className="surface-card" style={{ padding: '20px 24px' }}>
+        <div style={{ marginBottom: '16px' }}>
+          <h2 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>Route and Cab Statistics</h2>
+          <p style={{ margin: '4px 0 0', fontSize: '12px', color: 'var(--text-secondary)' }}>
+            Route statuses and distinct assigned cabs for the selected date range
+          </p>
+        </div>
+        {loading ? (
+          <p role="status" style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '13px' }}>Loading route and cab statistics…</p>
+        ) : data ? (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '12px' }}>
+            {[
+              ['Total Routes', totalRoutes],
+              ['Active Routes', data.activeRoutes],
+              ['Inactive Routes', data.inactiveRoutes],
+              ['Cabs Assigned to Routes', data.assignedCabs],
+            ].map(([label, value]) => (
+              <div key={label} style={{ padding: '14px 16px', border: '1px solid var(--border-subtle)', borderRadius: '10px', background: 'var(--bg-surface, #fff)' }}>
+                <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{label}</div>
+                <div style={{ marginTop: '6px', fontSize: '22px', fontWeight: 800, color: 'var(--text-primary)' }}>
+                  {typeof value === 'number' ? value.toLocaleString() : '—'}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : !error ? (
+          <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '13px' }}>No route or cab data is available for the selected date range.</p>
+        ) : null}
+      </section>
     </div>
   );
 }
