@@ -3148,6 +3148,54 @@ button .brand-inline,
   }
 }
 
+/* Mobile Executive Metric Cards Strip (Desktop: Hidden) */
+.hero-dashboard-mobile-metrics {
+  display: none;
+}
+
+.dashboard-lightbox-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.65rem 1rem;
+  background: #F8FAFC;
+  border-bottom: 1px solid #E2E8F0;
+  box-sizing: border-box;
+}
+
+.dashboard-lightbox-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.dashboard-lightbox-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #334155;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.dashboard-lightbox-live {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: #16A34A;
+  background: rgba(22, 163, 74, 0.08);
+  padding: 0.15rem 0.5rem;
+  border-radius: 9999px;
+  border: 1px solid rgba(22, 163, 74, 0.2);
+}
+
+.dashboard-lightbox-scroll-area {
+  width: 100%;
+  overflow: hidden;
+  background: #FFFFFF;
+}
+
+.dashboard-lightbox-hint {
+  display: none;
+}
+
 /* Lightbox Modal for Full View */
 .dashboard-lightbox-modal {
   display: none;
@@ -3177,6 +3225,8 @@ button .brand-inline,
   overflow: hidden;
   box-shadow: 0 25px 80px rgba(0, 0, 0, 0.5);
   animation: zoomLightbox 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  flex-direction: column;
 }
 
 @keyframes zoomLightbox {
@@ -3191,32 +3241,33 @@ button .brand-inline,
 }
 
 .dashboard-lightbox-close {
-  position: absolute;
-  top: 1rem;
-  right: 1rem;
-  background: rgba(15, 23, 42, 0.75);
-  color: #FFFFFF;
+  background: #E2E8F0;
+  color: #334155;
   border: none;
-  width: 2.25rem;
-  height: 2.25rem;
+  width: 1.85rem;
+  height: 1.85rem;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  z-index: 10;
-  transition: background 0.2s;
+  font-size: 0.85rem;
+  font-weight: 700;
+  transition: background 0.2s, color 0.2s;
+  flex-shrink: 0;
 }
 
 .dashboard-lightbox-close:hover {
-  background: rgba(15, 23, 42, 0.95);
+  background: #CBD5E1;
+  color: #0F172A;
 }
 
 .dashboard-lightbox-img {
   display: block;
   max-width: 100%;
-  max-height: 88vh;
+  max-height: 85vh;
   object-fit: contain;
+  margin: 0 auto;
 }
 
 .dashboard-body-split {
@@ -3908,6 +3959,150 @@ button .brand-inline,
     max-width: 100%;
   }
 
+  .adhocx-hero-section {
+    min-height: auto !important;
+    padding-top: 1.5rem !important;
+    padding-bottom: 2rem !important;
+  }
+
+  .adhocx-hero-grid {
+    gap: 1.5rem !important;
+  }
+
+  .hero-showcase-column {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .hero-dashboard-window {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    border-radius: 12px !important;
+    box-shadow: 0 10px 30px -8px rgba(15, 23, 42, 0.12), 0 4px 12px -2px rgba(15, 23, 42, 0.05) !important;
+    border: 1px solid #E2E8F0 !important;
+  }
+
+  .hero-dashboard-img-wrap {
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #FFFFFF !important;
+    line-height: 0 !important;
+  }
+
+  .hero-dashboard-img {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    display: block !important;
+    object-fit: contain !important;
+    margin: 0 !important;
+  }
+
+  .hero-dashboard-mobile-metrics {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.35rem !important;
+    padding: 0.5rem 0.65rem !important;
+    background: #FAF8FF !important;
+    border-top: 1px solid #EDE9FE !important;
+    box-sizing: border-box !important;
+  }
+
+  .dash-metric-pill {
+    background: #FFFFFF !important;
+    border: 1px solid #E9D5FF !important;
+    border-radius: 8px !important;
+    padding: 0.35rem 0.45rem !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.15rem !important;
+    box-shadow: 0 1px 3px rgba(87, 40, 178, 0.04) !important;
+  }
+
+  .dash-metric-label {
+    font-size: 0.625rem !important;
+    font-weight: 600 !important;
+    color: #64748B !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  .dash-metric-val {
+    font-size: 0.9rem !important;
+    font-weight: 800 !important;
+    color: #0F172A !important;
+    line-height: 1.15 !important;
+  }
+
+  .dash-metric-badge {
+    font-size: 0.575rem !important;
+    font-weight: 700 !important;
+    width: fit-content !important;
+    padding: 0.08rem 0.3rem !important;
+    border-radius: 4px !important;
+  }
+
+  .dash-metric-badge.badge-green {
+    background: #DCFCE7 !important;
+    color: #15803D !important;
+  }
+
+  .dash-metric-badge.badge-purple {
+    background: #F3E8FF !important;
+    color: #6B21A8 !important;
+  }
+
+  .dash-metric-badge.badge-orange {
+    background: #FFEDD5 !important;
+    color: #C2410C !important;
+  }
+
+  .dashboard-lightbox-modal {
+    padding: 0.5rem !important;
+    background: rgba(15, 23, 42, 0.94) !important;
+  }
+
+  .dashboard-lightbox-content {
+    max-width: 100% !important;
+    width: 100% !important;
+    max-height: 92vh !important;
+    border-radius: 12px !important;
+  }
+
+  .dashboard-lightbox-scroll-area {
+    max-height: 75vh !important;
+    overflow-x: auto !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  .dashboard-lightbox-img {
+    min-width: 580px !important;
+    width: 100% !important;
+    max-width: none !important;
+    height: auto !important;
+    max-height: none !important;
+    display: block !important;
+  }
+
+  .dashboard-lightbox-hint {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 0.35rem !important;
+    padding: 0.35rem 0.65rem !important;
+    background: #F8FAFC !important;
+    border-top: 1px solid #E2E8F0 !important;
+    font-size: 0.6875rem !important;
+    font-weight: 600 !important;
+    color: #5728B2 !important;
+  }
+
   .adhocx-hero-checks {
     flex-direction: column;
     align-items: flex-start;
@@ -3915,10 +4110,13 @@ button .brand-inline,
   }
 
   .dashboard-topbar {
-    padding: 0.45rem 0.65rem;
-    gap: 0.5rem;
-    overflow: hidden;
-    min-width: 0;
+    padding: 0.45rem 0.65rem !important;
+    gap: 0.5rem !important;
+    overflow: hidden !important;
+    min-width: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
   }
 
   .dashboard-search-sim {
@@ -3926,7 +4124,15 @@ button .brand-inline,
   }
 
   .dashboard-zoom-btn {
-    display: none !important;
+    display: inline-flex !important;
+    font-size: 0.6875rem !important;
+    padding: 0.2rem 0.55rem !important;
+    border-radius: 9999px !important;
+    background: #FFFFFF !important;
+    border: 1px solid #CBD5E1 !important;
+    color: #475569 !important;
+    font-weight: 600 !important;
+    white-space: nowrap !important;
   }
 
   .dashboard-live-badge {
@@ -6377,13 +6583,25 @@ button .brand-inline,
   }
   .about-hero-actions,
   .about-conversion-actions {
-    flex-direction: column;
-    align-items: stretch;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    width: 100% !important;
+    gap: 0.75rem !important;
   }
   .btn-orange-primary,
-  .btn-outline-pill {
-    width: 100%;
-    justify-content: center;
+  .btn-outline-pill,
+  .about-hero-actions .btn-orange-primary,
+  .about-hero-actions .btn-outline-pill,
+  .about-conversion-actions .btn-orange-primary,
+  .about-conversion-actions .btn-outline-pill {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    flex: none !important;
+    min-height: 48px !important;
+    justify-content: center !important;
+    text-align: center !important;
+    box-sizing: border-box !important;
   }
   .about-hero-img {
     height: 280px;
@@ -7388,3 +7606,271 @@ button .brand-inline,
 
 
 
+
+/* ============================================================================
+   UNIVERSAL RESPONSIVE CTA BUTTONS & FOOTER BADGE OPTIMIZATION (< 768px)
+   ============================================================================ */
+@media (max-width: 768px) {
+  /* Hide Google Play Badge on Mobile in Footers */
+  .footer-ref-brand .app-download-badges,
+  .footer-enterprise-ref .app-download-badges,
+  .app-download-badges {
+    display: none !important;
+  }
+
+  /* ==========================================================================
+     GOVERNANCE & COMPLIANCE - ADHOCX THEME MOBILE REDESIGN
+     Removes mismatched light-blue styling and applies brand purple accents,
+     consistent background colors, clean typography, and compact 2x2 grid.
+     ========================================================================== */
+  .governance-section {
+    padding: clamp(2.5rem, 5vw, 4rem) 0 !important;
+    background: var(--color-bg, #F8FAFC) !important;
+  }
+
+  .governance-dark-container {
+    background: linear-gradient(180deg, #FFFFFF 0%, #FAF8FF 100%) !important;
+    border: 1.5px solid #E9D5FF !important;
+    border-radius: 1.25rem !important;
+    padding: 1.35rem 1rem !important;
+    box-shadow: 0 8px 30px -4px rgba(87, 40, 178, 0.08) !important;
+  }
+
+  .governance-grid {
+    gap: 1.5rem !important;
+  }
+
+  .gov-tag {
+    color: var(--color-primary-600, #5728B2) !important;
+    background: #F3E8FF !important;
+    border: 1px solid #DDD6FE !important;
+    padding: 0.3rem 0.75rem !important;
+    border-radius: 9999px !important;
+    font-size: 0.75rem !important;
+    font-weight: 750 !important;
+    letter-spacing: 0.06em !important;
+    margin-bottom: 0.85rem !important;
+  }
+
+  .gov-h2 {
+    font-size: clamp(1.4rem, 5vw, 1.85rem) !important;
+    line-height: 1.25 !important;
+    color: #0F172A !important;
+    letter-spacing: -0.02em !important;
+    margin-bottom: 0.85rem !important;
+  }
+
+  .gov-p {
+    font-size: 0.875rem !important;
+    line-height: 1.55 !important;
+    color: #475569 !important;
+    margin-bottom: 1.25rem !important;
+  }
+
+  .gov-link {
+    color: var(--color-primary-600, #5728B2) !important;
+    font-size: 0.875rem !important;
+    font-weight: 700 !important;
+    margin-bottom: 1.5rem !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 0.35rem !important;
+  }
+
+  .governance-tiles-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.625rem !important;
+  }
+
+  .gov-tile {
+    background: #FFFFFF !important;
+    border: 1px solid #E2E8F0 !important;
+    border-radius: 0.875rem !important;
+    padding: 0.85rem 0.75rem !important;
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.03) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: flex-start !important;
+    min-height: 90px !important;
+  }
+
+  .gov-badge {
+    font-size: 0.6875rem !important;
+    font-weight: 750 !important;
+    padding: 0.15rem 0.45rem !important;
+    border-radius: 4px !important;
+    margin-bottom: 0.45rem !important;
+    width: fit-content !important;
+  }
+
+  .gov-tile-title {
+    font-size: 0.8125rem !important;
+    line-height: 1.25 !important;
+    color: #0F172A !important;
+    margin-bottom: 0.25rem !important;
+  }
+
+  .gov-tile-desc {
+    font-size: 0.71875rem !important;
+    line-height: 1.4 !important;
+    color: #64748B !important;
+  }
+}
+
+/* ==========================================================================
+   RESPONSIVE ACTION BUTTONS & CTA ROWS (Mobile & Tablet)
+   Rule 1: Stack vertically on narrow phones (< 520px) to prevent overlapping & cutoffs.
+   Rule 2: Arrange horizontally in rows wherever space permits (>= 521px).
+   Rule 3: Reduce font sizes slightly and maintain consistent touch targets.
+   ========================================================================== */
+@media (max-width: 520px) {
+  .hero-actions,
+  .cta-actions,
+  .about-hero-actions,
+  .about-conversion-actions,
+  .emp-hero-actions,
+  .ind-hero-actions,
+  .drv-hero-actions,
+  .services-hero-ctas,
+  .pricing-hero-actions,
+  .adhocx-hero-actions,
+  .faq-cta-actions,
+  .safety-hero-actions,
+  .safety-cta-actions,
+  .dual-action-buttons,
+  .switch-cta-btn,
+  .vendor-hero-actions {
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    gap: 0.65rem !important;
+    align-items: stretch !important;
+    box-sizing: border-box !important;
+  }
+
+  .hero-actions > a,
+  .hero-actions > button,
+  .cta-actions > a,
+  .cta-actions > button,
+  .about-hero-actions > a,
+  .about-hero-actions > button,
+  .about-conversion-actions > a,
+  .about-conversion-actions > button,
+  .emp-hero-actions > a,
+  .emp-hero-actions > button,
+  .ind-hero-actions > a,
+  .ind-hero-actions > button,
+  .drv-hero-actions > a,
+  .drv-hero-actions > button,
+  .services-hero-ctas > a,
+  .services-hero-ctas > button,
+  .pricing-hero-actions > a,
+  .pricing-hero-actions > button,
+  .adhocx-hero-actions > a,
+  .adhocx-hero-actions > button,
+  .faq-cta-actions > a,
+  .faq-cta-actions > button,
+  .safety-hero-actions > a,
+  .safety-hero-actions > button,
+  .safety-cta-actions > a,
+  .safety-cta-actions > button,
+  .dual-action-buttons > a,
+  .dual-action-buttons > button,
+  .btn-pill-primary,
+  .btn-pill-secondary,
+  .btn-orange-primary,
+  .btn-outline-pill {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    flex: none !important;
+    min-height: 48px !important;
+    padding: 0.75rem 1.15rem !important;
+    box-sizing: border-box !important;
+    white-space: normal !important;
+    word-break: normal !important;
+    overflow-wrap: break-word !important;
+    text-align: center !important;
+    justify-content: center !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    border-radius: 9999px !important;
+    font-size: 0.875rem !important;
+  }
+}
+
+@media (min-width: 521px) and (max-width: 1024px) {
+  .hero-actions,
+  .cta-actions,
+  .about-hero-actions,
+  .about-conversion-actions,
+  .emp-hero-actions,
+  .ind-hero-actions,
+  .drv-hero-actions,
+  .services-hero-ctas,
+  .pricing-hero-actions,
+  .adhocx-hero-actions,
+  .faq-cta-actions,
+  .safety-hero-actions,
+  .safety-cta-actions,
+  .dual-action-buttons,
+  .vendor-hero-actions {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    justify-content: center !important;
+    align-items: center !important;
+    gap: 0.75rem !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .hero-actions > a,
+  .hero-actions > button,
+  .cta-actions > a,
+  .cta-actions > button,
+  .about-hero-actions > a,
+  .about-hero-actions > button,
+  .about-conversion-actions > a,
+  .about-conversion-actions > button,
+  .emp-hero-actions > a,
+  .emp-hero-actions > button,
+  .ind-hero-actions > a,
+  .ind-hero-actions > button,
+  .drv-hero-actions > a,
+  .drv-hero-actions > button,
+  .services-hero-ctas > a,
+  .services-hero-ctas > button,
+  .pricing-hero-actions > a,
+  .pricing-hero-actions > button,
+  .adhocx-hero-actions > a,
+  .adhocx-hero-actions > button,
+  .faq-cta-actions > a,
+  .faq-cta-actions > button,
+  .safety-hero-actions > a,
+  .safety-hero-actions > button,
+  .safety-cta-actions > a,
+  .safety-cta-actions > button,
+  .dual-action-buttons > a,
+  .dual-action-buttons > button,
+  .btn-pill-primary,
+  .btn-pill-secondary,
+  .btn-orange-primary,
+  .btn-outline-pill {
+    width: auto !important;
+    max-width: 100% !important;
+    min-height: 48px !important;
+    padding: 0.7rem 1.25rem !important;
+    box-sizing: border-box !important;
+    white-space: normal !important;
+    text-align: center !important;
+    justify-content: center !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    border-radius: 9999px !important;
+    font-size: 0.875rem !important;
+  }
+}

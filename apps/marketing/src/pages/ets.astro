@@ -88,7 +88,7 @@ const jsonLd = {
       <div style="display: flex; flex-direction: column; gap: var(--space-12);">
         
         <!-- Pillar 1: Corporate Client Portal -->
-        <div id="admin-portal" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-xl); padding: var(--space-8); box-shadow: var(--shadow-sm); display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: var(--space-8); align-items: center;">
+        <div id="admin-portal" class="ets-pillar-card" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-xl); padding: var(--space-8); box-shadow: var(--shadow-sm); display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: var(--space-8); align-items: center;">
           <div>
             <div class="badge badge-blue" style="margin-bottom: var(--space-3);">Pillar 1: Command Console</div>
             <h3 style="font-size: 1.75rem; font-weight: 700; color: var(--color-text-primary); margin-bottom: var(--space-4);">
@@ -116,33 +116,33 @@ const jsonLd = {
               </li>
             </ul>
           </div>
-          <div style="background: var(--color-surface-muted); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: var(--space-6);">
-            <div style="font-weight: 700; font-size: 0.875rem; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: var(--space-4);">
+          <div class="ets-pillar-modules-box" style="background: var(--color-surface-muted); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: var(--space-6);">
+            <div class="ets-pillar-modules-title" style="font-weight: 700; font-size: 0.875rem; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: var(--space-4);">
               Portal Modules & Workflows
             </div>
-            <div style="display: flex; flex-direction: column; gap: var(--space-3);">
-              <div style="background: var(--color-surface); padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); border: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center;">
-                <span style="font-weight: 600; font-size: 0.875rem; color: var(--color-text-primary);">Tenant Setup & RBAC</span>
-                <span class="badge badge-blue" style="font-size: 0.75rem;">SSO / MFA Enabled</span>
+            <div class="ets-pillar-modules-grid">
+              <div class="ets-pillar-module-card">
+                <span class="ets-pillar-module-title">Tenant Setup & RBAC</span>
+                <span class="badge badge-blue ets-pillar-module-badge">SSO / MFA Enabled</span>
               </div>
-              <div style="background: var(--color-surface); padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); border: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center;">
-                <span style="font-weight: 600; font-size: 0.875rem; color: var(--color-text-primary);">Roster Ingestion Engine</span>
-                <span class="badge badge-warm" style="font-size: 0.75rem;">Dry-Run Validator</span>
+              <div class="ets-pillar-module-card">
+                <span class="ets-pillar-module-title">Roster Ingestion Engine</span>
+                <span class="badge badge-warm ets-pillar-module-badge">Dry-Run Validator</span>
               </div>
-              <div style="background: var(--color-surface); padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); border: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center;">
-                <span style="font-weight: 600; font-size: 0.875rem; color: var(--color-text-primary);">Live Route Oversight</span>
-                <span class="badge badge-blue" style="font-size: 0.75rem;">PostGIS Telemetry</span>
+              <div class="ets-pillar-module-card">
+                <span class="ets-pillar-module-title">Live Route Oversight</span>
+                <span class="badge badge-blue ets-pillar-module-badge">PostGIS Telemetry</span>
               </div>
-              <div style="background: var(--color-surface); padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); border: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center;">
-                <span style="font-weight: 600; font-size: 0.875rem; color: var(--color-text-primary);">Safety & SLA Center</span>
-                <span class="badge badge-blue" style="font-size: 0.75rem;">24/7 Command Sync</span>
+              <div class="ets-pillar-module-card">
+                <span class="ets-pillar-module-title">Safety & SLA Center</span>
+                <span class="badge badge-blue ets-pillar-module-badge">24/7 Command Sync</span>
               </div>
             </div>
           </div>
         </div>
 
         <!-- Pillar 2: Employee Mobile App -->
-        <div id="hr-mobility" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-xl); padding: var(--space-8); box-shadow: var(--shadow-sm); display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: var(--space-8); align-items: center;">
+        <div id="hr-mobility" class="ets-pillar-card" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-xl); padding: var(--space-8); box-shadow: var(--shadow-sm); display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: var(--space-8); align-items: center;">
           <div style="order: 2;">
             <div class="badge badge-blue" style="margin-bottom: var(--space-3);">Pillar 2: Passenger Experience</div>
             <h3 style="font-size: 1.75rem; font-weight: 700; color: var(--color-text-primary); margin-bottom: var(--space-4);">
@@ -170,33 +170,33 @@ const jsonLd = {
               </li>
             </ul>
           </div>
-          <div style="background: var(--color-surface-muted); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: var(--space-6); order: 1;">
-            <div style="font-weight: 700; font-size: 0.875rem; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: var(--space-4);">
+          <div class="ets-pillar-modules-box" style="background: var(--color-surface-muted); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: var(--space-6); order: 1;">
+            <div class="ets-pillar-modules-title" style="font-weight: 700; font-size: 0.875rem; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: var(--space-4);">
               Mobile Passenger Modules
             </div>
-            <div style="display: flex; flex-direction: column; gap: var(--space-3);">
-              <div style="background: var(--color-surface); padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); border: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center;">
-                <span style="font-weight: 600; font-size: 0.875rem; color: var(--color-text-primary);">Corporate SSO / Mobile OTP</span>
-                <span class="badge badge-blue" style="font-size: 0.75rem;">Verified Auth</span>
+            <div class="ets-pillar-modules-grid">
+              <div class="ets-pillar-module-card">
+                <span class="ets-pillar-module-title">Corporate SSO / Mobile OTP</span>
+                <span class="badge badge-blue ets-pillar-module-badge">Verified Auth</span>
               </div>
-              <div style="background: var(--color-surface); padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); border: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center;">
-                <span style="font-weight: 600; font-size: 0.875rem; color: var(--color-text-primary);">Live Vehicle Tracking</span>
-                <span class="badge badge-blue" style="font-size: 0.75rem;">GPS &lt; 15s Fresh</span>
+              <div class="ets-pillar-module-card">
+                <span class="ets-pillar-module-title">Live Vehicle Tracking</span>
+                <span class="badge badge-blue ets-pillar-module-badge">GPS &lt; 15s</span>
               </div>
-              <div style="background: var(--color-surface); padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); border: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center;">
-                <span style="font-weight: 600; font-size: 0.875rem; color: var(--color-text-primary);">Expiring Boarding OTP</span>
-                <span class="badge badge-warm" style="font-size: 0.75rem;">Geofenced Challenge</span>
+              <div class="ets-pillar-module-card">
+                <span class="ets-pillar-module-title">Expiring Boarding OTP</span>
+                <span class="badge badge-warm ets-pillar-module-badge">Geofenced</span>
               </div>
-              <div style="background: var(--color-surface); padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); border: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center;">
-                <span style="font-weight: 600; font-size: 0.875rem; color: var(--color-text-primary);">Safety & SOS Center</span>
-                <span class="badge badge-blue" style="font-size: 0.75rem;">Command Escalation</span>
+              <div class="ets-pillar-module-card">
+                <span class="ets-pillar-module-title">Safety & SOS Center</span>
+                <span class="badge badge-blue ets-pillar-module-badge">Command Sync</span>
               </div>
             </div>
           </div>
         </div>
 
         <!-- Pillar 3: Driver Mobile App -->
-        <div id="driver-app" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-xl); padding: var(--space-8); box-shadow: var(--shadow-sm); display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: var(--space-8); align-items: center;">
+        <div id="driver-app" class="ets-pillar-card" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-xl); padding: var(--space-8); box-shadow: var(--shadow-sm); display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: var(--space-8); align-items: center;">
           <div>
             <div class="badge badge-blue" style="margin-bottom: var(--space-3);">Pillar 3: Fleet Operations</div>
             <h3 style="font-size: 1.75rem; font-weight: 700; color: var(--color-text-primary); margin-bottom: var(--space-4);">
@@ -224,26 +224,26 @@ const jsonLd = {
               </li>
             </ul>
           </div>
-          <div style="background: var(--color-surface-muted); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: var(--space-6);">
-            <div style="font-weight: 700; font-size: 0.875rem; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: var(--space-4);">
+          <div class="ets-pillar-modules-box" style="background: var(--color-surface-muted); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: var(--space-6);">
+            <div class="ets-pillar-modules-title" style="font-weight: 700; font-size: 0.875rem; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: var(--space-4);">
               Driver Workflow Stages
             </div>
-            <div style="display: flex; flex-direction: column; gap: var(--space-3);">
-              <div style="background: var(--color-surface); padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); border: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center;">
-                <span style="font-weight: 600; font-size: 0.875rem; color: var(--color-text-primary);">Commercial KYC & Vehicle Reg</span>
-                <span class="badge badge-blue" style="font-size: 0.75rem;">100% Yellow Plate</span>
+            <div class="ets-pillar-modules-grid">
+              <div class="ets-pillar-module-card">
+                <span class="ets-pillar-module-title">Commercial KYC & Vehicle Reg</span>
+                <span class="badge badge-blue ets-pillar-module-badge">100% Yellow Plate</span>
               </div>
-              <div style="background: var(--color-surface); padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); border: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center;">
-                <span style="font-weight: 600; font-size: 0.875rem; color: var(--color-text-primary);">Incoming Shift Route Offers</span>
-                <span class="badge badge-warm" style="font-size: 0.75rem;">Atomic Confirmation</span>
+              <div class="ets-pillar-module-card">
+                <span class="ets-pillar-module-title">Incoming Shift Route Offers</span>
+                <span class="badge badge-warm ets-pillar-module-badge">Atomic Confirm</span>
               </div>
-              <div style="background: var(--color-surface); padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); border: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center;">
-                <span style="font-weight: 600; font-size: 0.875rem; color: var(--color-text-primary);">Sequential Turn Navigation</span>
-                <span class="badge badge-blue" style="font-size: 0.75rem;">PostGIS Waypoints</span>
+              <div class="ets-pillar-module-card">
+                <span class="ets-pillar-module-title">Sequential Turn Navigation</span>
+                <span class="badge badge-blue ets-pillar-module-badge">PostGIS Points</span>
               </div>
-              <div style="background: var(--color-surface); padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); border: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center;">
-                <span style="font-weight: 600; font-size: 0.875rem; color: var(--color-text-primary);">Automated Weekly Settlement</span>
-                <span class="badge badge-blue" style="font-size: 0.75rem;">Direct Bank Payout</span>
+              <div class="ets-pillar-module-card">
+                <span class="ets-pillar-module-title">Automated Weekly Settlement</span>
+                <span class="badge badge-blue ets-pillar-module-badge">Bank Payout</span>
               </div>
             </div>
           </div>
@@ -431,15 +431,120 @@ const jsonLd = {
     flex-grow: 1;
   }
 
+  /* Pillar Inner Module Box Styling */
+  .ets-pillar-modules-grid {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+
+  .ets-pillar-module-card {
+    background: var(--color-surface);
+    padding: var(--space-3) var(--space-4);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .ets-pillar-module-title {
+    font-weight: 600;
+    font-size: 0.875rem;
+    color: var(--color-text-primary);
+  }
+
+  .ets-pillar-module-badge {
+    font-size: 0.75rem;
+  }
+
   @media (max-width: 1024px) {
     .ets-arch-grid {
       grid-template-columns: repeat(2, 1fr);
     }
   }
 
-  @media (max-width: 640px) {
+  @media (max-width: 768px) {
+    .ets-pillar-card {
+      padding: 1.25rem 1rem !important;
+      gap: 1.25rem !important;
+      border-radius: 1rem !important;
+    }
+
+    .ets-pillar-modules-box {
+      padding: 1rem 0.85rem !important;
+      border-radius: 0.875rem !important;
+    }
+
+    .ets-pillar-modules-title {
+      font-size: 0.75rem !important;
+      margin-bottom: 0.75rem !important;
+    }
+
+    /* Arranges the 4 cards in each section into a compact 2x2 grid */
+    .ets-pillar-modules-grid {
+      display: grid !important;
+      grid-template-columns: repeat(2, 1fr) !important;
+      gap: 0.5rem !important;
+    }
+
+    .ets-pillar-module-card {
+      padding: 0.65rem 0.5rem !important;
+      border-radius: 0.5rem !important;
+      flex-direction: column !important;
+      align-items: flex-start !important;
+      justify-content: space-between !important;
+      gap: 0.35rem !important;
+      min-height: 64px !important;
+      box-sizing: border-box !important;
+    }
+
+    .ets-pillar-module-title {
+      font-size: 0.75rem !important;
+      line-height: 1.25 !important;
+      font-weight: 650 !important;
+    }
+
+    .ets-pillar-module-badge {
+      font-size: 0.625rem !important;
+      padding: 0.15rem 0.4rem !important;
+      border-radius: 4px !important;
+    }
+
+    /* High-Concurrency Cards in 2x2 grid */
     .ets-arch-grid {
-      grid-template-columns: 1fr;
+      grid-template-columns: repeat(2, 1fr) !important;
+      gap: 0.75rem !important;
+    }
+
+    .ets-arch-card {
+      padding: 1rem 0.85rem !important;
+      border-radius: 0.875rem !important;
+    }
+
+    .ets-arch-icon-box {
+      width: 36px !important;
+      height: 36px !important;
+      margin-bottom: 0.75rem !important;
+      border-radius: 0.5rem !important;
+    }
+
+    .ets-arch-card-title {
+      font-size: 0.875rem !important;
+      line-height: 1.25 !important;
+      margin-bottom: 0.35rem !important;
+    }
+
+    .ets-arch-card-desc {
+      font-size: 0.75rem !important;
+      line-height: 1.45 !important;
+    }
+  }
+
+  @media (max-width: 640px) {
+    /* Keep 2x2 grid on all mobile viewports down to 320px */
+    .ets-arch-grid {
+      grid-template-columns: repeat(2, 1fr) !important;
     }
   }
 

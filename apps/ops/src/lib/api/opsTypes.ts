@@ -828,3 +828,37 @@ export interface OperationsExceptionsResponse {
     safety: number;
   }>;
 }
+
+export interface EligibleDriverItem {
+  driverId: string;
+  fullName: string;
+  phone?: string;
+  verificationStatus: string;
+  availabilityStatus: string;
+  trustScore: number;
+  averageRating?: number | null;
+  isEligible: boolean;
+  isCurrentlyAssigned: boolean;
+  rejectionReason?: string;
+  rejectionReasonLabel?: string;
+  dutyHoursLast24h?: number;
+  matchedVehicle?: {
+    id: string;
+    registrationNumber: string;
+    vehicleType: string;
+    model: string;
+    seatingCapacity: number;
+  };
+}
+
+export interface EligibleDriversResponse {
+  routeId: string;
+  vehicleCategory: string;
+  maxCapacity: number;
+  shiftDate: string;
+  shiftTime: string;
+  direction: 'LOGIN' | 'LOGOUT';
+  drivers: EligibleDriverItem[];
+  totalDrivers: number;
+  eligibleDriversCount: number;
+}

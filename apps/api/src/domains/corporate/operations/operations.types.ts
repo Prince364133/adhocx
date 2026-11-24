@@ -80,6 +80,17 @@ export class ReassignRouteDto {
   newDriverId?: string;
 }
 
+export class AssignDriverDto {
+  @IsUUID()
+  @IsNotEmpty()
+  driverId!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  reason?: string;
+}
+
 /** Routes an ADMIN may cancel: nothing has started moving yet. IN_TRANSIT / COMPLETED are refused. */
 export const CANCELLABLE_ROUTE_STATUSES: readonly string[] = ['PLANNED', 'DISPATCHING', 'ASSIGNED'];
 

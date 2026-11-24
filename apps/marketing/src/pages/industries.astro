@@ -1679,14 +1679,20 @@ const breadcrumbs = [
 
   @media (max-width: 640px) {
     .ind-hero-actions {
-      flex-direction: column;
-      align-items: stretch;
+      flex-direction: column !important;
+      width: 100% !important;
+      gap: 0.75rem !important;
+      align-items: stretch !important;
     }
 
     .ind-hero-btn-primary,
-    .ind-hero-btn-secondary {
-      width: 100%;
-      justify-content: center;
+    .ind-hero-btn-secondary,
+    .ind-hero-actions .btn-pill-primary,
+    .ind-hero-actions .btn-pill-secondary {
+      width: 100% !important;
+      justify-content: center !important;
+      min-height: 48px !important;
+      text-align: center !important;
     }
 
     .ind-float-telemetry-top,

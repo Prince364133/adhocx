@@ -100,6 +100,8 @@ class _EarningsScreenState extends State<EarningsScreen> {
     final balance = (_walletSummary['walletBalance'] ?? 0.0);
     final totalEarned = (_walletSummary['totalEarned'] ?? 0.0);
     final totalWithdrawn = (_walletSummary['totalWithdrawn'] ?? 0.0);
+    final num pendingRaw = _walletSummary['pendingSettlements'] as num? ?? 0.0;
+    final double pendingPayout = pendingRaw.toDouble();
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
@@ -190,12 +192,41 @@ class _EarningsScreenState extends State<EarningsScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  context.tr('Available Balance'),
-                                  style: AppTypography.caption(
-                                    color: Colors.white.withValues(alpha: 0.8),
-                                    fontWeight: FontWeight.w600,
-                                  ),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      context.tr('Available Balance'),
+                                      style: AppTypography.caption(
+                                        color: Colors.white.withValues(alpha: 0.8),
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    if (pendingPayout > 0)
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: Colors.amber.withValues(alpha: 0.25),
+                                          borderRadius: BorderRadius.circular(AppRadius.full),
+                                          border: Border.all(color: Colors.amber.withValues(alpha: 0.5)),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            const Icon(Icons.hourglass_top_rounded, color: Colors.amberAccent, size: 12),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              '₹${pendingPayout.toStringAsFixed(0)} in payout',
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 10.5,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                  ],
                                 ),
                                 const SizedBox(height: 6),
                                 Row(
@@ -218,6 +249,46 @@ class _EarningsScreenState extends State<EarningsScreen> {
                                     ),
                                   ],
                                 ),
+                                if (pendingPayout > 0) ...[
+                                  const SizedBox(height: AppSpacing.md),
+                                  InkWell(
+                                    onTap: () => context.push(AppRoutes.earningsWithdrawalDetailsScreen),
+                                    borderRadius: BorderRadius.circular(AppRadius.md),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                      decoration: BoxDecoration(
+                                        color: Colors.black.withValues(alpha: 0.18),
+                                        borderRadius: BorderRadius.circular(AppRadius.md),
+                                        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          const Icon(Icons.hourglass_top_rounded, color: Colors.amberAccent, size: 15),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Text(
+                                              context.tr('₹${pendingPayout.toStringAsFixed(0)} payout is processing to your bank'),
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 11.5,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                            context.tr('TRACK >'),
+                                            style: const TextStyle(
+                                              color: Colors.amberAccent,
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
                                 const SizedBox(height: AppSpacing.lg),
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -230,7 +301,15 @@ class _EarningsScreenState extends State<EarningsScreen> {
                                       ),
                                     ),
                                     ElevatedButton(
-                                      onPressed: () => context.push(AppRoutes.earningsWithdrawScreen),
+                                      onPressed: () {
+                                        if (balance >= 1000) {
+                                          context.push(AppRoutes.earningsWithdrawScreen);
+                                        } else if (pendingPayout > 0) {
+                                          context.push(AppRoutes.earningsWithdrawalDetailsScreen);
+                                        } else {
+                                          context.push(AppRoutes.earningsWithdrawScreen);
+                                        }
+                                      },
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: Colors.white,
                                         foregroundColor: AppColors.primaryHover,
@@ -244,7 +323,9 @@ class _EarningsScreenState extends State<EarningsScreen> {
                                         ),
                                       ),
                                       child: Text(
-                                        context.tr('WITHDRAW NOW'),
+                                        pendingPayout > 0 && balance < 1000
+                                            ? context.tr('TRACK PAYOUT')
+                                            : context.tr('WITHDRAW NOW'),
                                         style: AppTypography.caption(
                                           color: AppColors.primaryHover,
                                           fontWeight: FontWeight.bold,
@@ -414,6 +495,20 @@ class _EarningsScreenState extends State<EarningsScreen> {
                                   valueColor: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                                   isDark: isDark,
                                 ),
+                                if (pendingPayout > 0) ...[
+                                  Divider(
+                                    height: 1,
+                                    color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                                  ),
+                                  _buildSummaryRow(
+                                    icon: Icons.hourglass_top_rounded,
+                                    label: 'Payout in Progress',
+                                    value: '₹${pendingPayout.toStringAsFixed(0)}',
+                                    valueColor: isDark ? const Color(0xFFFCD34D) : const Color(0xFFD97706),
+                                    onTap: () => context.push(AppRoutes.earningsWithdrawalDetailsScreen),
+                                    isDark: isDark,
+                                  ),
+                                ],
                                 Divider(
                                   height: 1,
                                   color: isDark ? AppColors.borderDark : AppColors.borderLight,
@@ -431,7 +526,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
                                 ),
                                 _buildSummaryRow(
                                   icon: Icons.unarchive_outlined,
-                                  label: 'Withdrawn',
+                                  label: 'Settled Payouts',
                                   value: '-₹$totalWithdrawn',
                                   valueColor: AppColors.error,
                                   onTap: () => context.push(AppRoutes.earningsWithdrawalDetailsScreen),

@@ -110,7 +110,7 @@ export default function EarningsCalculator() {
       background: 'var(--color-surface, #ffffff)',
       border: '1px solid var(--color-border, #e2e8f0)',
       borderRadius: '16px',
-      padding: '32px',
+      padding: 'clamp(14px, 3.5vw, 32px)',
       boxShadow: 'var(--shadow-xl, 0 20px 25px -5px rgba(0, 0, 0, 0.1))',
       color: 'var(--color-text, #0f172a)'
     }}>
@@ -137,9 +137,9 @@ export default function EarningsCalculator() {
         </p>
       </div>
 
-      {/* Vehicle Type Selection */}
+      {/* Vehicle Type Selection — Always side-by-side in 3 equal columns */}
       <div style={{ marginBottom: '24px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
           {VEHICLE_TIERS.map((v) => {
             const isSelected = v.id === selectedVehicle;
             return (
@@ -148,22 +148,24 @@ export default function EarningsCalculator() {
                 type="button"
                 onClick={() => setSelectedVehicle(v.id)}
                 style={{
-                  padding: '14px 12px',
+                  padding: '10px 6px',
                   borderRadius: '12px',
                   border: isSelected ? '2px solid #5A30B0' : '1px solid var(--color-border, #e2e8f0)',
                   background: isSelected ? 'var(--color-primary-50, #F6F3FF)' : 'var(--color-surface, #ffffff)',
                   cursor: 'pointer',
                   textAlign: 'center',
-                  transition: 'all 0.15s ease'
+                  transition: 'all 0.15s ease',
+                  minWidth: 0,
+                  overflow: 'hidden'
                 }}
               >
-                <div style={{ marginBottom: '6px', display: 'flex', justifyContent: 'center' }}>
+                <div style={{ marginBottom: '4px', display: 'flex', justifyContent: 'center' }}>
                   <VehicleIcon type={v.id} isSelected={isSelected} />
                 </div>
-                <div style={{ fontWeight: 700, fontSize: '0.9rem', color: isSelected ? '#5A30B0' : '#1e293b' }}>
+                <div style={{ fontWeight: 700, fontSize: 'clamp(0.75rem, 2vw, 0.9rem)', color: isSelected ? '#5A30B0' : '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {v.name}
                 </div>
-                <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '2px' }}>
+                <div style={{ fontSize: 'clamp(0.65rem, 1.6vw, 0.75rem)', color: '#64748b', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {v.category}
                 </div>
               </button>

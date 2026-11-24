@@ -28,6 +28,7 @@ import {
   UpdateTenantEmployeePayload,
   OperationsAnalyticsDashboard,
   OperationsExceptionsResponse,
+  EligibleDriversResponse,
 } from './opsTypes';
 import {
   getStoredOpsToken,
@@ -479,6 +480,7 @@ export const opsApi = {
   // ── Routes & Filtering ──
   getRoutes: async (params: {
     tenantId?: string;
+    officeId?: string;
     shiftDate?: string;
     shiftTime?: string;
     direction?: 'LOGIN' | 'LOGOUT';
@@ -492,6 +494,7 @@ export const opsApi = {
   }): Promise<CorporateRouteItem[]> => {
     const q = new URLSearchParams();
     if (params.tenantId && params.tenantId !== 'ALL') q.set('tenantId', params.tenantId);
+    if (params.officeId && params.officeId !== 'ALL') q.set('officeId', params.officeId);
     if (params.shiftDate) q.set('shiftDate', params.shiftDate);
     if (params.shiftTime) q.set('shiftTime', params.shiftTime);
     if (params.direction) q.set('direction', params.direction);
@@ -665,6 +668,54 @@ export const opsApi = {
       method: 'POST',
       body: JSON.stringify({}),
     });
+  },
+
+  assignDriver: async (
+    routeId: string,
+    payload: { driverId: string; reason?: string },
+  ): Promise<{
+    success: boolean;
+    routeId: string;
+    assignmentId: string;
+    status: string;
+    route: CorporateRouteItem;
+    message: string;
+  }> => {
+    return request<{
+      success: boolean;
+      routeId: string;
+      assignmentId: string;
+      status: string;
+      route: CorporateRouteItem;
+      message: string;
+    }>(`/corporate/ops/routes/${encodeURIComponent(routeId)}/assign`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  getEligibleDrivers: async (routeId: string): Promise<EligibleDriversResponse> => {
+    return request<EligibleDriversResponse>(
+      `/corporate/ops/routes/${encodeURIComponent(routeId)}/eligible-drivers`,
+    );
+  },
+
+  getTenantOffices: async (tenantId: string): Promise<Array<{
+    id: string;
+    code: string;
+    name: string;
+    addressText?: string;
+    city?: string;
+    state?: string;
+  }>> => {
+    return request<Array<{
+      id: string;
+      code: string;
+      name: string;
+      addressText?: string;
+      city?: string;
+      state?: string;
+    }>>(`/corporate/tenants/${encodeURIComponent(tenantId)}/offices`);
   },
 
   reassignDriver: async (

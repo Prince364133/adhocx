@@ -147,7 +147,7 @@ const jsonLd = {
         {faqs.map((faq, index) => (
           <details class="faq-item" data-category={faq.category}>
             <summary class="faq-summary">
-              <span class="faq-question">{faq.question}</span>
+              <span class="faq-question-title" set:html={faq.question.replace(/AdhocX/g, '<span class="brand-inline">Adhoc<span class="logo-accent">X</span></span>')} />
               <span class="faq-chevron-circle" aria-hidden="true">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                   <polyline points="6 9 12 15 18 9"></polyline>
@@ -327,9 +327,31 @@ const jsonLd = {
     background: #FAF8FF;
   }
 
-  .faq-question {
-    flex: 1;
+  .faq-question-title {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: block;
     text-align: left;
+    font-size: 1.0625rem;
+    font-weight: 700;
+    line-height: 1.45;
+    color: #0F172A;
+    word-break: normal;
+    overflow-wrap: break-word;
+    padding-right: 0.5rem;
+  }
+
+  .faq-summary :global(.brand-inline) {
+    color: var(--color-brand-adhoc, #5728B2) !important;
+    font-weight: 800 !important;
+    display: inline-block !important;
+    white-space: nowrap !important;
+  }
+
+  .faq-summary :global(.brand-inline .brand-accent),
+  .faq-summary :global(.brand-inline .logo-accent) {
+    color: var(--color-brand-x, #FF5F09) !important;
+    font-weight: 800 !important;
   }
 
   .faq-chevron-circle {
@@ -436,15 +458,37 @@ const jsonLd = {
 
   @media (max-width: 640px) {
     .faq-summary {
-      padding: 1rem 1.1rem;
+      padding: 1rem 1.15rem;
       font-size: 0.9375rem;
+      gap: 0.75rem;
+    }
+    .faq-question-title {
+      font-size: 0.95rem;
+      line-height: 1.4;
+    }
+    .faq-chevron-circle {
+      width: 30px;
+      height: 30px;
+      flex: 0 0 30px;
     }
     .faq-answer-body {
-      padding: 0 1.1rem 1.1rem 1.1rem;
+      padding: 0 1.15rem 1.15rem 1.15rem;
     }
     .faq-filter-btn {
       font-size: 0.8125rem;
-      padding: 0.4rem 0.9rem;
+      padding: 0.4rem 0.85rem;
+    }
+    .faq-cta-actions {
+      flex-direction: column !important;
+      width: 100% !important;
+      gap: 0.75rem !important;
+      align-items: stretch !important;
+    }
+    .faq-cta-actions .btn {
+      width: 100% !important;
+      justify-content: center !important;
+      min-height: 48px !important;
+      text-align: center !important;
     }
   }
 </style>

@@ -50,6 +50,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   String? _togglingOnlineStep;
   String _driverName = 'Driver';
   double _availablePayoutBalance = 0.0;
+  double _pendingPayoutBalance = 0.0;
   double _todayEarnings = 0.0;
   int _todayTripsCount = 0;
   double _trustScore = 100.0;
@@ -268,11 +269,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 wallet['walletBalance'] as num? ??
                 wallet['balance'] as num? ??
                 0.0;
+            final num pending = wallet['pendingSettlements'] as num? ?? 0.0;
             final num? backendTodayTrips = wallet['todayTripsCount'] as num?;
             final num? backendTotalCompleted = wallet['completedTripsCount'] as num? ?? wallet['totalTrips'] as num?;
             final num? backendTodayEarn = wallet['todayEarnings'] as num?;
 
             _availablePayoutBalance = avail.toDouble();
+            _pendingPayoutBalance = pending.toDouble();
 
             final resolvedTodayTrips = (backendTodayTrips != null && backendTodayTrips > localTodayTrips)
                 ? backendTodayTrips.toInt()
@@ -759,58 +762,59 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                 color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
                               ).copyWith(fontSize: 11),
                             ),
-                            Row(
-                              children: [
-                                Flexible(
-                                  child: Text(
-                                    (_driverName.toLowerCase() == 'driver' || _driverName.toLowerCase() == 'partner') ? context.tr(_driverName) : _driverName,
-                                    style: AppTypography.body(
-                                      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                _buildStatusPill(isDark),
-                              ],
-                            ),
-                            const SizedBox(height: 3),
-                            GestureDetector(
-                              onTap: () => context.push(AppRoutes.driverScoreScreen),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                decoration: BoxDecoration(
-                                  gradient: const LinearGradient(
-                                    colors: [Color(0xFF6366F1), Color(0xFF4F46E5)],
-                                  ),
-                                  borderRadius: BorderRadius.circular(AppRadius.full),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: const Color(0xFF6366F1).withValues(alpha: 0.35),
-                                      blurRadius: 4,
-                                      offset: const Offset(0, 1),
-                                    ),
-                                  ],
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const Icon(Icons.shield, size: 11, color: Colors.white),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      '${context.tr('Trust Score')}: ${_trustScore.toStringAsFixed(0)}/100 • $_trustTier',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 2),
-                                    const Icon(Icons.chevron_right, size: 12, color: Colors.white70),
-                                  ],
-                                ),
+                            Text(
+                              (_driverName.toLowerCase() == 'driver' || _driverName.toLowerCase() == 'partner') ? context.tr(_driverName) : _driverName,
+                              style: AppTypography.body(
+                                color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                fontWeight: FontWeight.bold,
                               ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 4),
+                            Wrap(
+                              spacing: 6,
+                              runSpacing: 4,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              children: [
+                                _buildStatusPill(isDark),
+                                GestureDetector(
+                                  onTap: () => context.push(AppRoutes.driverScoreScreen),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      gradient: const LinearGradient(
+                                        colors: [Color(0xFF6366F1), Color(0xFF4F46E5)],
+                                      ),
+                                      borderRadius: BorderRadius.circular(AppRadius.full),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: const Color(0xFF6366F1).withValues(alpha: 0.35),
+                                          blurRadius: 4,
+                                          offset: const Offset(0, 1),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(Icons.shield, size: 11, color: Colors.white),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          '${context.tr('Trust Score')}: ${_trustScore.toStringAsFixed(0)}/100 • $_trustTier',
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 2),
+                                        const Icon(Icons.chevron_right, size: 12, color: Colors.white70),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),
@@ -857,6 +861,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           BalanceSummaryCard(
                             label: context.tr('Current Payout Balance'),
                             balance: _availablePayoutBalance,
+                            pendingBalance: _pendingPayoutBalance,
                             isLoading: _isWalletLoading,
                             actionLabel: context.tr('View Wallet'),
                             actionIcon: Icons.account_balance_wallet_outlined,
@@ -1133,6 +1138,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             },
           ),
         ],
+        // Unified Live Available & Scanning Card
         Container(
           padding: const EdgeInsets.all(AppSpacing.lg),
           decoration: BoxDecoration(
@@ -1141,40 +1147,54 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             border: Border.all(
               color: AppColors.accentGreenDark.withValues(alpha: isDark ? 0.5 : 0.3),
             ),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.accentGreenDark.withValues(alpha: isDark ? 0.08 : 0.04),
+                blurRadius: 10,
+                offset: const Offset(0, 3),
+              ),
+            ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                context.tr('Availability'),
-                style: AppTypography.caption(
-                  color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
-                ),
-              ),
-              const SizedBox(height: 8),
               Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 12,
+                        height: 12,
+                        decoration: const BoxDecoration(
+                          color: AppColors.accentGreenDark,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        context.tr('Available & Scanning'),
+                        style: AppTypography.h3(
+                          color: isDark ? AppColors.accentGreen : AppColors.accentGreenDark,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
                   Container(
-                    width: 12,
-                    height: 12,
-                    decoration: const BoxDecoration(
-                      color: AppColors.accentGreenDark,
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: AppColors.accentGreenDark.withValues(alpha: isDark ? 0.2 : 0.1),
                       shape: BoxShape.circle,
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Text(
-                    context.tr('Available'),
-                    style: AppTypography.h2(
-                      color: isDark ? AppColors.accentGreen : AppColors.accentGreenDark,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    child: const Icon(Icons.radar, color: AppColors.accentGreenDark, size: 20),
                   ),
                 ],
               ),
-              const SizedBox(height: 2),
+              const SizedBox(height: 4),
               Text(
-                context.tr('You are online and listening for live nearby trips'),
+                context.tr('You are online and auto-scanning for live nearby booking requests...'),
                 style: AppTypography.caption(
                   color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                 ),
@@ -1229,53 +1249,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           ),
                   ),
                 ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: AppSpacing.lg),
-
-        // Live Radar Pulse Card
-        Container(
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          decoration: BoxDecoration(
-            color: AppColors.accentGreenDark.withValues(alpha: isDark ? 0.12 : 0.08),
-            borderRadius: BorderRadius.circular(AppRadius.lg),
-            border: Border.all(
-              color: AppColors.accentGreenDark.withValues(alpha: isDark ? 0.35 : 0.2),
-            ),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      context.tr("You're available"),
-                      style: AppTypography.body(
-                        color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      context.tr('Auto-scanning for incoming booking requests...'),
-                      style: AppTypography.caption(
-                        color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: AppColors.accentGreenDark.withValues(alpha: 0.15),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.radar, color: AppColors.accentGreenDark),
               ),
             ],
           ),

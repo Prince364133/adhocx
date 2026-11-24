@@ -1675,9 +1675,8 @@ const breadcrumbs = [
     }
 
     .pricing-timeline-grid {
-      grid-template-columns: 1fr;
-      max-width: 580px;
-      margin: 0 auto;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1.25rem;
     }
 
     .pricing-rfp-layout {
@@ -1700,14 +1699,20 @@ const breadcrumbs = [
     }
 
     .pricing-hero-actions {
-      flex-direction: column;
-      width: 100%;
+      flex-direction: column !important;
+      width: 100% !important;
+      gap: 0.75rem !important;
+      align-items: stretch !important;
     }
 
     .pricing-btn-primary,
-    .pricing-btn-secondary {
-      width: 100%;
-      justify-content: center;
+    .pricing-btn-secondary,
+    .pricing-hero-actions .btn-pill-primary,
+    .pricing-hero-actions .btn-pill-secondary {
+      width: 100% !important;
+      justify-content: center !important;
+      min-height: 48px !important;
+      text-align: center !important;
     }
 
     .pricing-audit-widget {
@@ -1723,6 +1728,52 @@ const breadcrumbs = [
 
     .pricing-trust-grid {
       grid-template-columns: 1fr;
+    }
+
+    .pricing-timeline-grid {
+      grid-template-columns: 1fr !important;
+      gap: 0.875rem !important;
+    }
+
+    .pricing-step-card {
+      padding: 1.25rem 1rem !important;
+      border-radius: 14px !important;
+    }
+
+    .pricing-step-number-wrap {
+      margin-bottom: 0.85rem !important;
+    }
+
+    .pricing-step-num {
+      font-size: 1.75rem !important;
+    }
+
+    .pricing-step-icon-badge {
+      width: 38px !important;
+      height: 38px !important;
+      border-radius: 10px !important;
+    }
+
+    .pricing-step-icon-badge svg {
+      width: 18px !important;
+      height: 18px !important;
+    }
+
+    .pricing-step-title {
+      font-size: 1.05rem !important;
+      line-height: 1.3 !important;
+      margin-bottom: 0.5rem !important;
+    }
+
+    .pricing-step-desc {
+      font-size: 0.8125rem !important;
+      line-height: 1.5 !important;
+      margin-bottom: 0.85rem !important;
+    }
+
+    .pricing-step-tag {
+      padding: 0.25rem 0.65rem !important;
+      font-size: 0.6875rem !important;
     }
 
     .pricing-section-h2,

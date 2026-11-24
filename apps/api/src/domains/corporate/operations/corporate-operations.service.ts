@@ -29,6 +29,7 @@ import {
   OpsRouteStatus,
   parseDateOnly,
   ReassignRouteDto,
+  AssignDriverDto,
   CancelRouteDto,
   CANCELLABLE_ROUTE_STATUSES,
   routeTelemetryKey,
@@ -580,6 +581,307 @@ export class CorporateOperationsService {
       previousDriverId,
       mode: newDriverId ? 'DIRECT_OFFER' : 'AUTO_DISPATCH',
       dispatch: dispatchResult,
+    };
+  }
+
+  /**
+   * Manually assigns or reassigns an eligible driver directly to a corporate route.
+   * Works for PLANNED, DISPATCHING, and ASSIGNED routes.
+   * Enforces all PRD eligibility checks, creates driver earnings, voids prior unbatched earnings on reassignment,
+   * records assignment audit events in corporateRouteAssignmentEvent, clears Redis locks/offers,
+   * and notifies the driver, employees and operations desk.
+   */
+  async assignDriverToRoute(routeId: string, dto: AssignDriverDto, actor: OpsActor = {}) {
+    const driverId = dto?.driverId;
+    if (!driverId) throw new BadRequestException('driverId is required');
+    const reason = typeof dto?.reason === 'string' ? dto.reason.trim() : 'Manual driver assignment by operations desk';
+    if (reason.length > 500) throw new BadRequestException('reason must be at most 500 characters');
+
+    const db: any = this.db;
+    const route: any = await db.corporateRoute.findUnique({
+      where: { id: routeId },
+      include: {
+        tenant: true,
+        office: true,
+        stops: { orderBy: { stopSequence: 'asc' } },
+        driver: true,
+        vehicle: true,
+      },
+    });
+    if (!route) throw new NotFoundException(`Corporate route ${routeId} not found`);
+    if (route.status === 'COMPLETED' || route.status === 'CANCELLED') {
+      throw new ConflictException(`Cannot assign driver to a ${route.status} route`);
+    }
+
+    if (route.driverId === driverId && route.status === 'ASSIGNED') {
+      throw new ConflictException(`Driver is already assigned to route RT-${route.id.slice(0, 8).toUpperCase()}`);
+    }
+
+    // 1. Strict Eligibility Validation (PRD ALLOC-01/06, ADM-07, ADH-02-03)
+    const { driver, matchedVehicleId } = await this.dispatch.assertDriverCanTakeRoute(route, driverId);
+    const vehicle = driver.vehicles?.find((v: any) => v.id === matchedVehicleId) || driver.vehicles?.[0] || null;
+
+    // 2. Handle Reassignment if previous driver was assigned
+    const previousDriverId: string | null = route.driverId ?? null;
+    const isReassignment = Boolean(previousDriverId && previousDriverId !== driverId);
+    let referenceFarePaise: number | null = null;
+
+    if (isReassignment && previousDriverId) {
+      const earnings: any[] = await db.corporateDriverEarning.findMany({
+        where: { routeId, driverId: previousDriverId, payoutStatus: { not: 'VOIDED' } },
+      });
+      if (earnings.some((e: any) => e.payoutStatus !== 'UNPAID' || e.payoutBatchId)) {
+        throw new ConflictException(
+          `Route ${routeId} earning of driver ${previousDriverId} is already in a payout batch; resolve it in billing first`,
+        );
+      }
+      if (earnings.length > 0) {
+        referenceFarePaise = Number(earnings[0].routeFarePaise);
+        await db.corporateDriverEarning.updateMany({
+          where: { id: { in: earnings.map((e: any) => e.id) }, payoutStatus: 'UNPAID', payoutBatchId: null },
+          data: {
+            payoutStatus: 'VOIDED',
+            voidedAt: new Date(),
+            voidReason: `REASSIGNED: ${reason}`.slice(0, 500),
+          },
+        });
+      }
+    }
+
+    // 3. Price the route for the driver
+    if (referenceFarePaise === null) {
+      const pricing = await this.dispatch.priceOffer(route);
+      referenceFarePaise = pricing.farePaise || 0;
+    }
+
+    const assignmentId = randomUUID();
+
+    // 4. Update route, record driver earning, and write assignment event in a transaction
+    const updatedRoute = await db.$transaction(async (tx: any) => {
+      const updated = await tx.corporateRoute.update({
+        where: { id: routeId },
+        data: {
+          driverId,
+          vehicleId: vehicle ? vehicle.id : null,
+          status: 'ASSIGNED',
+          dispatchStatus: 'DRIVER_ASSIGNED',
+          dispatchFailureReason: null,
+          atRisk: false,
+        },
+        include: {
+          tenant: { select: { id: true, code: true, name: true } },
+          office: { select: { id: true, code: true, name: true } },
+          driver: { select: { id: true, fullName: true, phone: true } },
+          vehicle: { select: { id: true, registrationNumber: true, vehicleType: true, model: true } },
+          stops: { orderBy: { stopSequence: 'asc' } },
+        },
+      });
+
+      // Insert new driver earning
+      await tx.corporateDriverEarning.create({
+        data: {
+          driverId,
+          routeId,
+          routeFarePaise: BigInt(referenceFarePaise || 0),
+          approachBonusPaise: BigInt(0),
+          tollReimbursementPaise: BigInt(0),
+          totalEarnedPaise: BigInt(referenceFarePaise || 0),
+          payoutStatus: 'UNPAID',
+        },
+      });
+
+      // Record assignment event in corporate_route_assignment_events
+      await tx.corporateRouteAssignmentEvent.create({
+        data: {
+          tenantId: route.tenantId,
+          routeId,
+          fromDriverId: previousDriverId,
+          toDriverId: driverId,
+          reason,
+          actorId: actor.id ?? null,
+        },
+      });
+
+      return updated;
+    });
+
+    // 5. Clean up Redis offer keys
+    const client = this.redis.getClient();
+    if (client) {
+      try {
+        await withdrawCorporateRouteOffer(client, routeId);
+        await this.dispatch.releaseDriverHold(client, driverId, routeId);
+        if (previousDriverId) {
+          await this.dispatch.releaseDriverHold(client, previousDriverId, routeId);
+        }
+      } catch (err: any) {
+        this.logger.warn(`Redis cleanup after assigning driver to ${routeId}: ${err?.message}`);
+      }
+    }
+
+    // 6. Audit & Notifications
+    await this.audit.log({
+      action: isReassignment ? 'CORPORATE_ROUTE_REASSIGNED' : 'CORPORATE_ROUTE_ASSIGNED',
+      userId: actor.id,
+      actorRole: actor.role ?? 'ADMIN',
+      entityType: 'CORPORATE_ROUTE',
+      entityId: routeId,
+      metadata: {
+        assignmentId,
+        reason,
+        previousDriverId,
+        driverId,
+        vehicleId: vehicle ? vehicle.id : null,
+        mode: 'MANUAL_OPS_ASSIGNMENT',
+      },
+    });
+
+    if (isReassignment && previousDriverId) {
+      await this.notifyPreviousDriver(route, previousDriverId);
+      if (this.riderNotifier) await this.riderNotifier.notifyCabReplaced(routeId, assignmentId);
+    }
+
+    this.notifications.emitEvent(`driver:${driverId}`, 'CORPORATE_ROUTE_CONFIRMED', {
+      routeId,
+      status: 'ASSIGNED',
+    });
+    this.notifications.emitEvent('admin:operations', 'CORPORATE_ROUTE_ASSIGNED', {
+      routeId,
+      assignmentId,
+      previousDriverId,
+      driverId,
+      reason,
+    });
+    this.notifications.emitEvent(`corporate:${route.tenantId}`, 'ROUTE_DRIVER_ASSIGNED', {
+      routeId,
+      driverId,
+      status: 'ASSIGNED',
+    });
+
+    return {
+      success: true,
+      routeId,
+      assignmentId,
+      status: 'ASSIGNED',
+      route: updatedRoute,
+      message: isReassignment ? 'Driver reassigned successfully' : 'Driver assigned successfully',
+    };
+  }
+
+  /**
+   * Evaluates all verified drivers against a specific route to determine eligibility,
+   * turnaround overlap, duty hour limits, and vehicle category/seating compatibility.
+   * Returns list with isEligible flag and friendly rejection reasons.
+   */
+  async getEligibleDriversForRoute(routeId: string) {
+    const route: any = await this.db.corporateRoute.findUnique({
+      where: { id: routeId },
+      include: {
+        tenant: true,
+        office: true,
+        stops: { orderBy: { stopSequence: 'asc' } },
+        driver: true,
+        vehicle: true,
+      },
+    });
+    if (!route) throw new NotFoundException(`Corporate route ${routeId} not found`);
+
+    const drivers: any[] = await this.db.driver.findMany({
+      where: {
+        verificationStatus: 'VERIFIED',
+      },
+      include: {
+        vehicles: {
+          where: { verificationStatus: 'VERIFIED' },
+          orderBy: { createdAt: 'desc' },
+        },
+      },
+      orderBy: [{ fullName: 'asc' }],
+    });
+
+    const eligibilityService = this.dispatch.getEligibilityService();
+    const result = [];
+
+    for (const driver of drivers) {
+      const isCurrentlyAssigned = route.driverId === driver.id;
+      const res = await eligibilityService.checkDriverEligibility(driver.id, route);
+      const matchedVehicle = driver.vehicles?.find((v: any) => v.id === res.matchedVehicleId) || driver.vehicles?.[0] || null;
+
+      let rejectionReasonLabel: string | undefined;
+      if (!res.isEligible) {
+        switch (res.rejectionReason) {
+          case 'ROUTE_TIME_OVERLAP':
+            rejectionReasonLabel = 'Schedule overlap: conflicting active route within turnaround buffer';
+            break;
+          case 'DUTY_HOURS_EXCEEDED':
+            rejectionReasonLabel = `Exceeded duty limit (${res.dutyHoursLast24h ?? 12}h in last 24h)`;
+            break;
+          case 'VEHICLE_CATEGORY_MISMATCH':
+            rejectionReasonLabel = `Vehicle category mismatch (requires ${route.vehicleCategory})`;
+            break;
+          case 'INSUFFICIENT_SEAT_CAPACITY':
+            rejectionReasonLabel = `Insufficient vehicle seat capacity (requires ${route.maxCapacity} seats)`;
+            break;
+          case 'NO_VERIFIED_VEHICLE':
+            rejectionReasonLabel = 'No verified commercial vehicle registered';
+            break;
+          case 'INSURANCE_EXPIRED':
+            rejectionReasonLabel = 'Vehicle commercial insurance expired or not valid';
+            break;
+          case 'DRIVER_NOT_AVAILABLE':
+            rejectionReasonLabel = 'Driver is marked as offline / unavailable';
+            break;
+          case 'DRIVER_NOT_VERIFIED':
+            rejectionReasonLabel = 'Driver verification pending or suspended';
+            break;
+          default:
+            rejectionReasonLabel = res.rejectionReason || 'Driver not eligible';
+        }
+      }
+
+      result.push({
+        driverId: driver.id,
+        fullName: driver.fullName,
+        phone: driver.phone,
+        verificationStatus: driver.verificationStatus,
+        availabilityStatus: driver.availabilityStatus,
+        trustScore: driver.trustScore ?? 100,
+        averageRating: driver.averageRating,
+        isEligible: res.isEligible,
+        isCurrentlyAssigned,
+        rejectionReason: res.rejectionReason,
+        rejectionReasonLabel,
+        dutyHoursLast24h: res.dutyHoursLast24h,
+        matchedVehicle: matchedVehicle
+          ? {
+              id: matchedVehicle.id,
+              registrationNumber: matchedVehicle.registrationNumber,
+              vehicleType: matchedVehicle.vehicleType,
+              model: matchedVehicle.model,
+              seatingCapacity: matchedVehicle.seatingCapacity,
+            }
+          : undefined,
+      });
+    }
+
+    result.sort((a, b) => {
+      if (a.isCurrentlyAssigned) return -1;
+      if (b.isCurrentlyAssigned) return 1;
+      if (a.isEligible && !b.isEligible) return -1;
+      if (!a.isEligible && b.isEligible) return 1;
+      return (b.trustScore ?? 0) - (a.trustScore ?? 0);
+    });
+
+    return {
+      routeId,
+      vehicleCategory: route.vehicleCategory,
+      maxCapacity: route.maxCapacity,
+      shiftDate: route.shiftDate,
+      shiftTime: route.shiftTime,
+      direction: route.direction,
+      drivers: result,
+      totalDrivers: result.length,
+      eligibleDriversCount: result.filter((d) => d.isEligible).length,
     };
   }
 

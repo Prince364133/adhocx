@@ -170,25 +170,57 @@ const vendorFaqs: FaqItem[] = [
     </div>
   </section>
 
-  <!-- Pain vs Solution Comparison Section -->
-  <section class="section-padding operational-contrast-section" style="background: var(--color-surface-muted);">
+  <!-- Pain vs Solution Comparison Section (Enterprise Switch) -->
+  <section class="section-padding operational-contrast-section" id="enterprise-switch" style="background: var(--color-surface-muted);">
     <div class="container">
-      <div class="section-header" style="text-align: center;">
+      <div class="section-header" style="text-align: center; margin-bottom: var(--space-6);">
         <span class="badge badge-primary">Operational Contrast</span>
-        <h2 class="h2-title">Why Enterprises Switch from WhatsApp Groups to AdhocX</h2>
-        <p class="body-large" style="margin: 0 auto; max-width: 650px;">
+        <h2 class="h2-title switch-main-title">Why Enterprises Switch from WhatsApp Groups to AdhocX</h2>
+        <p class="body-large switch-desc" style="margin: 0 auto; max-width: 680px;">
           Traditional transport procurement is fragmented, unverified, and prone to last-minute vehicle dropouts. AdhocX digitizes every single step.
         </p>
       </div>
 
-      <!-- Mobile View Mode Switcher -->
+      <!-- Enterprise Switch Proof Points -->
+      <div class="switch-proof-grid">
+        <div class="switch-proof-card">
+          <span class="switch-proof-icon" aria-hidden="true">⚡</span>
+          <div>
+            <strong>15-Minute Guaranteed SLA Cutoff</strong>
+            <p>Automated driver auto-assignment replacing manual group chats.</p>
+          </div>
+        </div>
+        <div class="switch-proof-card">
+          <span class="switch-proof-icon" aria-hidden="true">🛡️</span>
+          <div>
+            <strong>100% Yellow-Plate Compliance</strong>
+            <p>Exclusively commercial sedans & MUVs with automated RTA verification.</p>
+          </div>
+        </div>
+        <div class="switch-proof-card">
+          <span class="switch-proof-icon" aria-hidden="true">📍</span>
+          <div>
+            <strong>PostGIS Corridor Tracking</strong>
+            <p>Continuous telemetry, route deviation alerts, and live SOS command desk.</p>
+          </div>
+        </div>
+        <div class="switch-proof-card">
+          <span class="switch-proof-icon" aria-hidden="true">📑</span>
+          <div>
+            <strong>Single Itemized GST Invoice</strong>
+            <p>Automated 3-way reconciliation with direct bank refunds for unfulfilled rides.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- View Mode Switcher (Cards vs Table) for Mobile & Tablet -->
       <div class="mobile-contrast-toggle-bar">
         <div class="segmented-control" role="tablist" aria-label="Comparison View Mode">
-          <button type="button" class="segmented-btn active" id="btnContrastCards" data-target="cards">
+          <button type="button" class="segmented-btn active" id="btnContrastCards" data-target="cards" aria-selected="true">
             <Icon name="file-text" size={14} />
             <span>Card Summary</span>
           </button>
-          <button type="button" class="segmented-btn" id="btnContrastTable" data-target="table">
+          <button type="button" class="segmented-btn" id="btnContrastTable" data-target="table" aria-selected="false">
             <Icon name="columns" size={14} />
             <span>Full Matrix</span>
           </button>
@@ -203,40 +235,40 @@ const vendorFaqs: FaqItem[] = [
         </div>
         <div class="table-hint-jumpers">
           <span class="jump-label">Quick Jump:</span>
-          <button type="button" class="table-jump-btn jump-btn-danger" data-container="whatsappTableContainer" data-offset="190">
+          <button type="button" class="table-jump-btn jump-btn-danger" data-container="whatsappTableContainer" data-offset="130">
             <Icon name="x-circle" size={12} color="var(--color-error)" />
             <span>WhatsApp Groups</span>
           </button>
-          <button type="button" class="table-jump-btn jump-btn-primary" data-container="whatsappTableContainer" data-offset="460">
+          <button type="button" class="table-jump-btn jump-btn-primary" data-container="whatsappTableContainer" data-offset="340">
             <Icon name="check-circle" size={12} color="var(--color-primary-600)" />
             <span>AdhocX Platform</span>
           </button>
         </div>
       </div>
 
-      <!-- Comparison Matrix Table (Desktop & Scrollable Mobile) -->
-      <div class="table-container table-container-scrollable contrast-card-wrapper" id="whatsappTableContainer" tabindex="0" role="region" aria-label="WhatsApp versus AdhocX comparison matrix" data-animate>
+      <!-- Comparison Matrix Table (Desktop & Scrollable Mobile/Tablet) -->
+      <div class="table-container table-container-scrollable contrast-card-wrapper" id="whatsappTableContainer" tabindex="0" role="region" aria-label="WhatsApp versus AdhocX comparison matrix">
         <table class="data-table comparison-matrix-table">
           <thead>
             <tr>
-              <th class="col-th col-th-workflow" style="min-width: 200px; width: 220px;">
+              <th class="col-th col-th-workflow">
                 <div class="th-main-title">Feature / Workflow</div>
                 <div class="th-subtitle">Operational governance</div>
               </th>
-              <th class="col-th col-th-whatsapp" style="min-width: 270px; width: 280px;">
+              <th class="col-th col-th-whatsapp">
                 <div class="th-badge-wrap">
                   <span class="status-pill status-pill-danger">
-                    <Icon name="x-circle" size={13} color="var(--color-error)" />
+                    <Icon name="x-circle" size={12} color="var(--color-error)" />
                     Legacy & Fragmented
                   </span>
                 </div>
                 <div class="th-main-title text-error">Traditional WhatsApp Groups</div>
                 <div class="th-subtitle">Manual broker chats & unvetted cars</div>
               </th>
-              <th class="col-th col-th-adhocx" style="min-width: 290px; width: 300px;">
+              <th class="col-th col-th-adhocx">
                 <div class="th-badge-wrap">
                   <span class="status-pill status-pill-success">
-                    <Icon name="check-circle" size={13} color="var(--color-success)" />
+                    <Icon name="check-circle" size={12} color="var(--color-success)" />
                     Enterprise Standard
                   </span>
                 </div>
@@ -246,141 +278,152 @@ const vendorFaqs: FaqItem[] = [
             </tr>
           </thead>
           <tbody>
+            <!-- Row 1: Driver Sourcing & Allocation -->
             <tr>
               <td class="cell-workflow">
                 <div class="workflow-name-wrap">
                   <div class="workflow-icon"><Icon name="users" size={18} color="var(--color-primary-600)" /></div>
-                  <div>
-                    <strong>Driver Sourcing & Allocation</strong>
+                  <div class="workflow-info">
+                    <strong class="workflow-title">Driver Sourcing & Allocation</strong>
                     <div class="workflow-desc">Dispatch speed & vehicle availability</div>
                   </div>
                 </div>
               </td>
               <td class="cell-whatsapp">
                 <div class="cell-contrast-content">
-                  <span class="contrast-icon-cross">✕</span>
-                  <span>Endless manual messages, uncertain driver availability, hours of waiting</span>
+                  <span class="contrast-icon-cross" aria-hidden="true">✕</span>
+                  <span class="contrast-text">Endless manual messages, uncertain driver availability, hours of waiting</span>
                 </div>
               </td>
               <td class="cell-adhocx">
                 <div class="cell-contrast-content">
-                  <span class="contrast-icon-check">✓</span>
-                  <span><strong>Algorithmic Auto-Assignment</strong> with guaranteed 15-minute search cutoff SLA</span>
+                  <span class="contrast-icon-check" aria-hidden="true">✓</span>
+                  <span class="contrast-text"><strong>Algorithmic Auto-Assignment</strong> with guaranteed 15-minute search cutoff SLA</span>
                 </div>
               </td>
             </tr>
+
+            <!-- Row 2: Billing & Contract Transparency -->
             <tr>
               <td class="cell-workflow">
                 <div class="workflow-name-wrap">
                   <div class="workflow-icon"><Icon name="bank-note" size={18} color="var(--color-primary-600)" /></div>
-                  <div>
-                    <strong>Billing & Contract Transparency</strong>
+                  <div class="workflow-info">
+                    <strong class="workflow-title">Billing & Contract Transparency</strong>
                     <div class="workflow-desc">Tariff governance & hidden fees</div>
                   </div>
                 </div>
               </td>
               <td class="cell-whatsapp">
                 <div class="cell-contrast-content">
-                  <span class="contrast-icon-cross">✕</span>
-                  <span>Arbitrary surge surcharges, hidden fees, manual negotiation disputes</span>
+                  <span class="contrast-icon-cross" aria-hidden="true">✕</span>
+                  <span class="contrast-text">Arbitrary surge surcharges, hidden fees, manual negotiation disputes</span>
                 </div>
               </td>
               <td class="cell-adhocx">
                 <div class="cell-contrast-content">
-                  <span class="contrast-icon-check">✓</span>
-                  <span><strong>Standardized corporate terms</strong> for 4 and 7 seater commercial cabs</span>
+                  <span class="contrast-icon-check" aria-hidden="true">✓</span>
+                  <span class="contrast-text"><strong>Standardized corporate terms</strong> for 4 and 7 seater commercial cabs</span>
                 </div>
               </td>
             </tr>
+
+            <!-- Row 3: Driver & Fleet Vetting -->
             <tr>
               <td class="cell-workflow">
                 <div class="workflow-name-wrap">
                   <div class="workflow-icon"><Icon name="shield-check" size={18} color="var(--color-primary-600)" /></div>
-                  <div>
-                    <strong>Driver & Fleet Vetting</strong>
+                  <div class="workflow-info">
+                    <strong class="workflow-title">Driver & Fleet Vetting</strong>
                     <div class="workflow-desc">Statutory compliance & verification</div>
                   </div>
                 </div>
               </td>
               <td class="cell-whatsapp">
                 <div class="cell-contrast-content">
-                  <span class="contrast-icon-cross">✕</span>
-                  <span>Zero compliance checks; private white-plate cars or unvetted drivers</span>
+                  <span class="contrast-icon-cross" aria-hidden="true">✕</span>
+                  <span class="contrast-text">Zero compliance checks; private white-plate cars or unvetted drivers</span>
                 </div>
               </td>
               <td class="cell-adhocx">
                 <div class="cell-contrast-content">
-                  <span class="contrast-icon-check">✓</span>
-                  <span><strong>Commercial Yellow-Plate Only</strong> (4 & 7 Seater) with background verification</span>
+                  <span class="contrast-icon-check" aria-hidden="true">✓</span>
+                  <span class="contrast-text"><strong>Commercial Yellow-Plate Only</strong> (4 & 7 Seater) with background verification</span>
                 </div>
               </td>
             </tr>
+
+            <!-- Row 4: Trip Tracking & Safety -->
             <tr>
               <td class="cell-workflow">
                 <div class="workflow-name-wrap">
                   <div class="workflow-icon"><Icon name="map-pin" size={18} color="var(--color-primary-600)" /></div>
-                  <div>
-                    <strong>Trip Tracking & Safety</strong>
+                  <div class="workflow-info">
+                    <strong class="workflow-title">Trip Tracking & Safety</strong>
                     <div class="workflow-desc">Live passenger telemetry & support</div>
                   </div>
                 </div>
               </td>
               <td class="cell-whatsapp">
                 <div class="cell-contrast-content">
-                  <span class="contrast-icon-cross">✕</span>
-                  <span>No live GPS tracking; relies on phone calls to lost drivers</span>
+                  <span class="contrast-icon-cross" aria-hidden="true">✕</span>
+                  <span class="contrast-text">No live GPS tracking; relies on phone calls to lost drivers</span>
                 </div>
               </td>
               <td class="cell-adhocx">
                 <div class="cell-contrast-content">
-                  <span class="contrast-icon-check">✓</span>
-                  <span><strong>Live GPS telemetry</strong>, passenger OTP boarding, and 24/7 central ops desk</span>
+                  <span class="contrast-icon-check" aria-hidden="true">✓</span>
+                  <span class="contrast-text"><strong>Live GPS telemetry</strong>, passenger OTP boarding, and 24/7 central ops desk</span>
                 </div>
               </td>
             </tr>
+
+            <!-- Row 5: Invoicing & GST Accounting -->
             <tr>
               <td class="cell-workflow">
                 <div class="workflow-name-wrap">
                   <div class="workflow-icon"><Icon name="file-text" size={18} color="var(--color-primary-600)" /></div>
-                  <div>
-                    <strong>Invoicing & GST Accounting</strong>
+                  <div class="workflow-info">
+                    <strong class="workflow-title">Invoicing & GST Accounting</strong>
                     <div class="workflow-desc">Corporate tax input & audits</div>
                   </div>
                 </div>
               </td>
               <td class="cell-whatsapp">
                 <div class="cell-contrast-content">
-                  <span class="contrast-icon-cross">✕</span>
-                  <span>Messy handwritten receipts, Excel sheets, difficult audits</span>
+                  <span class="contrast-icon-cross" aria-hidden="true">✕</span>
+                  <span class="contrast-text">Messy handwritten receipts, Excel sheets, difficult audits</span>
                 </div>
               </td>
               <td class="cell-adhocx">
                 <div class="cell-contrast-content">
-                  <span class="contrast-icon-check">✓</span>
-                  <span><strong>Single itemized monthly GST invoice</strong> mapped to internal cost centers</span>
+                  <span class="contrast-icon-check" aria-hidden="true">✓</span>
+                  <span class="contrast-text"><strong>Single itemized monthly GST invoice</strong> mapped to internal cost centers</span>
                 </div>
               </td>
             </tr>
+
+            <!-- Row 6: Unfulfilled Ride Compensation -->
             <tr>
               <td class="cell-workflow">
                 <div class="workflow-name-wrap">
                   <div class="workflow-icon"><Icon name="clock" size={18} color="var(--color-primary-600)" /></div>
-                  <div>
-                    <strong>Unfulfilled Ride Compensation</strong>
+                  <div class="workflow-info">
+                    <strong class="workflow-title">Unfulfilled Ride Compensation</strong>
                     <div class="workflow-desc">Financial recovery & SLA guarantee</div>
                   </div>
                 </div>
               </td>
               <td class="cell-whatsapp">
                 <div class="cell-contrast-content">
-                  <span class="contrast-icon-cross">✕</span>
-                  <span>No refund recourse; stranded employees or lost vendor prepayments</span>
+                  <span class="contrast-icon-cross" aria-hidden="true">✕</span>
+                  <span class="contrast-text">No refund recourse; stranded employees or lost vendor prepayments</span>
                 </div>
               </td>
               <td class="cell-adhocx">
                 <div class="cell-contrast-content">
-                  <span class="contrast-icon-check">✓</span>
-                  <span><strong>Direct Bank Refund SLA</strong> for unfulfilled bookings via automated rails</span>
+                  <span class="contrast-icon-check" aria-hidden="true">✓</span>
+                  <span class="contrast-text"><strong>Direct Bank Refund SLA</strong> for unfulfilled bookings via automated rails</span>
                 </div>
               </td>
             </tr>
@@ -388,7 +431,7 @@ const vendorFaqs: FaqItem[] = [
         </table>
       </div>
 
-      <!-- Mobile Native Card Comparison Stack (Eliminates horizontal scrolling on mobile phones) -->
+      <!-- Mobile Native Card Comparison Stack (Card Summary Mode) -->
       <div class="contrast-mobile-cards" id="contrastCardsView">
         <!-- Card 1 -->
         <div class="mobile-contrast-card">
@@ -552,6 +595,14 @@ const vendorFaqs: FaqItem[] = [
           </div>
         </div>
       </div>
+
+      <!-- Action Button Row -->
+      <div style="text-align: center; margin-top: 2.25rem;">
+        <a href="/contact" class="btn btn-primary btn-large" style="display: inline-flex; align-items: center; gap: 8px;">
+          <span>Switch to AdhocX Enterprise Mobility</span>
+          <Icon name="arrow-right" size={16} />
+        </a>
+      </div>
     </div>
   </section>
 
@@ -675,179 +726,8 @@ const vendorFaqs: FaqItem[] = [
           </p>
         </div>
 
-        <!-- View Mode Switcher -->
-        <div class="fleet-view-control-bar">
-          <div class="segmented-control fleet-segmented-control" role="tablist" aria-label="Fleet View Mode">
-            <button type="button" class="segmented-btn active" id="btnFleetMatrix" data-view-target="fleetMatrixContainer">
-              <Icon name="columns" size={15} />
-              <span>Side-by-Side Matrix</span>
-            </button>
-            <button type="button" class="segmented-btn" id="btnFleetCards" data-view-target="fleetCardsContainer">
-              <Icon name="car" size={15} />
-              <span>Category Deep-Dive</span>
-            </button>
-          </div>
-        </div>
-
-        <!-- View 1: Side-by-Side Comparison Matrix -->
-        <div class="fleet-view-panel active" id="fleetMatrixContainer">
-          <!-- Horizontal Scroll Indicator & Quick Jump Pills -->
-          <div class="table-scroll-hint">
-            <div class="table-hint-text">
-              <Icon name="arrow-right" size={14} color="var(--color-primary-600)" />
-              <span>Swipe horizontally or click jump pills to compare models:</span>
-            </div>
-            <div class="table-hint-jumpers">
-              <span class="jump-label">Quick Jump:</span>
-              <button type="button" class="table-jump-btn" data-container="fleetTableContainer" data-offset="190">
-                <span>Sedan (4S)</span>
-              </button>
-              <button type="button" class="table-jump-btn" data-container="fleetTableContainer" data-offset="420">
-                <span>MUV (6/7S)</span>
-              </button>
-              <button type="button" class="table-jump-btn jump-btn-vip" data-container="fleetTableContainer" data-offset="660">
-                <span>★ Innova Crysta (VIP)</span>
-              </button>
-            </div>
-          </div>
-
-          <div class="table-container table-container-scrollable fleet-table-card-wrapper" id="fleetTableContainer" tabindex="0" role="region" aria-label="Detailed commercial vehicle specifications matrix">
-            <table class="data-table fleet-spec-table">
-              <thead>
-                <tr>
-                  <th class="spec-th-metric" style="min-width: 190px; width: 210px;">
-                    <div class="th-main-title">Vehicle Metric / Parameter</div>
-                    <div class="th-subtitle">Standard Fleet Benchmark</div>
-                  </th>
-                  <th class="spec-th-col" style="min-width: 220px; width: 230px;">
-                    <div class="spec-th-inner">
-                      <span class="v-pill v-pill-sedan">4-Seater Fleet</span>
-                      <div class="v-title">Compact Sedan</div>
-                      <div class="v-models">Maruti Dzire • Toyota Etios • Hyundai Aura</div>
-                    </div>
-                  </th>
-                  <th class="spec-th-col" style="min-width: 220px; width: 230px;">
-                    <div class="spec-th-inner">
-                      <span class="v-pill v-pill-muv">6/7-Seater Cluster</span>
-                      <div class="v-title">Commercial MUV</div>
-                      <div class="v-models">Maruti Ertiga • XL6 • Carens</div>
-                    </div>
-                  </th>
-                  <th class="spec-th-col spec-th-featured" style="min-width: 240px; width: 250px;">
-                    <div class="spec-th-inner">
-                      <span class="v-pill v-pill-vip">★ VIP Executive</span>
-                      <div class="v-title text-vip">7-Seater Executive</div>
-                      <div class="v-models text-vip-models">Toyota Innova Crysta • Hycross</div>
-                    </div>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td class="cell-metric">
-                    <div class="metric-name-wrap">
-                      <div class="metric-icon"><Icon name="users" size={16} color="var(--color-primary-600)" /></div>
-                      <div>
-                        <strong>Passenger Capacity</strong>
-                        <div class="metric-sub">Certified adult seating</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td class="cell-spec-val">4 Adults + 1 Chauffeur</td>
-                  <td class="cell-spec-val">6 Adults + 1 Chauffeur</td>
-                  <td class="cell-spec-val cell-featured-val"><strong>7 Adults + 1 Chauffeur</strong></td>
-                </tr>
-                <tr>
-                  <td class="cell-metric">
-                    <div class="metric-name-wrap">
-                      <div class="metric-icon"><Icon name="download" size={16} color="var(--color-primary-600)" /></div>
-                      <div>
-                        <strong>Boot Luggage Volume</strong>
-                        <div class="metric-sub">Luggage & baggage capacity</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td class="cell-spec-val">378 Liters (2 Medium Bags)</td>
-                  <td class="cell-spec-val">Modular 209L - 550L (3 Bags)</td>
-                  <td class="cell-spec-val cell-featured-val"><strong>400+ Liters (4 Large Suitcases)</strong></td>
-                </tr>
-                <tr>
-                  <td class="cell-metric">
-                    <div class="metric-name-wrap">
-                      <div class="metric-icon"><Icon name="sparkles" size={16} color="var(--color-primary-600)" /></div>
-                      <div>
-                        <strong>Air Conditioning</strong>
-                        <div class="metric-sub">Climate comfort system</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td class="cell-spec-val">Front Cabin High-Flow AC</td>
-                  <td class="cell-spec-val">Roof-Mounted Rear AC Vents</td>
-                  <td class="cell-spec-val cell-featured-val"><strong>Multi-Zone Auto Climate Control</strong></td>
-                </tr>
-                <tr>
-                  <td class="cell-metric">
-                    <div class="metric-name-wrap">
-                      <div class="metric-icon"><Icon name="shield-check" size={16} color="var(--color-primary-600)" /></div>
-                      <div>
-                        <strong>Statutory Compliance</strong>
-                        <div class="metric-sub">RTO commercial verification</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td class="cell-spec-val">Yellow-Plate + Commercial FC</td>
-                  <td class="cell-spec-val">Yellow-Plate + Commercial FC</td>
-                  <td class="cell-spec-val cell-featured-val"><strong>Yellow-Plate + Uniform Chauffeur</strong></td>
-                </tr>
-                <tr>
-                  <td class="cell-metric">
-                    <div class="metric-name-wrap">
-                      <div class="metric-icon"><Icon name="car" size={16} color="var(--color-primary-600)" /></div>
-                      <div>
-                        <strong>Deployment Tier</strong>
-                        <div class="metric-sub">Contract operational model</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td class="cell-spec-val"><strong>Dedicated Enterprise Deployment</strong></td>
-                  <td class="cell-spec-val"><strong>Scheduled Cluster Deployment</strong></td>
-                  <td class="cell-spec-val cell-featured-val"><strong>VIP Executive Chauffeur Service</strong></td>
-                </tr>
-                <tr>
-                  <td class="cell-metric">
-                    <div class="metric-name-wrap">
-                      <div class="metric-icon"><Icon name="clock" size={16} color="var(--color-primary-600)" /></div>
-                      <div>
-                        <strong>Allocation SLA Cutoff</strong>
-                        <div class="metric-sub">Guaranteed dispatch window</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td class="cell-spec-val"><span class="sla-chip">Under 15 Minutes</span></td>
-                  <td class="cell-spec-val"><span class="sla-chip">Under 15 Minutes</span></td>
-                  <td class="cell-spec-val cell-featured-val"><span class="sla-chip sla-chip-vip">Under 30 Minutes</span></td>
-                </tr>
-                <tr>
-                  <td class="cell-metric">
-                    <div class="metric-name-wrap">
-                      <div class="metric-icon"><Icon name="building" size={16} color="var(--color-primary-600)" /></div>
-                      <div>
-                        <strong>Recommended Use Case</strong>
-                        <div class="metric-sub">Ideal enterprise duty profile</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td class="cell-spec-val">Daily employee shift drops, individual manager spot transit</td>
-                  <td class="cell-spec-val">Shared team clusters, project commuter groups, offsites</td>
-                  <td class="cell-spec-val cell-featured-val">CXO delegations, VIP client airport transfers, executive roadshows</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- View 2: Category Deep-Dive Cards (Interactive Tabs) -->
-        <div class="fleet-view-panel" id="fleetCardsContainer" style="display: none;">
+        <!-- Vehicle Category Deep-Dive Cards (Simplified, clean mobile & tablet layout) -->
+        <div class="fleet-spec-cards-container" id="fleetCardsContainer">
           <div class="fleet-pill-tabs" role="tablist" aria-label="Commercial Fleet Classes">
             <button type="button" class="fleet-pill-tab active" data-tab="sedan" role="tab" aria-selected="true" aria-controls="fleet-card-sedan">
               <span class="tab-car-badge">4-Seater</span>
@@ -1173,37 +1053,55 @@ const vendorFaqs: FaqItem[] = [
       if (btnContrastCards && btnContrastTable && contrastSection) {
         btnContrastCards.addEventListener('click', () => {
           btnContrastCards.classList.add('active');
+          btnContrastCards.setAttribute('aria-selected', 'true');
           btnContrastTable.classList.remove('active');
+          btnContrastTable.setAttribute('aria-selected', 'false');
           contrastSection.classList.remove('show-table-mode');
         });
 
         btnContrastTable.addEventListener('click', () => {
           btnContrastTable.classList.add('active');
+          btnContrastTable.setAttribute('aria-selected', 'true');
           btnContrastCards.classList.remove('active');
+          btnContrastCards.setAttribute('aria-selected', 'false');
           contrastSection.classList.add('show-table-mode');
         });
       }
 
-      // 2. Fleet View Mode Switcher (Matrix vs Cards)
-      const btnFleetMatrix = document.getElementById('btnFleetMatrix');
-      const btnFleetCards = document.getElementById('btnFleetCards');
-      const fleetMatrixContainer = document.getElementById('fleetMatrixContainer');
-      const fleetCardsContainer = document.getElementById('fleetCardsContainer');
-
-      if (btnFleetMatrix && btnFleetCards && fleetMatrixContainer && fleetCardsContainer) {
-        btnFleetMatrix.addEventListener('click', () => {
-          btnFleetMatrix.classList.add('active');
-          btnFleetCards.classList.remove('active');
-          fleetMatrixContainer.style.display = 'block';
-          fleetCardsContainer.style.display = 'none';
+      // 2. Quick Jump Buttons for horizontal scroll with focus feedback
+      const jumpButtons = document.querySelectorAll('.table-jump-btn');
+      jumpButtons.forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const containerId = btn.getAttribute('data-container');
+          const offset = parseInt(btn.getAttribute('data-offset') || '0', 10);
+          const container = document.getElementById(containerId);
+          if (container) {
+            container.scrollTo({ left: offset, behavior: 'smooth' });
+            jumpButtons.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+          }
         });
+      });
 
-        btnFleetCards.addEventListener('click', () => {
-          btnFleetCards.classList.add('active');
-          btnFleetMatrix.classList.remove('active');
-          fleetMatrixContainer.style.display = 'none';
-          fleetCardsContainer.style.display = 'block';
-        });
+      const whatsappContainer = document.getElementById('whatsappTableContainer');
+      if (whatsappContainer) {
+        whatsappContainer.addEventListener('scroll', () => {
+          const scrollLeft = whatsappContainer.scrollLeft;
+          const jumpDanger = document.querySelector('.jump-btn-danger');
+          const jumpPrimary = document.querySelector('.jump-btn-primary');
+          if (jumpDanger && jumpPrimary) {
+            if (scrollLeft > 220) {
+              jumpPrimary.classList.add('active');
+              jumpDanger.classList.remove('active');
+            } else if (scrollLeft > 50) {
+              jumpDanger.classList.add('active');
+              jumpPrimary.classList.remove('active');
+            } else {
+              jumpDanger.classList.remove('active');
+              jumpPrimary.classList.remove('active');
+            }
+          }
+        }, { passive: true });
       }
 
       // 3. Fleet Category Deep-Dive Pill Tabs
@@ -1231,19 +1129,6 @@ const vendorFaqs: FaqItem[] = [
           });
         });
       });
-
-      // 4. Quick Jump Buttons for horizontal scroll with focus feedback
-      const jumpButtons = document.querySelectorAll('.table-jump-btn');
-      jumpButtons.forEach((btn) => {
-        btn.addEventListener('click', () => {
-          const containerId = btn.getAttribute('data-container');
-          const offset = parseInt(btn.getAttribute('data-offset') || '0', 10);
-          const container = document.getElementById(containerId);
-          if (container) {
-            container.scrollTo({ left: offset, behavior: 'smooth' });
-          }
-        });
-      });
     }
 
     if (document.readyState === 'loading') {
@@ -1255,6 +1140,107 @@ const vendorFaqs: FaqItem[] = [
 </BaseLayout>
 
 <style>
+
+  /* ==========================================================================
+     ENTERPRISE SWITCH PROOF GRID
+     ========================================================================== */
+  .switch-proof-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+
+  .switch-proof-card {
+    background: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-radius: 12px;
+    padding: 1rem;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03);
+    transition: transform 0.2s ease, border-color 0.2s ease;
+  }
+
+  .switch-proof-card:hover {
+    border-color: #C4B5FD;
+    transform: translateY(-2px);
+  }
+
+  .switch-proof-icon {
+    font-size: 1.25rem;
+    flex-shrink: 0;
+    line-height: 1;
+    margin-top: 2px;
+  }
+
+  .switch-proof-card strong {
+    display: block;
+    font-size: 0.84375rem;
+    color: #0F172A;
+    font-weight: 750;
+    margin-bottom: 2px;
+    line-height: 1.35;
+  }
+
+  .switch-proof-card p {
+    font-size: 0.78125rem;
+    color: #64748B;
+    margin: 0;
+    line-height: 1.4;
+  }
+
+  /* Table styling */
+  .col-th-workflow {
+    width: 24%;
+    min-width: 190px;
+    background: #F8FAFC;
+    border-right: 1.5px solid #E2E8F0;
+  }
+
+  .col-th-whatsapp {
+    width: 38%;
+    min-width: 270px;
+    background: #FEF2F2;
+    border-bottom: 3px solid #FCA5A5 !important;
+    border-right: 1px solid #FEE2E2;
+  }
+
+  .col-th-adhocx {
+    width: 38%;
+    min-width: 290px;
+    background: #FAF5FF;
+    border-bottom: 3px solid var(--color-primary-600, #5728B2) !important;
+  }
+
+  .workflow-info {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .workflow-title {
+    font-size: 0.875rem;
+    font-weight: 750;
+    color: #0F172A;
+    display: block;
+    line-height: 1.35;
+  }
+
+  .contrast-text {
+    flex: 1 1 auto;
+    min-width: 0;
+    word-break: normal;
+    overflow-wrap: break-word;
+    line-height: 1.45;
+  }
+
+  .table-jump-btn.active {
+    background: var(--color-primary-600, #5728B2) !important;
+    color: #FFFFFF !important;
+    border-color: var(--color-primary-600, #5728B2) !important;
+  }
+
   /* ==========================================================================
      COMMON CALLOUTS & BASE FLEET TIERS
      ========================================================================== */
@@ -2112,7 +2098,12 @@ const vendorFaqs: FaqItem[] = [
   /* ==========================================================================
      RESPONSIVE BREAKPOINTS (DESKTOP VS MOBILE BEHAVIOR)
      ========================================================================== */
-  @media (min-width: 769px) {
+  /* ==========================================================================
+     RESPONSIVE CONTRAST MATRIX & CARDS (MOBILE, TABLET & DESKTOP)
+     ========================================================================== */
+
+  /* Desktop View (>= 1025px): Full matrix table always visible, toggle bar hidden */
+  @media (min-width: 1025px) {
     .mobile-contrast-toggle-bar {
       display: none !important;
     }
@@ -2128,15 +2119,32 @@ const vendorFaqs: FaqItem[] = [
     .contrast-table-hint {
       display: none !important;
     }
+
+    .comparison-matrix-table {
+      width: 100%;
+      table-layout: auto;
+    }
   }
 
-  @media (max-width: 768px) {
+  /* Tablet & iPad View (768px - 1024px) */
+  @media (min-width: 768px) and (max-width: 1024px) {
+    .switch-proof-grid {
+      grid-template-columns: repeat(2, 1fr) !important;
+    }
+
     .mobile-contrast-toggle-bar {
+      display: flex !important;
+    }
+
+    /* Default tablet view: Card Summary */
+    .contrast-mobile-cards {
       display: flex;
     }
 
-    .contrast-mobile-cards {
-      display: flex;
+    .contrast-mobile-cards .m-card-blocks {
+      display: grid !important;
+      grid-template-columns: 1fr 1fr !important;
+      gap: 12px !important;
     }
 
     .contrast-card-wrapper {
@@ -2147,7 +2155,7 @@ const vendorFaqs: FaqItem[] = [
       display: none;
     }
 
-    /* When user switches to table mode on mobile */
+    /* Tablet Full Matrix Mode */
     .operational-contrast-section.show-table-mode .contrast-mobile-cards {
       display: none !important;
     }
@@ -2160,23 +2168,239 @@ const vendorFaqs: FaqItem[] = [
       display: flex !important;
     }
 
-    /* Sticky first column on mobile scroll */
-    .comparison-matrix-table th.col-th-workflow,
-    .comparison-matrix-table td.cell-workflow,
-    .fleet-spec-table th.spec-th-metric,
-    .fleet-spec-table td.cell-metric {
+    .comparison-matrix-table {
+      min-width: 680px !important;
+      width: 100% !important;
+    }
+
+    .col-th-workflow,
+    .cell-workflow {
+      width: 170px !important;
+      min-width: 160px !important;
       position: sticky;
       left: 0;
       z-index: 10;
       background: #FFFFFF;
-      box-shadow: 4px 0 10px -2px rgba(0, 0, 0, 0.08);
+      box-shadow: 3px 0 8px -2px rgba(15, 23, 42, 0.08);
       border-right: 1.5px solid #CBD5E1;
     }
 
-    .comparison-matrix-table thead th.col-th-workflow,
-    .fleet-spec-table thead th.spec-th-metric {
-      background: #F8FAFC;
+    .comparison-matrix-table thead th.col-th-workflow {
+      background: #F8FAFC !important;
       z-index: 15;
+    }
+
+    .col-th-whatsapp,
+    .cell-whatsapp {
+      width: 250px !important;
+      min-width: 235px !important;
+    }
+
+    .col-th-adhocx,
+    .cell-adhocx {
+      width: 260px !important;
+      min-width: 245px !important;
+    }
+  }
+
+  /* Mobile Devices (< 768px) */
+  @media (max-width: 767px) {
+    .switch-proof-grid {
+      grid-template-columns: repeat(2, 1fr) !important;
+      gap: 0.625rem !important;
+      margin-bottom: 1.25rem !important;
+    }
+
+    .switch-proof-card {
+      padding: 0.85rem 0.75rem !important;
+      gap: 0.5rem !important;
+      align-items: flex-start !important;
+      border-radius: 0.75rem !important;
+    }
+
+    .switch-proof-icon {
+      font-size: 1.25rem !important;
+      flex-shrink: 0 !important;
+    }
+
+    .switch-proof-card strong {
+      font-size: 0.8125rem !important;
+      line-height: 1.25 !important;
+      display: block !important;
+    }
+
+    .switch-proof-card p {
+      font-size: 0.71875rem !important;
+      line-height: 1.35 !important;
+      margin-top: 2px !important;
+    }
+
+    .mobile-contrast-toggle-bar {
+      display: flex !important;
+      margin-bottom: 1.25rem !important;
+    }
+
+    /* Default mobile view: Card Summary */
+    .contrast-mobile-cards {
+      display: flex;
+    }
+
+    .contrast-card-wrapper {
+      display: none;
+    }
+
+    .contrast-table-hint {
+      display: none;
+    }
+
+    /* Mobile Full Matrix Mode */
+    .operational-contrast-section.show-table-mode .contrast-mobile-cards {
+      display: none !important;
+    }
+
+    .operational-contrast-section.show-table-mode .contrast-card-wrapper {
+      display: block !important;
+    }
+
+    .operational-contrast-section.show-table-mode .contrast-table-hint {
+      display: flex !important;
+    }
+
+    /* ========================================================================
+       CRITICAL FIX 1: REMOVE OVERSIZED STICKY POSITIONING ON MOBILE
+       Prevents the Feature column from blocking 60% of the phone screen
+       ======================================================================== */
+    .comparison-matrix-table th.col-th-workflow,
+    .comparison-matrix-table td.cell-workflow {
+      position: static !important;
+      left: auto !important;
+      box-shadow: none !important;
+      z-index: auto !important;
+      border-right: 1.5px solid #E2E8F0 !important;
+    }
+
+    .comparison-matrix-table thead th.col-th-workflow {
+      position: static !important;
+      background: #F8FAFC !important;
+    }
+
+    /* ========================================================================
+       CRITICAL FIX 2: PROPORTIONAL COMPACT COLUMN SIZING ON MOBILE
+       ======================================================================== */
+    .comparison-matrix-table {
+      min-width: 585px !important;
+      width: 100% !important;
+      table-layout: fixed !important;
+    }
+
+    /* Compact Feature Column (takes only 135px) */
+    .col-th-workflow,
+    .cell-workflow {
+      width: 135px !important;
+      min-width: 130px !important;
+      max-width: 140px !important;
+      padding: 10px 8px !important;
+      vertical-align: top !important;
+    }
+
+    /* Generous Comparison Columns (never cut off, ample room) */
+    .col-th-whatsapp,
+    .cell-whatsapp {
+      width: 220px !important;
+      min-width: 210px !important;
+      padding: 10px 12px !important;
+      vertical-align: top !important;
+    }
+
+    .col-th-adhocx,
+    .cell-adhocx {
+      width: 235px !important;
+      min-width: 225px !important;
+      padding: 10px 12px !important;
+      vertical-align: top !important;
+    }
+
+    /* Typography & Visual Hierarchy in Mobile Table */
+    .workflow-name-wrap {
+      gap: 8px !important;
+    }
+
+    .workflow-icon {
+      width: 26px !important;
+      height: 26px !important;
+      border-radius: 6px !important;
+    }
+
+    .workflow-icon svg {
+      width: 15px !important;
+      height: 15px !important;
+    }
+
+    .workflow-title {
+      font-size: 0.8125rem !important;
+      line-height: 1.3 !important;
+      font-weight: 750 !important;
+    }
+
+    .workflow-desc {
+      font-size: 0.6875rem !important;
+      line-height: 1.3 !important;
+      margin-top: 2px !important;
+    }
+
+    .th-main-title {
+      font-size: 0.84375rem !important;
+      line-height: 1.25 !important;
+    }
+
+    .th-subtitle {
+      font-size: 0.6875rem !important;
+      line-height: 1.25 !important;
+      margin-top: 2px !important;
+    }
+
+    .status-pill {
+      font-size: 0.59375rem !important;
+      padding: 2px 6px !important;
+      gap: 3px !important;
+    }
+
+    .cell-contrast-content {
+      gap: 8px !important;
+      align-items: flex-start !important;
+    }
+
+    .contrast-text {
+      font-size: 0.78125rem !important;
+      line-height: 1.4 !important;
+      word-break: normal !important;
+      overflow-wrap: break-word !important;
+    }
+
+    .contrast-icon-cross,
+    .contrast-icon-check {
+      width: 18px !important;
+      height: 18px !important;
+      font-size: 0.625rem !important;
+      margin-top: 1px !important;
+    }
+
+    /* Ensure table container scrolls smoothly */
+    .contrast-card-wrapper {
+      border-radius: 14px !important;
+      box-shadow: 0 4px 16px rgba(15, 23, 42, 0.05) !important;
+    }
+
+    /* Quick Jump Hint Bar */
+    .contrast-table-hint {
+      padding: 8px 12px !important;
+      font-size: 0.75rem !important;
+      gap: 6px !important;
+    }
+
+    .table-jump-btn {
+      font-size: 0.7rem !important;
+      padding: 3px 10px !important;
     }
 
     .spec-attributes-grid {
@@ -2189,13 +2413,6 @@ const vendorFaqs: FaqItem[] = [
 
     .fleet-pill-tabs {
       justify-content: flex-start;
-    }
-  }
-
-  @media (min-width: 900px) {
-    .cta-section .h2-title,
-    .section-header .h2-title {
-      white-space: nowrap;
     }
   }
 </style>

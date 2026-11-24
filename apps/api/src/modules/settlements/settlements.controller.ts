@@ -71,6 +71,18 @@ export class SettlementsController {
     return this.settlementsService.getSettlementById(id, user.id, user.role);
   }
 
+  @Post(':id/cancel')
+  @Roles(UserRole.DRIVER)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Driver cancels their pending withdrawal request and refunds amount to wallet' })
+  @SwaggerResponse({ status: 200, type: SettlementResponseDto })
+  async cancelDriverWithdrawal(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthUserDto,
+  ) {
+    return this.settlementsService.cancelDriverWithdrawal(id, user.id);
+  }
+
   @Post(':id/process')
   @Roles(UserRole.ADMIN)
   @HttpCode(HttpStatus.OK)

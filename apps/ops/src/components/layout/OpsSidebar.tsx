@@ -11,7 +11,6 @@ import {
   Radio,
   LifeBuoy,
   Users,
-  UserCheck,
   LayoutDashboard,
 } from 'lucide-react';
 
@@ -47,11 +46,6 @@ const OPERATIONS_ITEMS: NavItem[] = [
     href: '/drivers',
     label: 'Drivers',
     icon: <Users size={18} />,
-  },
-  {
-    href: '/employees',
-    label: 'Employees',
-    icon: <UserCheck size={18} />,
   },
   {
     href: '/safety',

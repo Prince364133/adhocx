@@ -8,6 +8,9 @@ export interface DrawerProps {
   subtitle?: string;
   children: React.ReactNode;
   width?: string;
+  footer?: React.ReactNode;
+  icon?: React.ReactNode;
+  badge?: React.ReactNode;
 }
 
 export const Drawer: React.FC<DrawerProps> = ({
@@ -17,6 +20,9 @@ export const Drawer: React.FC<DrawerProps> = ({
   subtitle,
   children,
   width = '520px',
+  footer,
+  icon,
+  badge,
 }) => {
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -85,29 +91,51 @@ export const Drawer: React.FC<DrawerProps> = ({
             backgroundColor: 'var(--bg-surface-muted)',
           }}
         >
-          <div>
-            <h3
-              style={{
-                fontSize: '18px',
-                fontWeight: 700,
-                color: 'var(--text-primary)',
-                margin: 0,
-              }}
-            >
-              {title}
-            </h3>
-            {subtitle && (
-              <p
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            {icon && (
+              <div
                 style={{
-                  fontSize: '12px',
-                  color: 'var(--text-secondary)',
-                  marginTop: '2px',
-                  marginBottom: 0,
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: 'var(--radius-md, 8px)',
+                  backgroundColor: 'var(--brand-primary-subtle, rgba(87, 40, 178, 0.12))',
+                  color: 'var(--brand-primary, #5728B2)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
                 }}
               >
-                {subtitle}
-              </p>
+                {icon}
+              </div>
             )}
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <h3
+                  style={{
+                    fontSize: '18px',
+                    fontWeight: 700,
+                    color: 'var(--text-primary)',
+                    margin: 0,
+                  }}
+                >
+                  {title}
+                </h3>
+                {badge}
+              </div>
+              {subtitle && (
+                <p
+                  style={{
+                    fontSize: '12px',
+                    color: 'var(--text-secondary)',
+                    marginTop: '2px',
+                    marginBottom: 0,
+                  }}
+                >
+                  {subtitle}
+                </p>
+              )}
+            </div>
           </div>
 
           <button
@@ -120,12 +148,12 @@ export const Drawer: React.FC<DrawerProps> = ({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              padding: '4px',
+              padding: '6px',
               borderRadius: 'var(--radius-sm, 6px)',
             }}
             aria-label="Close drawer"
           >
-            <X size={20} />
+            <X size={18} />
           </button>
         </div>
 
@@ -133,6 +161,23 @@ export const Drawer: React.FC<DrawerProps> = ({
         <div style={{ flex: 1, overflowY: 'auto', padding: 'var(--space-5, 20px)' }}>
           {children}
         </div>
+
+        {/* Footer */}
+        {footer && (
+          <div
+            style={{
+              padding: 'var(--space-3, 12px) var(--space-5, 20px)',
+              borderTop: '1px solid var(--border-subtle)',
+              backgroundColor: 'var(--bg-surface-muted)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'flex-end',
+              gap: '10px',
+            }}
+          >
+            {footer}
+          </div>
+        )}
       </div>
     </div>
   );

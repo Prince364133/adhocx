@@ -11,6 +11,7 @@ import '../theme/app_typography.dart';
 class BalanceSummaryCard extends StatelessWidget {
   final String label;
   final double balance;
+  final double? pendingBalance;
   final String actionLabel;
   final IconData actionIcon;
   final VoidCallback onCardTap;
@@ -21,6 +22,7 @@ class BalanceSummaryCard extends StatelessWidget {
     super.key,
     required this.label,
     required this.balance,
+    this.pendingBalance,
     required this.actionLabel,
     this.actionIcon = Icons.add_rounded,
     required this.onCardTap,
@@ -139,14 +141,47 @@ class BalanceSummaryCard extends StatelessWidget {
                               borderRadius: BorderRadius.circular(6),
                             ),
                           )
-                        : Text(
-                            _formatCurrency(balance),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: AppTypography.h3(
-                              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                              fontWeight: FontWeight.w800,
-                            ),
+                        : Wrap(
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            spacing: 6,
+                            runSpacing: 2,
+                            children: [
+                              Text(
+                                _formatCurrency(balance),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: AppTypography.h3(
+                                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              if (pendingBalance != null && pendingBalance! > 0)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: Colors.amber.withValues(alpha: isDark ? 0.22 : 0.12),
+                                    borderRadius: BorderRadius.circular(AppRadius.sm),
+                                    border: Border.all(
+                                      color: Colors.amber.withValues(alpha: 0.45),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.hourglass_top_rounded, size: 10, color: Colors.amber),
+                                      const SizedBox(width: 3),
+                                      Text(
+                                        '${_formatCurrency(pendingBalance!)} in payout',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                          color: isDark ? Colors.amber[300] : Colors.amber[800],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                            ],
                           ),
                   ],
                 ),

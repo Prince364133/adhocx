@@ -10,10 +10,12 @@ import {
   TrendingUp,
   Sparkles,
   Zap,
+  Settings,
 } from 'lucide-react';
 import { adminApi } from '../../lib/api/client';
 import { DistancePricingPlan, VehicleCategory } from '../../lib/api/types';
-import { Card, PageHeader, FeedbackBanner, StatusBadge } from '../../components/common';
+import { Card, PageHeader, FeedbackBanner, StatusBadge, Button } from '../../components/common';
+import { VehicleCategoriesDrawer } from './VehicleCategoriesDrawer';
 
 const inr = (value: number | undefined) => `₹${Number(value ?? 0).toLocaleString('en-IN')}`;
 
@@ -22,6 +24,7 @@ export default function PricingOverviewPage() {
   const [categories, setCategories] = useState<VehicleCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [alert, setAlert] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [isCategoriesDrawerOpen, setIsCategoriesDrawerOpen] = useState(false);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -65,10 +68,26 @@ export default function PricingOverviewPage() {
       {alert && <FeedbackBanner type={alert.type} message={alert.message} onDismiss={() => setAlert(null)} />}
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
-        <div>
+        <div style={{ flex: 1 }}>
           <PageHeader
             title="Pricing Studio"
             subtitle="Authoritative distance pricing and payout matrices. Select a rate card below to customize distance slabs, peak surcharges, and security escort fees."
+            actions={
+              <Button
+                variant="secondary"
+                onClick={() => setIsCategoriesDrawerOpen(true)}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  fontWeight: 600,
+                  boxShadow: 'var(--shadow-sm)',
+                }}
+              >
+                <Settings size={16} />
+                <span>Vehicle Categories</span>
+              </Button>
+            }
           />
         </div>
       </div>
@@ -332,9 +351,28 @@ export default function PricingOverviewPage() {
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                <Zap size={15} color="#F59E0B" />
-                <span>Active Categories: <strong>{categories.length || 'All'}</strong></span>
+              <div
+                onClick={() => setIsCategoriesDrawerOpen(true)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  cursor: 'pointer',
+                  padding: '0.35rem 0.65rem',
+                  borderRadius: 'var(--radius-md)',
+                  background: 'var(--bg-surface-elevated)',
+                  border: '1px solid var(--border)',
+                  transition: 'all 0.15s ease',
+                }}
+                title="Click to view and manage vehicle categories in PostgreSQL"
+              >
+                <Settings size={15} color="var(--brand-primary)" />
+                <span>
+                  Active Categories:{' '}
+                  <strong style={{ color: 'var(--brand-primary)', textDecoration: 'underline' }}>
+                    {categories.length || 'All'}
+                  </strong>
+                </span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                 <ShieldCheck size={15} color="#10B981" />
@@ -344,6 +382,13 @@ export default function PricingOverviewPage() {
           </Card>
         </>
       )}
+
+      {/* Vehicle Categories & Fleet Capacities Slide-out Drawer */}
+      <VehicleCategoriesDrawer
+        isOpen={isCategoriesDrawerOpen}
+        onClose={() => setIsCategoriesDrawerOpen(false)}
+        onCategoriesUpdated={loadData}
+      />
     </div>
   );
 }

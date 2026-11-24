@@ -8,7 +8,7 @@
 
 .pageHeader {
   display: flex;
-  align-items: flex-end;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 24px;
 }
@@ -17,22 +17,25 @@
   min-width: 0;
 }
 
-.eyebrow {
-  display: inline-flex;
+.breadcrumbs {
+  display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 9px;
   margin-bottom: 7px;
-  color: var(--brand-primary);
+  color: var(--text-muted);
   font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
+  font-weight: 500;
+}
+
+.breadcrumbs span:last-child {
+  color: var(--text-primary);
+  font-weight: 650;
 }
 
 .pageTitle {
   margin: 0;
   color: var(--text-primary);
-  font-size: clamp(24px, 3vw, 30px);
+  font-size: clamp(24px, 3vw, 26px);
   font-weight: 700;
   letter-spacing: -0.035em;
   line-height: 1.15;
@@ -40,154 +43,84 @@
 
 .pageSubtitle {
   max-width: 620px;
-  margin: 8px 0 0;
-  color: var(--text-muted);
+  margin: 5px 0 0;
+  color: var(--text-secondary);
   font-size: 13px;
   line-height: 1.6;
 }
 
-.tenantSummary {
+.profileOverview {
   display: flex;
   align-items: center;
-  gap: 12px;
-  min-width: 240px;
-  max-width: 370px;
-  padding: 12px 15px;
+  justify-content: space-between;
+  gap: 24px;
+  min-width: 0;
+  padding: 15px;
   border: 1px solid var(--border-subtle);
   border-radius: 12px;
   background: var(--bg-surface);
   box-shadow: var(--shadow-card);
 }
 
-.tenantMark {
-  display: grid;
-  width: 42px;
-  height: 42px;
-  flex: 0 0 auto;
-  place-items: center;
-  border: 1px solid var(--color-purple-border);
-  border-radius: 10px;
-  background: var(--color-purple-bg);
-  color: var(--brand-primary);
-}
-
-.tenantMeta {
-  display: grid;
+.summaryIdentity {
+  display: flex;
+  align-items: center;
+  gap: 14px;
   min-width: 0;
   flex: 1;
-  gap: 2px;
 }
 
-.tenantName {
+.summaryNameRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+
+.organizationIdentity h2 {
   overflow: hidden;
+  margin: 0;
   color: var(--text-primary);
-  font-size: 13px;
+  font-size: 17px;
   font-weight: 700;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.tenantCode {
-  color: var(--text-muted);
-  font-size: 11px;
-}
-
-.profileOverview {
-  display: grid;
-  grid-template-columns: 1.2fr 1fr 1fr;
-  gap: 14px;
-}
-
-.overviewCard {
-  display: flex;
-  align-items: flex-start;
-  gap: 13px;
-  min-width: 0;
-  padding: 17px;
-  border: 1px solid var(--border-subtle);
-  border-radius: 12px;
-  background: linear-gradient(135deg, var(--bg-surface) 0%, var(--bg-surface-muted) 140%);
-  box-shadow: var(--shadow-card);
-}
-
-.overviewIcon {
-  display: grid;
-  width: 38px;
-  height: 38px;
-  flex: 0 0 auto;
-  place-items: center;
-  border: 1px solid transparent;
-  border-radius: 10px;
-}
-
-.overviewIconPurple {
-  border-color: var(--color-purple-border);
-  background: var(--color-purple-bg);
-  color: var(--brand-primary);
-}
-
-.overviewIconBlue {
-  border-color: var(--color-blue-border);
-  background: var(--color-blue-bg);
-  color: var(--color-blue-text);
-}
-
-.overviewIconGreen {
-  border-color: var(--color-success-border);
-  background: var(--color-success-bg);
-  color: var(--color-success);
-}
-
-.overviewMain {
+.organizationIdentity {
   min-width: 0;
   flex: 1;
 }
 
-.overviewLabel {
+.organizationIdentity p {
+  margin: 5px 0 0;
   color: var(--text-muted);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-size: 12px;
 }
 
-.overviewValueRow {
+.summaryStats {
   display: flex;
-  align-items: baseline;
-  gap: 8px;
-  margin-top: 5px;
+  align-items: center;
+  gap: 34px;
+  padding: 0 10px;
 }
 
-.overviewValueRow strong {
+.summaryStat {
+  display: grid;
+  min-width: 65px;
+  gap: 5px;
+}
+
+.summaryStat strong {
   color: var(--text-primary);
-  font-size: 21px;
-  font-weight: 750;
-  letter-spacing: -0.035em;
+  font-size: 16px;
+  font-weight: 700;
   line-height: 1.2;
 }
 
-.overviewValueRow span {
-  overflow: hidden;
+.summaryStat span {
   color: var(--text-muted);
   font-size: 11px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.progressTrack {
-  width: 100%;
-  height: 5px;
-  margin-top: 10px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: var(--bg-surface-active);
-}
-
-.progressFill {
-  height: 100%;
-  border-radius: inherit;
-  background: linear-gradient(90deg, var(--brand-action), var(--color-chart-purple));
-  transition: width 180ms ease;
 }
 
 .profileLayout {
@@ -207,15 +140,6 @@
   border-radius: 12px;
   background: var(--bg-surface);
   box-shadow: var(--shadow-card);
-}
-
-.navHeading {
-  padding: 9px 10px 8px;
-  color: var(--text-muted);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 
 .navButton {
@@ -272,7 +196,20 @@
 .sectionContent {
   display: grid;
   min-width: 0;
-  gap: 18px;
+  gap: 12px;
+}
+
+.currentSection {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0 0 0 1px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.currentSection > span {
+  display: inline-flex;
 }
 
 .cardFooter {
@@ -290,18 +227,11 @@
   padding: 22px 24px 24px;
 }
 
-.organizationHero {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-  padding: 20px 24px 0;
-}
-
 .organizationLogo,
 .logoPreview {
   display: grid;
-  width: 64px;
-  height: 64px;
+  width: 72px;
+  height: 72px;
   flex: 0 0 auto;
   place-items: center;
   overflow: hidden;
@@ -316,26 +246,6 @@
   width: 100%;
   height: 100%;
   object-fit: contain;
-}
-
-.organizationIdentity {
-  min-width: 0;
-  flex: 1;
-}
-
-.organizationIdentity h3 {
-  overflow: hidden;
-  color: var(--text-primary);
-  font-size: 17px;
-  font-weight: 700;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.organizationIdentity p {
-  margin-top: 4px;
-  color: var(--text-muted);
-  font-size: 12px;
 }
 
 .logoEditor {
@@ -437,6 +347,34 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px;
   padding: 22px 24px 24px;
+}
+
+.organizationDetails {
+  padding-top: 18px;
+}
+
+.organizationDetails .detail {
+  min-height: 0;
+  padding: 2px 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.organizationDetails .detailLabel {
+  margin-bottom: 5px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.organizationDetails .detailValue {
+  font-weight: 500;
+}
+
+.organizationDetails > :last-child {
+  grid-column: 1 / -1;
 }
 
 .detail {
@@ -897,21 +835,14 @@
     align-items: flex-start;
   }
 
-  .tenantSummary {
-    min-width: 210px;
-  }
-
   .profileLayout {
     grid-template-columns: 210px minmax(0, 1fr);
     gap: 14px;
   }
 
-  .profileOverview {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .overviewCard:first-child {
-    grid-column: 1 / -1;
+  .summaryStats {
+    gap: 20px;
+    padding: 0;
   }
 
   .detailsGrid {
@@ -933,32 +864,26 @@
     align-items: stretch;
   }
 
-  .tenantSummary {
-    width: 100%;
-    max-width: none;
-  }
-
   .profileLayout {
     grid-template-columns: minmax(0, 1fr);
   }
 
   .profileOverview {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    flex-wrap: wrap;
   }
 
-  .overviewCard:first-child {
-    grid-column: 1 / -1;
+  .summaryStats {
+    width: 100%;
+    justify-content: flex-start;
+    gap: 30px;
+    padding: 14px 0 0;
+    border-top: 1px solid var(--border-subtle);
   }
 
   .sectionNav {
     position: static;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 5px;
-  }
-
-  .navHeading {
-    grid-column: 1 / -1;
-    padding-bottom: 4px;
   }
 
   .navButton {
@@ -998,24 +923,12 @@
     padding: 15px;
   }
 
-  .profileOverview {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .overviewCard:first-child {
-    grid-column: auto;
-  }
-
   .sectionHeading .headingActions {
     align-self: flex-start;
   }
 
   .sampleNotice {
     margin: 13px 16px 0;
-  }
-
-  .organizationHero {
-    padding: 16px 16px 0;
   }
 
   .organizationLogo,
