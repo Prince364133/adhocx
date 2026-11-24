@@ -12,6 +12,7 @@ import {
   LifeBuoy,
   Users,
   LayoutDashboard,
+  Route,
 } from 'lucide-react';
 
 interface NavItem {
@@ -62,6 +63,13 @@ const OPERATIONS_ITEMS: NavItem[] = [
     href: '/assignments',
     label: 'Assignments',
     icon: <Truck size={18} />,
+  },
+  {
+    href: '/test-optimization',
+    label: 'Test Optimization',
+    icon: <Route size={18} />,
+    badge: 'LAB',
+    badgeColor: '#16A34A',
   },
 ];
 

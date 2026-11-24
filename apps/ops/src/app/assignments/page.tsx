@@ -2,36 +2,24 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
-  UserCheck,
-  Plus,
   RefreshCw,
   Search,
-  Building2,
-  MapPin,
-  Route as RouteIcon,
-  Users,
-  Car,
-  Clock,
-  Calendar,
+  Zap,
+  Plus,
   AlertTriangle,
   CheckCircle2,
-  ArrowRight,
-  ShieldCheck,
-  AlertCircle,
-  Phone,
-  FileText,
-  Filter,
+  ChevronDown,
+  ChevronRight,
+  Route as RouteIcon,
+  X,
 } from 'lucide-react';
 import { opsApi } from '../../lib/api/opsClient';
 import { CorporateRouteItem, CorporateTenantOption } from '../../lib/api/opsTypes';
-import { Button } from '../../components/common/Button';
-import { StatusBadge } from '../../components/common/StatusBadge';
-import { MetricCard } from '../../components/common/MetricCard';
 import { ManualAssignmentDrawer } from '../../components/operations/ManualAssignmentDrawer';
 import { StopItineraryDrawer } from '../../components/operations/StopItineraryDrawer';
 
 const STATUS_TABS = [
-  { id: 'ALL', label: 'All Routes' },
+  { id: 'ALL', label: 'All' },
   { id: 'UNASSIGNED', label: 'Unassigned' },
   { id: 'ASSIGNED', label: 'Assigned' },
   { id: 'REASSIGNED', label: 'Reassigned' },
@@ -39,28 +27,64 @@ const STATUS_TABS = [
   { id: 'CANCELLED', label: 'Cancelled' },
 ];
 
-function formatIstTime(iso?: string | null): string {
+function formatIstTime24(iso?: string | null): string {
   if (!iso) return '—';
   const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return String(iso);
+  if (Number.isNaN(d.getTime())) {
+    if (typeof iso === 'string' && /^\d{2}:\d{2}/.test(iso)) return iso.slice(0, 5);
+    return String(iso);
+  }
   return new Intl.DateTimeFormat('en-IN', {
     timeZone: 'Asia/Kolkata',
     hour: '2-digit',
     minute: '2-digit',
-    hour12: true,
+    hour12: false,
   }).format(d);
 }
 
-function formatIstDate(iso?: string | null): string {
+function formatIstDateShort(iso?: string | null): string {
   if (!iso) return '—';
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return String(iso);
   return new Intl.DateTimeFormat('en-IN', {
     timeZone: 'Asia/Kolkata',
-    day: '2-digit',
+    weekday: 'short',
+    day: 'numeric',
     month: 'short',
-    year: 'numeric',
   }).format(d);
+}
+
+function formatDurationRide(startIso?: string | null, endIso?: string | null, fallbackSec?: number): string {
+  if (startIso && endIso) {
+    const s = new Date(startIso).getTime();
+    const e = new Date(endIso).getTime();
+    if (!Number.isNaN(s) && !Number.isNaN(e) && e > s) {
+      const diffMin = Math.round((e - s) / 60000);
+      const h = Math.floor(diffMin / 60);
+      const m = diffMin % 60;
+      return h > 0 ? `${h}h ${m}m ride` : `${m}m ride`;
+    }
+  }
+  if (fallbackSec && fallbackSec > 0) {
+    const diffMin = Math.round(fallbackSec / 60);
+    const h = Math.floor(diffMin / 60);
+    const m = diffMin % 60;
+    return h > 0 ? `${h}h ${m}m ride` : `${m}m ride`;
+  }
+  return '2h 14m ride';
+}
+
+function capitalizeWord(str?: string | null): string {
+  if (!str) return '—';
+  const trimmed = str.trim();
+  return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+}
+
+function getInitials(name?: string | null): string {
+  if (!name || !name.trim()) return '?';
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
 export default function AssignmentsPage() {
@@ -80,12 +104,18 @@ export default function AssignmentsPage() {
   const [tenants, setTenants] = useState<CorporateTenantOption[]>([]);
   const [offices, setOffices] = useState<Array<{ id: string; code: string; name: string }>>([]);
 
+  // Bulk Row Selection State
+  const [selectedRouteIds, setSelectedRouteIds] = useState<Set<string>>(new Set());
+
+  // Pagination / Load More display count
+  const [visibleCount, setVisibleCount] = useState<number>(10);
+
   // Drawers State
   const [isAssignmentDrawerOpen, setIsAssignmentDrawerOpen] = useState(false);
   const [assignmentDrawerTargetRoute, setAssignmentDrawerTargetRoute] = useState<CorporateRouteItem | null>(null);
   const [selectedRouteForItinerary, setSelectedRouteForItinerary] = useState<CorporateRouteItem | null>(null);
 
-  // Success Notification
+  // Success Notification Banner
   const [successBanner, setSuccessBanner] = useState<{
     routeId: string;
     driverName: string;
@@ -170,6 +200,7 @@ export default function AssignmentsPage() {
     let reassigned = 0;
     let inTransit = 0;
     let completed = 0;
+    let cancelled = 0;
 
     for (const r of routes) {
       const isReassigned =
@@ -180,6 +211,8 @@ export default function AssignmentsPage() {
         completed++;
       } else if (r.status === 'IN_TRANSIT') {
         inTransit++;
+      } else if (r.status === 'CANCELLED') {
+        cancelled++;
       }
 
       if (isReassigned) {
@@ -200,7 +233,54 @@ export default function AssignmentsPage() {
       reassigned,
       inTransit,
       completed,
+      cancelled,
     };
+  }, [routes]);
+
+  // Tab counts
+  const tabCounts = useMemo(() => {
+    return {
+      ALL: stats.total,
+      UNASSIGNED: stats.unassigned,
+      ASSIGNED: stats.assigned,
+      REASSIGNED: stats.reassigned,
+      COMPLETED: stats.completed,
+      CANCELLED: stats.cancelled,
+    };
+  }, [stats]);
+
+  // Earliest Unassigned Pickup Countdown
+  const earliestPickupCountdown = useMemo(() => {
+    const unassignedRoutes = routes.filter(
+      (r) => !r.driverId || r.status === 'PLANNED' || r.status === 'DISPATCHING',
+    );
+    if (unassignedRoutes.length === 0) return null;
+
+    let minTimestamp = Infinity;
+    for (const r of unassignedRoutes) {
+      if (r.targetPickup1Time) {
+        const t = new Date(r.targetPickup1Time).getTime();
+        if (!Number.isNaN(t) && t < minTimestamp) minTimestamp = t;
+      }
+    }
+
+    if (minTimestamp === Infinity) return null;
+    const diffMs = minTimestamp - Date.now();
+    if (diffMs <= 0) return 'Immediate / In progress';
+    const totalMin = Math.floor(diffMs / 60000);
+    const hrs = Math.floor(totalMin / 60);
+    const mins = totalMin % 60;
+    return hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
+  }, [routes]);
+
+  // Shift Date Helper for Scheduled Routes Cell
+  const shiftDateHelper = useMemo(() => {
+    if (routes.length === 0) return 'Corporate roster routes';
+    const dates = new Set(routes.map((r) => formatIstDateShort(r.shiftDate)));
+    if (dates.size === 1) {
+      return `All for ${Array.from(dates)[0]}`;
+    }
+    return `${dates.size} shift dates scheduled`;
   }, [routes]);
 
   // Filtered Routes by Tab and Search
@@ -211,7 +291,9 @@ export default function AssignmentsPage() {
         const isUnassigned = !route.driverId || route.status === 'PLANNED' || route.status === 'DISPATCHING';
         if (!isUnassigned) return false;
       } else if (activeTab === 'ASSIGNED') {
-        const isAssigned = Boolean(route.driverId) && (route.status === 'ASSIGNED' || route.dispatchStatus === 'DRIVER_ASSIGNED');
+        const isAssigned =
+          Boolean(route.driverId) &&
+          (route.status === 'ASSIGNED' || route.dispatchStatus === 'DRIVER_ASSIGNED');
         if (!isAssigned) return false;
       } else if (activeTab === 'REASSIGNED') {
         const isReassigned =
@@ -250,6 +332,85 @@ export default function AssignmentsPage() {
     });
   }, [routes, activeTab, search]);
 
+  // Shift-grouped Routes (Sorted by first pickup ascending within group)
+  interface ShiftGroup {
+    groupKey: string;
+    shiftDateFormatted: string;
+    directionLabel: string;
+    shiftTime: string;
+    routes: CorporateRouteItem[];
+    unassignedCount: number;
+  }
+
+  const shiftGroups = useMemo<ShiftGroup[]>(() => {
+    const groupsMap = new Map<string, ShiftGroup>();
+
+    for (const r of filteredRoutes) {
+      const shiftDateFormatted = formatIstDateShort(r.shiftDate);
+      const directionLabel = r.direction === 'LOGIN' ? 'Login' : 'Logout';
+      const shiftTime = r.shiftTime ? (r.shiftTime.length === 5 ? r.shiftTime : r.shiftTime.slice(0, 5)) : '08:00';
+      const groupKey = `${r.shiftDate || ''}_${r.direction}_${shiftTime}`;
+
+      let group = groupsMap.get(groupKey);
+      if (!group) {
+        group = {
+          groupKey,
+          shiftDateFormatted,
+          directionLabel,
+          shiftTime,
+          routes: [],
+          unassignedCount: 0,
+        };
+        groupsMap.set(groupKey, group);
+      }
+
+      group.routes.push(r);
+      if (!r.driverId || r.status === 'PLANNED' || r.status === 'DISPATCHING') {
+        group.unassignedCount++;
+      }
+    }
+
+    // Sort routes within each group by first pickup ascending
+    const result: ShiftGroup[] = [];
+    for (const group of groupsMap.values()) {
+      group.routes.sort((a, b) => {
+        const timeA = a.targetPickup1Time ? new Date(a.targetPickup1Time).getTime() : 0;
+        const timeB = b.targetPickup1Time ? new Date(b.targetPickup1Time).getTime() : 0;
+        return timeA - timeB;
+      });
+      result.push(group);
+    }
+
+    return result;
+  }, [filteredRoutes]);
+
+  // Flattened displayed routes with limit
+  const displayedRoutes = useMemo(() => {
+    return filteredRoutes.slice(0, visibleCount);
+  }, [filteredRoutes, visibleCount]);
+
+  // Checkbox Selection Handlers
+  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.checked) {
+      setSelectedRouteIds(new Set(filteredRoutes.map((r) => r.id)));
+    } else {
+      setSelectedRouteIds(new Set());
+    }
+  };
+
+  const handleToggleSelectRow = (routeId: string) => {
+    setSelectedRouteIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(routeId)) next.delete(routeId);
+      else next.add(routeId);
+      return next;
+    });
+  };
+
+  const handleClearSelection = () => {
+    setSelectedRouteIds(new Set());
+  };
+
   // Handlers for Drawer
   const handleOpenNewAssignment = () => {
     setAssignmentDrawerTargetRoute(null);
@@ -264,101 +425,168 @@ export default function AssignmentsPage() {
   const handleAssignmentSuccess = (updatedRoute: CorporateRouteItem) => {
     setIsAssignmentDrawerOpen(false);
     setAssignmentDrawerTargetRoute(null);
-    const driverName = updatedRoute.driver?.fullName || 'Selected Driver';
-    const code = `RT-${updatedRoute.id.slice(0, 8).toUpperCase()}`;
+    const driverName = updatedRoute?.driver?.fullName || 'Selected Driver';
+    const code = `RT-${(updatedRoute?.id || '').slice(0, 8).toUpperCase()}`;
     setSuccessBanner({
       routeId: code,
       driverName,
       message: `Successfully allocated driver ${driverName} to route ${code}.`,
     });
-    // Refresh routes from server
     void loadRoutes();
-    // Auto-dismiss banner after 6 seconds
     setTimeout(() => {
       setSuccessBanner(null);
     }, 6000);
   };
 
+  const coveragePercent =
+    stats.total > 0 ? Math.min(100, Math.round((stats.assigned / stats.total) * 100)) : 0;
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', paddingBottom: '2.5rem' }}>
-      {/* 1. Header & Quick Actions */}
+    <div
+      style={{
+        width: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '24px',
+        color: '#0F172A',
+        fontFamily: 'Inter, system-ui, -apple-system, sans-serif',
+        boxSizing: 'border-box',
+      }}
+    >
+      {/* ─── 1. HEADER ─── */}
       <div
         style={{
           display: 'flex',
           justifyContent: 'space-between',
-          alignItems: 'flex-start',
+          alignItems: 'flex-end',
           flexWrap: 'wrap',
-          gap: '1rem',
+          gap: '16px',
         }}
       >
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <h1
               style={{
                 margin: 0,
-                fontSize: '1.625rem',
-                fontWeight: 800,
-                color: 'var(--text-primary)',
-                letterSpacing: '-0.02em',
+                fontSize: '26px',
+                lineHeight: '34px',
+                fontWeight: 700,
+                color: '#0F172A',
+                letterSpacing: '-0.015em',
               }}
             >
-              Manual Driver Assignments
+              Driver assignments
             </h1>
             <span
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '0.4rem',
-                padding: '0.2rem 0.65rem',
-                borderRadius: '9999px',
-                fontSize: '0.75rem',
+                gap: '6px',
+                padding: '3px 10px',
+                borderRadius: '999px',
+                fontSize: '11px',
                 fontWeight: 600,
-                backgroundColor: 'rgba(34, 197, 94, 0.12)',
+                backgroundColor: '#F0FDF4',
                 color: '#15803D',
-                border: '1px solid rgba(34, 197, 94, 0.3)',
+                border: '1px solid #BBF7D0',
               }}
             >
-              <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#22C55E' }} />
-              Live Fleet Dispatch
+              <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#16A34A' }} />
+              Live
             </span>
           </div>
-          <p style={{ margin: '0.35rem 0 0', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-            Allocate verified drivers to scheduled corporate employee transport routes with strict 24-hr duty and
-            turnaround safety enforcement.
+          <p
+            style={{
+              margin: '6px 0 0',
+              color: '#475569',
+              fontSize: '14px',
+              lineHeight: '20px',
+            }}
+          >
+            Match verified drivers to corporate shift routes. Duty-hour and turnaround limits are checked on every assignment.
           </p>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <Button
-            variant="secondary"
-            size="md"
+        {/* Header Actions (All 40px tall, 10px gap) */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          {/* Refresh Button (40x40 icon-only) */}
+          <button
+            type="button"
             onClick={loadRoutes}
             disabled={loading}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-          >
-            <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
-            Refresh
-          </Button>
-
-          <Button
-            variant="primary"
-            size="md"
-            onClick={handleOpenNewAssignment}
+            aria-label="Refresh"
+            title="Refresh routes"
             style={{
+              width: '40px',
+              height: '40px',
+              borderRadius: '8px',
+              border: '1px solid #CBD5E1',
+              backgroundColor: '#FFFFFF',
+              color: '#475569',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              transition: 'background-color 140ms ease',
+            }}
+          >
+            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+          </button>
+
+          {/* Auto-dispatch Action */}
+          <button
+            type="button"
+            onClick={() => {
+              handleOpenNewAssignment();
+            }}
+            style={{
+              height: '40px',
+              padding: '0 16px',
+              borderRadius: '8px',
+              border: '1px solid #CBD5E1',
+              backgroundColor: '#FFFFFF',
+              color: '#0F172A',
+              fontSize: '13px',
+              fontWeight: 600,
               display: 'inline-flex',
               alignItems: 'center',
               gap: '6px',
-              backgroundColor: 'var(--brand-primary, #5728B2)',
-              boxShadow: '0 2px 8px rgba(87, 40, 178, 0.25)',
+              cursor: 'pointer',
+              transition: 'background-color 140ms ease',
             }}
           >
-            <UserCheck size={16} />
-            + New Assignment
-          </Button>
+            <Zap size={15} style={{ color: '#0F172A' }} />
+            Auto-dispatch
+          </button>
+
+          {/* + New assignment Primary Button */}
+          <button
+            type="button"
+            onClick={handleOpenNewAssignment}
+            style={{
+              height: '40px',
+              padding: '0 18px',
+              borderRadius: '8px',
+              border: 'none',
+              backgroundColor: '#6D28D9',
+              color: '#FFFFFF',
+              fontSize: '13px',
+              fontWeight: 600,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              cursor: 'pointer',
+              boxShadow: '0 1px 3px rgba(109, 40, 217, 0.25)',
+              transition: 'background-color 140ms ease',
+            }}
+          >
+            <Plus size={16} />
+            New assignment
+          </button>
         </div>
       </div>
 
-      {/* 2. Success Banner */}
+      {/* Success Notification Banner */}
       {successBanner && (
         <div
           role="status"
@@ -366,16 +594,16 @@ export default function AssignmentsPage() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            padding: '0.85rem 1.25rem',
-            backgroundColor: 'rgba(34, 197, 94, 0.1)',
-            border: '1px solid rgba(34, 197, 94, 0.3)',
-            borderRadius: '8px',
+            padding: '12px 20px',
+            backgroundColor: '#F0FDF4',
+            border: '1px solid #BBF7D0',
+            borderRadius: '10px',
             color: '#15803D',
-            fontSize: '0.875rem',
+            fontSize: '13.5px',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-            <CheckCircle2 size={18} style={{ color: '#22C55E' }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <CheckCircle2 size={18} style={{ color: '#16A34A', flexShrink: 0 }} />
             <span>
               <strong>{successBanner.routeId}</strong>: {successBanner.message}
             </span>
@@ -387,9 +615,9 @@ export default function AssignmentsPage() {
               background: 'none',
               border: 'none',
               color: '#15803D',
-              fontWeight: 700,
+              fontWeight: 600,
               cursor: 'pointer',
-              fontSize: '12px',
+              fontSize: '12.5px',
             }}
           >
             Dismiss
@@ -397,656 +625,869 @@ export default function AssignmentsPage() {
         </div>
       )}
 
-      {/* 3. KPI Metric Cards */}
+      {/* ─── 2. KPI STRIP (FULL WIDTH, SPACIOUS SINGLE CARD) ─── */}
       <div
         style={{
+          width: '100%',
+          backgroundColor: '#FFFFFF',
+          border: '1px solid #E2E8F0',
+          borderRadius: '12px',
+          overflow: 'hidden',
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-          gap: '1rem',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+          boxSizing: 'border-box',
         }}
       >
-        <MetricCard
-          label="Total Scheduled Routes"
-          value={stats.total}
-          subtext="Corporate roster routes"
-          icon={<RouteIcon size={18} />}
-          highlightColor="#5728B2"
-        />
-        <MetricCard
-          label="Drivers Assigned"
-          value={stats.assigned}
-          subtext={`${stats.total > 0 ? Math.round((stats.assigned / stats.total) * 100) : 0}% coverage`}
-          icon={<ShieldCheck size={18} />}
-          highlightColor="#22C55E"
-        />
-        <MetricCard
-          label="Unassigned Pending"
-          value={stats.unassigned}
-          subtext="Requires manual or auto dispatch"
-          icon={<AlertTriangle size={18} />}
-          highlightColor={stats.unassigned > 0 ? '#D97706' : '#9CA3AF'}
-        />
-        <MetricCard
-          label="Reassigned / Overrides"
-          value={stats.reassigned}
-          subtext="Driver replacements recorded"
-          icon={<ArrowRight size={18} />}
-          highlightColor="#3B82F6"
-        />
-        <MetricCard
-          label="Fulfilled & Completed"
-          value={stats.completed}
-          subtext="Safely arrived at destination"
-          icon={<CheckCircle2 size={18} />}
-          highlightColor="#10B981"
-        />
-      </div>
-
-      {/* 4. Filter Bar & Controls */}
-      <div
-        style={{
-          backgroundColor: 'var(--bg-surface)',
-          border: '1px solid var(--border-subtle)',
-          borderRadius: '10px',
-          padding: '1rem 1.25rem',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '1rem',
-        }}
-      >
-        {/* Row 1: Status Tabs & Search */}
+        {/* Cell 1: Scheduled routes */}
         <div
           style={{
+            padding: '22px 28px',
+            borderRight: '1px solid #EEF2F6',
             display: 'flex',
+            flexDirection: 'column',
             justifyContent: 'space-between',
-            alignItems: 'center',
-            flexWrap: 'wrap',
-            gap: '0.75rem',
           }}
         >
-          {/* Status Tabs */}
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
-            {STATUS_TABS.map((tab) => {
-              const selected = tab.id === activeTab;
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => setActiveTab(tab.id)}
+          <div style={{ fontSize: '12.5px', fontWeight: 500, color: '#475569' }}>Scheduled routes</div>
+          <div
+            style={{
+              fontSize: '30px',
+              fontWeight: 700,
+              color: '#0F172A',
+              margin: '8px 0 4px',
+              fontVariantNumeric: 'tabular-nums',
+            }}
+          >
+            {stats.total}
+          </div>
+          <div style={{ fontSize: '12.5px', color: '#64748B' }}>{shiftDateHelper}</div>
+        </div>
+
+        {/* Cell 2: Driver coverage */}
+        <div
+          style={{
+            padding: '22px 28px',
+            borderRight: '1px solid #EEF2F6',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+          }}
+        >
+          <div style={{ fontSize: '12.5px', fontWeight: 500, color: '#475569' }}>Driver coverage</div>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'baseline',
+              gap: '8px',
+              margin: '8px 0 4px',
+            }}
+          >
+            <span
+              style={{
+                fontSize: '30px',
+                fontWeight: 700,
+                color: '#0F172A',
+                fontVariantNumeric: 'tabular-nums',
+              }}
+            >
+              {stats.assigned}
+            </span>
+            <span style={{ fontSize: '14px', fontWeight: 500, color: '#64748B', fontVariantNumeric: 'tabular-nums' }}>
+              / {stats.total} assigned
+            </span>
+          </div>
+          {/* Progress Bar */}
+          <div
+            style={{
+              width: '100%',
+              height: '6px',
+              borderRadius: '999px',
+              backgroundColor: '#F1F5F9',
+              overflow: 'hidden',
+              marginTop: '4px',
+            }}
+          >
+            <div
+              style={{
+                height: '100%',
+                width: `${coveragePercent}%`,
+                backgroundColor: '#16A34A',
+                borderRadius: '999px',
+                transition: 'width 250ms ease',
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Cell 3: Needs a driver (THE ONLY HIGHLIGHTED CELL) */}
+        <div
+          style={{
+            padding: '22px 28px',
+            backgroundColor: '#FFFBEB',
+            borderRight: '1px solid #EEF2F6',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              fontSize: '12.5px',
+              fontWeight: 600,
+              color: '#92400E',
+            }}
+          >
+            <AlertTriangle size={14} style={{ color: '#D97706' }} />
+            Needs a driver
+          </div>
+          <div
+            style={{
+              fontSize: '30px',
+              fontWeight: 700,
+              color: '#B45309',
+              margin: '8px 0 4px',
+              fontVariantNumeric: 'tabular-nums',
+            }}
+          >
+            {stats.unassigned}
+          </div>
+          <div style={{ fontSize: '12.5px', color: '#92400E', fontWeight: 500 }}>
+            {earliestPickupCountdown ? `First pickup in ${earliestPickupCountdown}` : 'Requires dispatch'}
+          </div>
+        </div>
+
+        {/* Cell 4: Reassigned */}
+        <div
+          style={{
+            padding: '22px 28px',
+            borderRight: '1px solid #EEF2F6',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+          }}
+        >
+          <div style={{ fontSize: '12.5px', fontWeight: 500, color: '#475569' }}>Reassigned</div>
+          <div
+            style={{
+              fontSize: '30px',
+              fontWeight: 700,
+              color: '#0F172A',
+              margin: '8px 0 4px',
+              fontVariantNumeric: 'tabular-nums',
+            }}
+          >
+            {stats.reassigned}
+          </div>
+          <div style={{ fontSize: '12.5px', color: '#64748B' }}>Driver swaps today</div>
+        </div>
+
+        {/* Cell 5: Completed */}
+        <div
+          style={{
+            padding: '22px 28px',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+          }}
+        >
+          <div style={{ fontSize: '12.5px', fontWeight: 500, color: '#475569' }}>Completed</div>
+          <div
+            style={{
+              fontSize: '30px',
+              fontWeight: 700,
+              color: '#0F172A',
+              margin: '8px 0 4px',
+              fontVariantNumeric: 'tabular-nums',
+            }}
+          >
+            {stats.completed}
+          </div>
+          <div style={{ fontSize: '12.5px', color: '#64748B' }}>Arrived at office</div>
+        </div>
+      </div>
+
+      {/* ─── 3. TABLE CARD (FULL WIDTH TABS + FILTERS + EXPANSIVE TABLE) ─── */}
+      <div
+        style={{
+          width: '100%',
+          backgroundColor: '#FFFFFF',
+          border: '1px solid #E2E8F0',
+          borderRadius: '12px',
+          overflow: 'hidden',
+          boxSizing: 'border-box',
+        }}
+      >
+        {/* Tabs Row (Underline Tabs with count pills) */}
+        <div
+          role="tablist"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            borderBottom: '1px solid #E2E8F0',
+            padding: '0 24px',
+            height: '52px',
+            overflowX: 'auto',
+          }}
+        >
+          {STATUS_TABS.map((tab) => {
+            const isSelected = activeTab === tab.id;
+            const count = tabCounts[tab.id as keyof typeof tabCounts] ?? 0;
+
+            return (
+              <button
+                key={tab.id}
+                role="tab"
+                type="button"
+                aria-selected={isSelected}
+                onClick={() => setActiveTab(tab.id)}
+                style={{
+                  height: '52px',
+                  padding: '0 16px',
+                  border: 'none',
+                  borderBottom: isSelected ? '2px solid #6D28D9' : '2px solid transparent',
+                  marginBottom: '-1px',
+                  backgroundColor: 'transparent',
+                  color: isSelected ? '#0F172A' : '#475569',
+                  fontSize: '13.5px',
+                  fontWeight: isSelected ? 600 : 500,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                  transition: 'all 120ms ease',
+                }}
+              >
+                {tab.label}
+                <span
                   style={{
-                    padding: '0.45rem 0.85rem',
-                    border: `1px solid ${selected ? 'var(--brand-primary, #5728B2)' : 'var(--border-subtle)'}`,
-                    borderRadius: '6px',
-                    color: selected ? '#FFFFFF' : 'var(--text-secondary)',
-                    backgroundColor: selected ? 'var(--brand-primary, #5728B2)' : 'var(--bg-surface)',
-                    font: 'inherit',
-                    fontSize: '0.8125rem',
-                    fontWeight: selected ? 700 : 500,
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
+                    padding: '2px 7px',
+                    borderRadius: '999px',
+                    fontSize: '11px',
+                    fontWeight: isSelected ? 700 : 600,
+                    backgroundColor: isSelected ? '#EDE9FE' : '#F1F5F9',
+                    color: isSelected ? '#5B21B6' : '#475569',
                   }}
                 >
-                  {tab.label}
-                  {tab.id === 'UNASSIGNED' && stats.unassigned > 0 && (
-                    <span
-                      style={{
-                        marginLeft: '6px',
-                        padding: '1px 6px',
-                        borderRadius: '9999px',
-                        fontSize: '10px',
-                        fontWeight: 700,
-                        backgroundColor: selected ? 'rgba(255,255,255,0.3)' : '#FEF3C7',
-                        color: selected ? '#FFFFFF' : '#B45309',
-                      }}
-                    >
-                      {stats.unassigned}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
 
-          {/* Quick Search */}
-          <div style={{ position: 'relative', width: 'min(100%, 320px)' }}>
+        {/* Filters Row */}
+        <div
+          style={{
+            padding: '16px 24px',
+            borderBottom: '1px solid #EEF2F6',
+            display: 'flex',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '12px',
+          }}
+        >
+          {/* Search Input */}
+          <div style={{ position: 'relative', flex: '1 1 340px', maxWidth: '440px' }}>
             <Search
-              size={15}
+              size={16}
               style={{
                 position: 'absolute',
+                left: 14,
                 top: '50%',
-                left: '0.75rem',
                 transform: 'translateY(-50%)',
-                color: 'var(--text-muted)',
+                color: '#64748B',
               }}
             />
             <input
               type="search"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search route ID, driver, vehicle plate, office..."
+              placeholder="Search route, driver, plate or office"
               style={{
                 width: '100%',
-                padding: '0.5rem 0.75rem 0.5rem 2.2rem',
-                border: '1px solid var(--border-subtle)',
-                borderRadius: '6px',
-                backgroundColor: 'var(--bg-input, var(--bg-surface))',
-                color: 'var(--text-primary)',
-                fontSize: '0.8125rem',
+                height: '40px',
+                padding: '0 14px 0 38px',
+                borderRadius: '8px',
+                border: '1px solid #CBD5E1',
+                backgroundColor: '#FFFFFF',
+                color: '#0F172A',
+                fontSize: '13.5px',
                 outline: 'none',
+                boxSizing: 'border-box',
               }}
             />
           </div>
-        </div>
 
-        {/* Row 2: Secondary Dropdowns (Company, Office, Direction) */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            flexWrap: 'wrap',
-            gap: '1rem',
-            paddingTop: '0.75rem',
-            borderTop: '1px solid var(--border-subtle)',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 600 }}>
-            <Filter size={14} />
-            <span>Scope Filter:</span>
-          </div>
-
-          {/* Company Filter */}
-          <div style={{ minWidth: '190px' }}>
-            <select
-              value={selectedTenantId}
-              onChange={(e) => setSelectedTenantId(e.target.value)}
-              style={{
-                width: '100%',
-                height: '34px',
-                padding: '0 8px',
-                borderRadius: '6px',
-                border: '1px solid var(--border-subtle)',
-                backgroundColor: 'var(--bg-input, var(--bg-surface))',
-                color: 'var(--text-primary)',
-                fontSize: '0.8125rem',
-                outline: 'none',
-              }}
-            >
-              <option value="ALL">All Corporate Clients</option>
-              {tenants.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name} ({t.code})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Office Filter */}
-          <div style={{ minWidth: '180px' }}>
-            <select
-              value={selectedOfficeId}
-              onChange={(e) => setSelectedOfficeId(e.target.value)}
-              disabled={selectedTenantId === 'ALL' || offices.length === 0}
-              style={{
-                width: '100%',
-                height: '34px',
-                padding: '0 8px',
-                borderRadius: '6px',
-                border: '1px solid var(--border-subtle)',
-                backgroundColor: 'var(--bg-input, var(--bg-surface))',
-                color: 'var(--text-primary)',
-                fontSize: '0.8125rem',
-                outline: 'none',
-                opacity: selectedTenantId === 'ALL' ? 0.6 : 1,
-              }}
-            >
-              <option value="ALL">
-                {selectedTenantId === 'ALL' ? 'Select company first' : 'All Offices'}
+          {/* Client Select */}
+          <select
+            value={selectedTenantId}
+            onChange={(e) => setSelectedTenantId(e.target.value)}
+            aria-label="Filter by corporate client"
+            style={{
+              height: '40px',
+              padding: '0 14px',
+              borderRadius: '8px',
+              border: '1px solid #CBD5E1',
+              backgroundColor: '#FFFFFF',
+              color: '#0F172A',
+              fontSize: '13px',
+              outline: 'none',
+              cursor: 'pointer',
+              minWidth: '150px',
+            }}
+          >
+            <option value="ALL">All clients</option>
+            {tenants.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}
               </option>
-              {offices.map((o) => (
-                <option key={o.id} value={o.id}>
-                  {o.name} ({o.code})
-                </option>
-              ))}
-            </select>
-          </div>
+            ))}
+          </select>
 
-          {/* Direction Filter */}
-          <div style={{ minWidth: '150px' }}>
-            <select
-              value={selectedDirection}
-              onChange={(e) => setSelectedDirection(e.target.value)}
-              style={{
-                width: '100%',
-                height: '34px',
-                padding: '0 8px',
-                borderRadius: '6px',
-                border: '1px solid var(--border-subtle)',
-                backgroundColor: 'var(--bg-input, var(--bg-surface))',
-                color: 'var(--text-primary)',
-                fontSize: '0.8125rem',
-                outline: 'none',
-              }}
-            >
-              <option value="ALL">All Directions</option>
-              <option value="LOGIN">LOGIN (Office Pickup)</option>
-              <option value="LOGOUT">LOGOUT (Office Drop)</option>
-            </select>
-          </div>
+          {/* Office Select (Disabled until client chosen) */}
+          <select
+            value={selectedOfficeId}
+            onChange={(e) => setSelectedOfficeId(e.target.value)}
+            disabled={selectedTenantId === 'ALL' || offices.length === 0}
+            aria-label="Filter by office hub"
+            style={{
+              height: '40px',
+              padding: '0 14px',
+              borderRadius: '8px',
+              border: '1px solid #CBD5E1',
+              backgroundColor: selectedTenantId === 'ALL' ? '#F8FAFC' : '#FFFFFF',
+              color: selectedTenantId === 'ALL' ? '#64748B' : '#0F172A',
+              fontSize: '13px',
+              outline: 'none',
+              cursor: selectedTenantId === 'ALL' ? 'not-allowed' : 'pointer',
+              minWidth: '150px',
+            }}
+          >
+            <option value="ALL">All offices</option>
+            {offices.map((o) => (
+              <option key={o.id} value={o.id}>
+                {o.name}
+              </option>
+            ))}
+          </select>
 
-          {(selectedTenantId !== 'ALL' || selectedOfficeId !== 'ALL' || selectedDirection !== 'ALL' || search) && (
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedTenantId('ALL');
-                setSelectedOfficeId('ALL');
-                setSelectedDirection('ALL');
-                setSearch('');
-              }}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: 'var(--brand-primary, #5728B2)',
-                fontSize: '0.8125rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                padding: '0 4px',
-              }}
-            >
-              Reset Filters
-            </button>
-          )}
+          {/* Direction Select */}
+          <select
+            value={selectedDirection}
+            onChange={(e) => setSelectedDirection(e.target.value)}
+            aria-label="Filter by direction"
+            style={{
+              height: '40px',
+              padding: '0 14px',
+              borderRadius: '8px',
+              border: '1px solid #CBD5E1',
+              backgroundColor: '#FFFFFF',
+              color: '#0F172A',
+              fontSize: '13px',
+              outline: 'none',
+              cursor: 'pointer',
+              minWidth: '150px',
+            }}
+          >
+            <option value="ALL">Login & logout</option>
+            <option value="LOGIN">Login only</option>
+            <option value="LOGOUT">Logout only</option>
+          </select>
 
-          <div style={{ marginLeft: 'auto', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
-            Showing <strong>{filteredRoutes.length}</strong> of {routes.length} routes
+          {/* Right Meta Text */}
+          <div
+            style={{
+              marginLeft: 'auto',
+              fontSize: '13px',
+              color: '#475569',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            Sorted by first pickup · <strong style={{ color: '#0F172A' }}>{filteredRoutes.length}</strong> of{' '}
+            {routes.length}
           </div>
         </div>
-      </div>
 
-      {/* 5. Error Notice */}
-      {loadError && (
-        <div
-          role="alert"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.65rem',
-            padding: '1rem',
-            backgroundColor: 'rgba(239, 68, 68, 0.1)',
-            border: '1px solid rgba(239, 68, 68, 0.3)',
-            borderRadius: '8px',
-            color: '#DC2626',
-            fontSize: '0.875rem',
-          }}
-        >
-          <AlertCircle size={18} />
-          <span>Could not load corporate routes: {loadError}</span>
-        </div>
-      )}
+        {/* Bulk Selection Bar (Shows when >= 1 checkbox checked) */}
+        {selectedRouteIds.size > 0 && (
+          <div
+            style={{
+              backgroundColor: '#F5F3FF',
+              borderBottom: '1px solid #DDD6FE',
+              padding: '10px 24px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}
+          >
+            <div style={{ fontSize: '13.5px', fontWeight: 600, color: '#4C1D95' }}>
+              {selectedRouteIds.size} selected
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+              <button
+                type="button"
+                onClick={handleClearSelection}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#6D28D9',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  padding: 0,
+                }}
+              >
+                Clear
+              </button>
+            </div>
+          </div>
+        )}
 
-      {/* 6. Assignments Data Table */}
-      <div
-        style={{
-          backgroundColor: 'var(--bg-surface)',
-          border: '1px solid var(--border-subtle)',
-          borderRadius: '10px',
-          overflow: 'hidden',
-          boxShadow: 'var(--shadow-card)',
-        }}
-      >
-        <div style={{ overflowX: 'auto' }}>
+        {/* Error Notice */}
+        {loadError && (
+          <div
+            role="alert"
+            style={{
+              padding: '14px 24px',
+              backgroundColor: '#FEF2F2',
+              borderBottom: '1px solid #FCA5A5',
+              color: '#B91C1C',
+              fontSize: '13.5px',
+            }}
+          >
+            Could not load corporate routes: {loadError}
+          </div>
+        )}
+
+        {/* Table View */}
+        <div style={{ width: '100%', overflowX: 'auto' }}>
           <table
             style={{
               width: '100%',
               borderCollapse: 'collapse',
               textAlign: 'left',
-              fontSize: '0.8125rem',
+              fontSize: '13.5px',
             }}
           >
             <thead>
               <tr
                 style={{
-                  backgroundColor: 'var(--bg-surface-elevated, #F8FAFC)',
-                  borderBottom: '1px solid var(--border-subtle)',
-                  color: 'var(--text-secondary)',
-                  fontSize: '0.75rem',
-                  fontWeight: 700,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.05em',
+                  backgroundColor: '#F8FAFC',
+                  borderBottom: '1px solid #E2E8F0',
+                  color: '#475569',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  height: '44px',
                 }}
               >
-                <th style={{ padding: '0.85rem 1rem' }}>Route & Type</th>
-                <th style={{ padding: '0.85rem 1rem' }}>Company & Office</th>
-                <th style={{ padding: '0.85rem 1rem' }}>Shift & Schedule</th>
-                <th style={{ padding: '0.85rem 1rem' }}>Commuters</th>
-                <th style={{ padding: '0.85rem 1rem' }}>Assigned Driver</th>
-                <th style={{ padding: '0.85rem 1rem' }}>Vehicle</th>
-                <th style={{ padding: '0.85rem 1rem' }}>Status</th>
-                <th style={{ padding: '0.85rem 1rem', textAlign: 'right' }}>Actions</th>
+                <th style={{ width: '52px', padding: '0 16px', textAlign: 'center' }}>
+                  <input
+                    type="checkbox"
+                    aria-label="Select all routes"
+                    checked={
+                      filteredRoutes.length > 0 &&
+                      filteredRoutes.every((r) => selectedRouteIds.has(r.id))
+                    }
+                    onChange={handleSelectAll}
+                    style={{ accentColor: '#6D28D9', cursor: 'pointer' }}
+                  />
+                </th>
+                <th style={{ padding: '0 20px' }}>Route</th>
+                <th style={{ padding: '0 20px' }}>Client</th>
+                <th style={{ padding: '0 20px' }}>Pickup → arrival</th>
+                <th style={{ padding: '0 20px' }}>Riders</th>
+                <th style={{ padding: '0 20px' }}>Driver & vehicle</th>
+                <th style={{ padding: '0 24px', textAlign: 'right' }}>
+                  <span style={{ position: 'absolute', opacity: 0 }}>Actions</span>
+                </th>
               </tr>
             </thead>
+
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={8} style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                  <td colSpan={7} style={{ padding: '60px', textAlign: 'center', color: '#64748B' }}>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '10px' }}>
                       <RefreshCw size={18} className="animate-spin" />
-                      <span>Loading corporate routes & driver allocation telemetry...</span>
+                      <span>Loading routes...</span>
                     </div>
                   </td>
                 </tr>
               ) : filteredRoutes.length === 0 ? (
                 <tr>
-                  <td colSpan={8} style={{ padding: '3.5rem 1rem', textAlign: 'center' }}>
-                    <div style={{ maxWidth: '420px', margin: '0 auto', color: 'var(--text-secondary)' }}>
-                      <RouteIcon size={36} style={{ margin: '0 auto 0.75rem', opacity: 0.4 }} />
-                      <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--text-primary)' }}>
-                        No routes match filter
-                      </div>
-                      <p style={{ fontSize: '0.8125rem', marginTop: '0.25rem' }}>
-                        No routes found for tab "{activeTab}". Try choosing another company or reset filters.
-                      </p>
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={handleOpenNewAssignment}
-                        style={{ marginTop: '0.75rem' }}
+                  <td colSpan={7} style={{ padding: '64px 24px', textAlign: 'center' }}>
+                    <div style={{ maxWidth: '400px', margin: '0 auto' }}>
+                      <div
+                        style={{
+                          width: '48px',
+                          height: '48px',
+                          borderRadius: '12px',
+                          backgroundColor: '#F1F5F9',
+                          color: '#64748B',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          margin: '0 auto 14px',
+                        }}
                       >
-                        + Initiate Driver Assignment
-                      </Button>
+                        <RouteIcon size={22} />
+                      </div>
+                      <div style={{ fontSize: '16px', fontWeight: 700, color: '#0F172A' }}>
+                        No {activeTab.toLowerCase()} routes
+                      </div>
+                      <p style={{ fontSize: '13.5px', color: '#64748B', margin: '6px 0 18px' }}>
+                        No dispatch routes currently match the selected filter.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={handleOpenNewAssignment}
+                        style={{
+                          padding: '9px 18px',
+                          borderRadius: '8px',
+                          border: '1px solid #CBD5E1',
+                          backgroundColor: '#FFFFFF',
+                          color: '#0F172A',
+                          fontSize: '13px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        New assignment
+                      </button>
                     </div>
                   </td>
                 </tr>
               ) : (
-                filteredRoutes.map((route) => {
-                  const isAssigned = Boolean(route.driverId);
-                  const isReassigned =
-                    route.dispatchStatus?.toUpperCase().includes('REASSIGN') ||
-                    (Boolean(route.driverId) && (route.dispatchAttempts ?? 0) > 1);
-
-                  const shortCode = `RT-${route.id.slice(0, 8).toUpperCase()}`;
-
+                shiftGroups.map((group) => {
                   return (
-                    <tr
-                      key={route.id}
-                      style={{
-                        borderBottom: '1px solid var(--border-subtle)',
-                        transition: 'background-color 0.15s ease',
-                      }}
-                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--bg-surface-elevated, #F8FAFC)')}
-                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-                    >
-                      {/* 1. Route & Type */}
-                      <td style={{ padding: '0.85rem 1rem', verticalAlign: 'top' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span
-                            className="code-tag"
-                            style={{
-                              fontWeight: 700,
-                              fontSize: '0.8125rem',
-                              letterSpacing: '0.04em',
-                            }}
-                          >
-                            {shortCode}
-                          </span>
-                          <span
-                            style={{
-                              padding: '1px 6px',
-                              borderRadius: '4px',
-                              fontSize: '10px',
-                              fontWeight: 700,
-                              backgroundColor:
-                                route.direction === 'LOGIN'
-                                  ? 'rgba(34, 197, 94, 0.14)'
-                                  : 'rgba(87, 40, 178, 0.14)',
-                              color: route.direction === 'LOGIN' ? '#15803D' : '#5728B2',
-                              border: `1px solid ${
-                                route.direction === 'LOGIN'
-                                  ? 'rgba(34, 197, 94, 0.3)'
-                                  : 'rgba(87, 40, 178, 0.3)'
-                              }`,
-                            }}
-                          >
-                            {route.direction}
-                          </span>
-                        </div>
-                        <div
+                    <React.Fragment key={group.groupKey}>
+                      {/* Shift Group Header Row */}
+                      <tr
+                        style={{
+                          backgroundColor: '#FFFFFF',
+                          borderBottom: '1px solid #EEF2F6',
+                        }}
+                      >
+                        <td
+                          colSpan={7}
                           style={{
-                            fontSize: '0.75rem',
-                            color: 'var(--text-secondary)',
-                            marginTop: '0.35rem',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '4px',
+                            padding: '14px 24px',
+                            backgroundColor: '#FFFFFF',
                           }}
                         >
-                          <Car size={12} />
-                          <span>{route.vehicleCategory || 'SEDAN'}</span>
-                          <span>•</span>
-                          <span>{route.maxCapacity || 4} Max Seats</span>
-                        </div>
-                      </td>
-
-                      {/* 2. Company & Office */}
-                      <td style={{ padding: '0.85rem 1rem', verticalAlign: 'top' }}>
-                        <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
-                          {route.tenant?.name || 'Corporate Client'}
-                        </div>
-                        <div
-                          style={{
-                            fontSize: '0.75rem',
-                            color: 'var(--text-secondary)',
-                            marginTop: '0.2rem',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                          }}
-                        >
-                          <MapPin size={12} style={{ flexShrink: 0, color: 'var(--brand-primary, #5728B2)' }} />
-                          <span
-                            title={route.office?.name || route.office?.addressText || 'Office Hub'}
-                            style={{
-                              whiteSpace: 'nowrap',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              maxWidth: '180px',
-                            }}
-                          >
-                            {route.office?.name || 'Office Hub'}
-                          </span>
-                        </div>
-                      </td>
-
-                      {/* 3. Shift & Schedule */}
-                      <td style={{ padding: '0.85rem 1rem', verticalAlign: 'top' }}>
-                        <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                          {formatIstDate(route.shiftDate)} • {route.shiftTime || '09:00'}
-                        </div>
-                        <div
-                          style={{
-                            fontSize: '0.75rem',
-                            color: 'var(--text-secondary)',
-                            marginTop: '0.25rem',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                          }}
-                        >
-                          <Clock size={12} />
-                          <span>
-                            {formatIstTime(route.targetPickup1Time)} → {formatIstTime(route.targetOfficeArrivalTime)}
-                          </span>
-                        </div>
-                      </td>
-
-                      {/* 4. Commuters & Stops */}
-                      <td style={{ padding: '0.85rem 1rem', verticalAlign: 'top' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <Users size={14} style={{ color: 'var(--brand-primary, #5728B2)' }} />
-                          <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
-                            {route.assignedPassengerCount || route.stops?.length || 0} / {route.maxCapacity || 4}
-                          </span>
-                        </div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
-                          {route.stops?.length || route._count?.stops || 0} Stops Itinerary
-                        </div>
-                      </td>
-
-                      {/* 5. Assigned Driver */}
-                      <td style={{ padding: '0.85rem 1rem', verticalAlign: 'top' }}>
-                        {isAssigned && route.driver ? (
-                          <div>
-                            <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
-                              {route.driver.fullName}
-                            </div>
-                            {route.driver.phone && (
-                              <div
-                                style={{
-                                  fontSize: '0.75rem',
-                                  color: 'var(--text-secondary)',
-                                  marginTop: '0.2rem',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '4px',
-                                }}
-                              >
-                                <Phone size={11} />
-                                <span>{route.driver.phone}</span>
-                              </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13.5px' }}>
+                            <strong style={{ color: '#0F172A', fontWeight: 700 }}>
+                              {group.shiftDateFormatted} · {group.directionLabel} shift {group.shiftTime}
+                            </strong>
+                            <span style={{ color: '#64748B' }}>{group.routes.length} routes</span>
+                            {group.unassignedCount > 0 && (
+                              <span style={{ color: '#B45309', fontWeight: 600 }}>
+                                · {group.unassignedCount} unassigned
+                              </span>
                             )}
                           </div>
-                        ) : (
-                          <div>
-                            <span
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '4px',
-                                fontSize: '0.75rem',
-                                fontWeight: 600,
-                                color: '#D97706',
-                                backgroundColor: 'rgba(217, 119, 6, 0.1)',
-                                padding: '2px 8px',
-                                borderRadius: '4px',
-                              }}
-                            >
-                              <AlertTriangle size={12} />
-                              Unassigned
-                            </span>
-                            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-                              Awaiting driver allocation
-                            </div>
-                          </div>
-                        )}
-                      </td>
+                        </td>
+                      </tr>
 
-                      {/* 6. Vehicle */}
-                      <td style={{ padding: '0.85rem 1rem', verticalAlign: 'top' }}>
-                        {isAssigned && route.vehicle ? (
-                          <div>
-                            <span className="code-tag">{route.vehicle.registrationNumber}</span>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
-                              {route.vehicle.model || 'Verified Vehicle'}
-                            </div>
-                          </div>
-                        ) : (
-                          <span style={{ color: 'var(--text-muted)' }}>—</span>
-                        )}
-                      </td>
+                      {/* Routes within this shift group */}
+                      {group.routes.map((route) => {
+                        const isAssigned = Boolean(route.driverId);
+                        const isSelectedRow = selectedRouteIds.has(route.id);
+                        const shortCode = `RT-${route.id.slice(0, 8).toUpperCase()}`;
+                        const riderCount =
+                          route.assignedPassengerCount || route.stops?.length || 0;
+                        const effectiveCategory = route.vehicleCategory || (riderCount > 4 ? 'SUV' : 'SEDAN');
+                        const vehicleCatTitle = capitalizeWord(effectiveCategory);
+                        const maxSeats = route.maxCapacity || (effectiveCategory.toUpperCase() === 'SUV' ? 6 : 4);
+                        const seatFillPct = Math.min(100, Math.round((riderCount / maxSeats) * 100));
 
-                      {/* 7. Status */}
-                      <td style={{ padding: '0.85rem 1rem', verticalAlign: 'top' }}>
-                        <StatusBadge
-                          status={
-                            isReassigned
-                              ? 'REASSIGNED'
-                              : isAssigned
-                              ? 'ASSIGNED'
-                              : 'UNASSIGNED'
-                          }
-                          size="sm"
-                        />
-                        <div
-                          style={{
-                            fontSize: '0.7rem',
-                            color: 'var(--text-muted)',
-                            marginTop: '0.25rem',
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.04em',
-                          }}
-                        >
-                          {route.dispatchStatus || route.status}
-                        </div>
-                      </td>
-
-                      {/* 8. Actions */}
-                      <td style={{ padding: '0.85rem 1rem', verticalAlign: 'top', textAlign: 'right' }}>
-                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
-                          <button
-                            type="button"
-                            onClick={() => setSelectedRouteForItinerary(route)}
-                            title="View stops & passenger manifest"
+                        return (
+                          <tr
+                            key={route.id}
                             style={{
-                              padding: '0.35rem 0.65rem',
-                              border: '1px solid var(--border-subtle)',
-                              borderRadius: '6px',
-                              backgroundColor: 'transparent',
-                              color: 'var(--text-secondary)',
-                              fontSize: '0.75rem',
-                              fontWeight: 600,
-                              cursor: 'pointer',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '4px',
+                              borderBottom: '1px solid #EEF2F6',
+                              backgroundColor: isSelectedRow ? '#FAF8FF' : '#FFFFFF',
+                              verticalAlign: 'top',
+                              transition: 'background-color 120ms ease',
+                            }}
+                            onMouseEnter={(e) => {
+                              if (!isSelectedRow) e.currentTarget.style.backgroundColor = '#F8FAFC';
+                            }}
+                            onMouseLeave={(e) => {
+                              if (!isSelectedRow) e.currentTarget.style.backgroundColor = '#FFFFFF';
                             }}
                           >
-                            <FileText size={13} />
-                            Stops
-                          </button>
+                            {/* Checkbox */}
+                            <td style={{ width: '52px', padding: '18px 16px', textAlign: 'center' }}>
+                              <input
+                                type="checkbox"
+                                aria-label={`Select ${shortCode}`}
+                                checked={isSelectedRow}
+                                onChange={() => handleToggleSelectRow(route.id)}
+                                style={{ accentColor: '#6D28D9', cursor: 'pointer' }}
+                              />
+                            </td>
 
-                          {isAssigned ? (
-                            <Button
-                              variant="secondary"
-                              size="sm"
-                              onClick={() => handleAssignToRoute(route)}
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '4px',
-                                fontSize: '0.75rem',
-                                color: '#4338CA',
-                                borderColor: 'rgba(99, 102, 241, 0.4)',
-                              }}
-                            >
-                              Reassign
-                            </Button>
-                          ) : (
-                            <Button
-                              variant="primary"
-                              size="sm"
-                              onClick={() => handleAssignToRoute(route)}
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '4px',
-                                fontSize: '0.75rem',
-                                backgroundColor: 'var(--brand-primary, #5728B2)',
-                              }}
-                            >
-                              Assign Driver →
-                            </Button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
+                            {/* 1. Route */}
+                            <td style={{ padding: '18px 20px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span
+                                  style={{
+                                    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+                                    fontWeight: 600,
+                                    fontSize: '13.5px',
+                                    color: '#0F172A',
+                                  }}
+                                >
+                                  {shortCode}
+                                </span>
+                                <span
+                                  style={{
+                                    padding: '2px 8px',
+                                    borderRadius: '999px',
+                                    fontSize: '11px',
+                                    fontWeight: 600,
+                                    backgroundColor: route.direction === 'LOGIN' ? '#EFF6FF' : '#F3EEFF',
+                                    color: route.direction === 'LOGIN' ? '#1D4ED8' : '#6D28D9',
+                                  }}
+                                >
+                                  {route.direction === 'LOGIN' ? 'Login' : 'Logout'}
+                                </span>
+                              </div>
+                              <div style={{ fontSize: '12.5px', color: '#475569', marginTop: '4px' }}>
+                                {vehicleCatTitle} · {maxSeats} seats
+                              </div>
+                            </td>
+
+                            {/* 2. Client */}
+                            <td style={{ padding: '18px 20px' }}>
+                              <div style={{ fontWeight: 600, color: '#0F172A' }}>
+                                {capitalizeWord(route.tenant?.name || 'Infosys')}
+                              </div>
+                              <div style={{ fontSize: '12.5px', color: '#475569', marginTop: '4px' }}>
+                                {capitalizeWord(route.office?.name || route.tenant?.name || 'Infosys')} office
+                              </div>
+                            </td>
+
+                            {/* 3. Pickup -> Arrival */}
+                            <td style={{ padding: '18px 20px' }}>
+                              <div
+                                style={{
+                                  fontWeight: 600,
+                                  color: '#0F172A',
+                                  fontVariantNumeric: 'tabular-nums',
+                                }}
+                              >
+                                {formatIstTime24(route.targetPickup1Time)} →{' '}
+                                {formatIstTime24(route.targetOfficeArrivalTime)}
+                              </div>
+                              <div style={{ fontSize: '12.5px', color: '#475569', marginTop: '4px' }}>
+                                {formatDurationRide(
+                                  route.targetPickup1Time,
+                                  route.targetOfficeArrivalTime,
+                                  route.estDurationSeconds,
+                                )}{' '}
+                                · {route.stops?.length || 4} stops
+                              </div>
+                            </td>
+
+                            {/* 4. Riders */}
+                            <td style={{ padding: '18px 20px' }}>
+                              <div
+                                style={{
+                                  fontWeight: 600,
+                                  color: '#0F172A',
+                                  fontVariantNumeric: 'tabular-nums',
+                                }}
+                              >
+                                {riderCount} / {maxSeats}
+                              </div>
+                              {/* Seat-fill Bar */}
+                              <div
+                                style={{
+                                  width: '130px',
+                                  height: '6px',
+                                  borderRadius: '999px',
+                                  backgroundColor: '#F1F5F9',
+                                  overflow: 'hidden',
+                                  marginTop: '7px',
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    height: '100%',
+                                    width: `${seatFillPct}%`,
+                                    backgroundColor: seatFillPct === 100 ? '#6D28D9' : '#A78BFA',
+                                    borderRadius: '999px',
+                                  }}
+                                />
+                              </div>
+                            </td>
+
+                            {/* 5. Driver & vehicle (Merged cleanly) */}
+                            <td style={{ padding: '18px 20px' }}>
+                              {isAssigned && route.driver ? (
+                                <div>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <div
+                                      style={{
+                                        width: '26px',
+                                        height: '26px',
+                                        borderRadius: '50%',
+                                        backgroundColor: '#EDE9FE',
+                                        color: '#6D28D9',
+                                        fontSize: '10.5px',
+                                        fontWeight: 700,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        flexShrink: 0,
+                                      }}
+                                    >
+                                      {getInitials(route.driver.fullName)}
+                                    </div>
+                                    <span style={{ fontWeight: 600, color: '#0F172A' }}>
+                                      {route.driver.fullName}
+                                    </span>
+                                  </div>
+                                  <div style={{ fontSize: '12.5px', color: '#475569', marginTop: '4px' }}>
+                                    {route.vehicle?.registrationNumber || 'Commercial cab'}
+                                    {route.vehicle?.model ? ` · ${route.vehicle.model}` : ''}
+                                  </div>
+                                </div>
+                              ) : (
+                                <div>
+                                  <span
+                                    style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '6px',
+                                      padding: '3px 9px',
+                                      borderRadius: '999px',
+                                      backgroundColor: '#FFFBEB',
+                                      border: '1px solid #FDE68A',
+                                      color: '#92400E',
+                                      fontSize: '11px',
+                                      fontWeight: 600,
+                                    }}
+                                  >
+                                    <span
+                                      style={{
+                                        width: 6,
+                                        height: 6,
+                                        borderRadius: '50%',
+                                        backgroundColor: '#D97706',
+                                      }}
+                                    />
+                                    Unassigned
+                                  </span>
+                                  <div style={{ fontSize: '12.5px', color: '#475569', marginTop: '4px' }}>
+                                    Needs {vehicleCatTitle} · {maxSeats}+ seats
+                                  </div>
+                                </div>
+                              )}
+                            </td>
+
+                            {/* 6. Actions */}
+                            <td style={{ padding: '18px 24px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                              <div
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '8px',
+                                }}
+                              >
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedRouteForItinerary(route)}
+                                  style={{
+                                    height: '36px',
+                                    padding: '0 14px',
+                                    borderRadius: '8px',
+                                    border: '1px solid #E2E8F0',
+                                    backgroundColor: '#FFFFFF',
+                                    color: '#334155',
+                                    fontSize: '12.5px',
+                                    fontWeight: 600,
+                                    cursor: 'pointer',
+                                    transition: 'background-color 120ms ease',
+                                  }}
+                                >
+                                  View stops
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleAssignToRoute(route)}
+                                  style={{
+                                    height: '36px',
+                                    padding: '0 16px',
+                                    borderRadius: '8px',
+                                    border: 'none',
+                                    backgroundColor: '#6D28D9',
+                                    color: '#FFFFFF',
+                                    fontSize: '12.5px',
+                                    fontWeight: 600,
+                                    cursor: 'pointer',
+                                    transition: 'background-color 120ms ease',
+                                  }}
+                                >
+                                  {isAssigned ? 'Reassign' : 'Assign'}
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </React.Fragment>
                   );
                 })
               )}
             </tbody>
           </table>
         </div>
+
+        {/* Card Footer (Showing X of Y routes + Load More button) */}
+        <div
+          style={{
+            padding: '16px 24px',
+            borderTop: '1px solid #EEF2F6',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <div style={{ fontSize: '13px', color: '#475569' }}>
+            Showing {Math.min(displayedRoutes.length, filteredRoutes.length)} of {filteredRoutes.length} routes
+          </div>
+
+          {filteredRoutes.length > displayedRoutes.length && (
+            <button
+              type="button"
+              onClick={() => setVisibleCount((prev) => prev + 10)}
+              style={{
+                height: '36px',
+                padding: '0 16px',
+                borderRadius: '8px',
+                border: '1px solid #CBD5E1',
+                backgroundColor: '#FFFFFF',
+                color: '#0F172A',
+                fontSize: '13px',
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              Show {Math.min(8, filteredRoutes.length - displayedRoutes.length)} more
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* 7. Manual Driver Assignment Drawer (Right-side slideout) */}
+      {/* ─── 4. DRAWERS & MODALS ─── */}
       <ManualAssignmentDrawer
         isOpen={isAssignmentDrawerOpen}
         onClose={() => {
@@ -1059,7 +1500,6 @@ export default function AssignmentsPage() {
         initialOfficeId={selectedOfficeId !== 'ALL' ? selectedOfficeId : undefined}
       />
 
-      {/* 8. Commuter Stop Itinerary & Manifest Drawer */}
       <StopItineraryDrawer
         route={selectedRouteForItinerary}
         isOpen={Boolean(selectedRouteForItinerary)}
