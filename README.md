@@ -128,6 +128,7 @@ pnpm dev:ops        # Ops on http://localhost:7004
 pnpm dev:employee   # Employee app on http://localhost:7005 (Flutter web)
 pnpm dev:corporate  # Corporate on http://localhost:7006
 pnpm dev:marketing  # Marketing on http://localhost:4321
+pnpm dev:docs       # Documentation site on http://localhost:7007
 ```
 
 Flutter apps require the Flutter SDK. The API requires a local database and Redis; use local development credentials in `apps/api/.env`, not production credentials.

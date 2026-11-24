@@ -1,0 +1,28 @@
+{
+  "name": "@adhocx/docs",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "docusaurus start --host 0.0.0.0 --port 7007",
+    "build": "docusaurus build",
+    "check:docs": "node scripts/check-documentation.mjs",
+    "clear": "docusaurus clear",
+    "serve": "docusaurus serve --host 0.0.0.0 --port 7007",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@docusaurus/core": "^3.10.2",
+    "@docusaurus/preset-classic": "^3.10.2",
+    "@docusaurus/theme-mermaid": "3.10.2",
+    "@docusaurus/tsconfig": "^3.10.2",
+    "@docusaurus/types": "^3.10.2",
+    "@easyops-cn/docusaurus-search-local": "0.55.3",
+    "@mermaid-js/layout-elk": "0.1.9",
+    "mermaid": "11.6.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3"
+  }
+}
