@@ -1,0 +1,294 @@
+.page {
+  display: grid;
+  width: 100%;
+  max-width: 1440px;
+  gap: 20px;
+  margin: 0 auto;
+  color: var(--text-primary, #1d2433);
+}
+
+.component {
+  width: 100%;
+  min-width: 0;
+}
+
+.profileHeading {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.profileAvatar {
+  width: 64px;
+  height: 64px;
+  flex: 0 0 64px;
+  border-radius: 50%;
+}
+
+.profileIdentity {
+  display: grid;
+  width: min(100%, 360px);
+  gap: 10px;
+}
+
+.drawer {
+  display: grid;
+  gap: 14px;
+  width: 100%;
+  min-width: 0;
+}
+
+.bone {
+  display: block;
+  min-width: 0;
+  min-height: 12px;
+  border-radius: 7px;
+  background: linear-gradient(
+    100deg,
+    var(--bg-surface-muted, #e8ebf0) 20%,
+    var(--bg-surface, #f5f6f8) 44%,
+    var(--bg-surface-muted, #e8ebf0) 68%
+  );
+  background-size: 220% 100%;
+  animation: shimmer 1.25s ease-in-out infinite;
+}
+
+.heading {
+  display: grid;
+  gap: 10px;
+  padding-bottom: 4px;
+}
+
+.title {
+  width: min(320px, 55%);
+  height: 28px;
+  border-radius: 8px;
+}
+
+.subtitle {
+  width: min(480px, 76%);
+  height: 13px;
+}
+
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.metric,
+.panel,
+.authCard {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+  padding: 18px;
+  border: 1px solid var(--border-subtle, #e5e8ee);
+  border-radius: 12px;
+  background: var(--bg-surface, #fff);
+}
+
+.metricLabel {
+  width: 54%;
+  height: 11px;
+}
+
+.metricValue {
+  width: 38%;
+  height: 28px;
+}
+
+.metricHint {
+  width: 70%;
+  height: 10px;
+}
+
+.dashboardGrid,
+.mapGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.panelTitle {
+  width: 38%;
+  height: 16px;
+  margin-bottom: 4px;
+}
+
+.chart {
+  width: 100%;
+  height: 185px;
+  border-radius: 9px;
+}
+
+.table {
+  display: grid;
+  min-width: 0;
+}
+
+.tableHeader,
+.tableRow {
+  display: grid;
+  grid-template-columns: 1.4fr repeat(4, minmax(0, 1fr));
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  padding: 0 6px;
+  border-bottom: 1px solid var(--border-subtle, #e5e8ee);
+}
+
+.tableHeader .bone {
+  height: 10px;
+}
+
+.tableRow .bone {
+  height: 12px;
+}
+
+.firstCell {
+  width: 80%;
+}
+
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.toolbar .bone {
+  width: min(320px, 55%);
+  height: 38px;
+}
+
+.toolbar .toolbarAction {
+  width: 120px;
+}
+
+.mapPanel {
+  min-height: 380px;
+  padding: 10px;
+  border: 1px solid var(--border-subtle, #e5e8ee);
+  border-radius: 12px;
+  background: var(--bg-surface, #fff);
+}
+
+.mapSurface {
+  width: 100%;
+  height: 100%;
+  min-height: 358px;
+}
+
+.listItem {
+  width: 100%;
+  height: 42px;
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.input {
+  width: 100%;
+  height: 42px;
+}
+
+.textarea {
+  width: 100%;
+  height: 96px;
+}
+
+.button {
+  width: 132px;
+  height: 40px;
+  justify-self: end;
+}
+
+.authCard {
+  width: min(100%, 430px);
+  gap: 18px;
+  margin: 8vh auto;
+  padding: 28px;
+}
+
+.authCard .title,
+.authCard .subtitle {
+  width: 72%;
+}
+
+.authCard .input {
+  margin-top: 2px;
+}
+
+.logo {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  justify-self: center;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  clip-path: inset(50%);
+}
+
+@keyframes shimmer {
+  to {
+    background-position-x: -220%;
+  }
+}
+
+@media (max-width: 900px) {
+  .metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dashboardGrid,
+  .mapGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .mapPanel,
+  .mapSurface {
+    min-height: 280px;
+  }
+}
+
+@media (max-width: 560px) {
+  .page {
+    gap: 14px;
+  }
+
+  .panel,
+  .metric {
+    padding: 14px;
+  }
+
+  .formGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .tableHeader,
+  .tableRow {
+    grid-template-columns: 1.2fr repeat(2, minmax(0, 1fr));
+  }
+
+  .tableHeader .bone:nth-child(n + 4),
+  .tableRow .bone:nth-child(n + 4) {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bone {
+    animation: none;
+  }
+}
