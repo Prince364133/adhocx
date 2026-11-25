@@ -3,11 +3,21 @@
  * SEO regression guard. Runs after `astro build` (see "postbuild" in package.json)
  * and FAILS the build when a rule is broken, so these issues cannot ship again.
  *
- * Rules (errors): title 20-60 chars and unique, meta description 70-165 chars,
- * canonical present/absolute/no trailing slash/matches the page URL, exactly one H1,
- * og:image present, images have alt, no HowTo schema, valid JSON-LD, no duplicate
- * top-level Organization, sitemap has no trailing-slash/noindex/duplicate URLs,
- * robots.txt references the sitemap and blocks no crawler site-wide, llms.txt exists.
+ * Rules (errors):
+ * - Title 20-60 chars and unique
+ * - Meta description 70-165 chars
+ * - Canonical present/absolute/no trailing slash/matches the page URL
+ * - Exactly one H1 per page
+ * - Heading hierarchy has no skipped levels (e.g. h1 -> h3 or h2 -> h4)
+ * - Open Graph and Twitter cards present and complete (og:image, og:title, og:description, twitter:card, twitter:title, twitter:description)
+ * - Valid BreadcrumbList schema on all public indexable subpages
+ * - NAP consistency in Schema.org (telephone +91-7893545818, @adhocx.com emails)
+ * - No broken internal links
+ * - Images have alt attributes and width/height dimensions
+ * - No HowTo schema (deprecated by Google), valid JSON-LD
+ * - No duplicate top-level Organization or LocalBusiness
+ * - Sitemap has no trailing-slash/noindex/duplicate URLs and valid genuine lastmod
+ * - robots.txt references sitemap and blocks no crawler site-wide, llms.txt exists
  *
  * Usage: node scripts/seo-check.mjs [outputDir]
  */
@@ -50,7 +60,17 @@ const metaContent = (html, key, value) => {
 
 const pages = walk(OUT).filter((f) => f.endsWith('.html'));
 const titles = new Map();
+const descriptions = new Map();
 const indexablePaths = new Set();
+const allBuiltPaths = new Set();
+
+// Pre-pass: collect all built paths
+for (const file of pages) {
+  const rel = relative(OUT, file).split(sep).join('/');
+  let path = '/' + rel.replace(/\.html$/, '').replace(/(^|\/)index$/, '');
+  if (path !== '/') path = path.replace(/\/$/, '');
+  allBuiltPaths.add(path || '/');
+}
 
 for (const file of pages) {
   const rel = relative(OUT, file).split(sep).join('/');
@@ -66,6 +86,7 @@ for (const file of pages) {
   const noindex = robots.includes('noindex');
   if (!noindex) indexablePaths.add(path);
 
+  // ---- Title ----
   const title = decode((html.match(/<title>([\s\S]*?)<\/title>/i)?.[1] ?? '').trim());
   if (!title) err(label, 'missing <title>');
   else {
@@ -77,10 +98,34 @@ for (const file of pages) {
     }
   }
 
+  // ---- Meta Description ----
   const desc = metaContent(html, 'name', 'description');
   if (!desc) err(label, 'missing meta description');
-  else if (desc.length > 165 || desc.length < 70) err(label, `meta description is ${desc.length} chars (want 70-165)`);
+  else {
+    if (desc.length > 165 || desc.length < 70) err(label, `meta description is ${desc.length} chars (want 70-165)`);
+    if (!noindex) {
+      if (descriptions.has(desc)) err(label, `duplicate meta description with ${descriptions.get(desc)}`);
+      descriptions.set(desc, label);
+    }
+  }
 
+  // ---- HTML Payload Size & Content Depth ----
+  const fileSize = statSync(file).size;
+  if (fileSize > 400 * 1024) warn(label, `HTML payload is large: ${Math.round(fileSize / 1024)}KB (>400KB)`);
+
+  if (!noindex) {
+    const cleanText = html
+      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, ' ')
+      .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, ' ')
+      .replace(/<svg\b[^<]*(?:(?!<\/svg>)<[^<]*)*<\/svg>/gi, ' ')
+      .replace(/<[^>]+>/g, ' ');
+    const words = decode(cleanText).trim().split(/\s+/).filter(Boolean);
+    if (words.length < 150) {
+      warn(label, `thin content detected: only ${words.length} words (expected >= 150)`);
+    }
+  }
+
+  // ---- Canonical ----
   const canonTag = (html.match(/<link\b[^>]*rel="canonical"[^>]*>/i) ?? [])[0];
   const canonical = canonTag ? attr(canonTag, 'href') : null;
   if (!canonical) err(label, 'missing canonical');
@@ -90,18 +135,107 @@ for (const file of pages) {
     if (!noindex && canonical !== SITE + (path === '/' ? '/' : path)) err(label, `canonical ${canonical} does not match page URL ${path}`);
   }
 
-  if (!noindex && !metaContent(html, 'property', 'og:image')) err(label, 'missing og:image');
+  // ---- Open Graph & Twitter Card Completeness ----
+  if (!noindex) {
+    const ogImg = metaContent(html, 'property', 'og:image');
+    if (!ogImg) err(label, 'missing og:image');
+    if (!metaContent(html, 'property', 'og:title')) err(label, 'missing og:title');
+    if (!metaContent(html, 'property', 'og:description')) err(label, 'missing og:description');
+    if (!metaContent(html, 'property', 'og:url')) err(label, 'missing og:url');
+    if (!metaContent(html, 'name', 'twitter:card')) err(label, 'missing twitter:card');
+    if (!metaContent(html, 'name', 'twitter:title')) err(label, 'missing twitter:title');
+    if (!metaContent(html, 'name', 'twitter:description')) err(label, 'missing twitter:description');
+  }
+
   if (/rel="alternate"[^>]*hreflang/i.test(html)) warn(label, 'hreflang present on a single-language site');
 
-  const h1s = (html.match(/<h1\b/gi) ?? []).length;
+  // ---- Headings: Exactly one H1 & sequential hierarchy ----
+  const headingMatches = [...html.matchAll(/<(h[1-6])\b[^>]*>([\s\S]*?)<\/\1>/gi)].map((m) => ({
+    level: parseInt(m[1][1], 10),
+    tag: m[1].toLowerCase(),
+    text: m[2].replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim(),
+  }));
+
+  const h1s = headingMatches.filter((h) => h.tag === 'h1').length;
   if (h1s !== 1) err(label, `expected exactly 1 <h1>, found ${h1s}`);
 
+  let lastHLevel = 0;
+  for (const h of headingMatches) {
+    if (lastHLevel > 0 && h.level > lastHLevel + 1) {
+      err(label, `heading hierarchy skipped level from h${lastHLevel} to ${h.tag} ("${h.text}")`);
+    }
+    lastHLevel = h.level;
+  }
+
+  // ---- Image Dimensions, Alt Quality, and Local Disk Existence ----
   const imgs = html.match(/<img\b[^>]*>/gi) ?? [];
   const noAlt = imgs.filter((i) => attr(i, 'alt') === null).length;
   if (noAlt) err(label, `${noAlt} <img> without alt attribute`);
+  const genericAlt = imgs.filter((i) => {
+    const a = attr(i, 'alt');
+    if (!a) return false;
+    const lower = a.trim().toLowerCase();
+    return ['image', 'img', 'photo', 'picture', 'icon'].includes(lower);
+  }).length;
+  if (genericAlt) warn(label, `${genericAlt} <img> with generic non-descriptive alt text`);
+
   const noDims = imgs.filter((i) => !attr(i, 'width') || !attr(i, 'height')).length;
   if (noDims) warn(label, `${noDims} <img> without width/height (layout shift risk)`);
 
+  for (const imgTag of imgs) {
+    const src = attr(imgTag, 'src');
+    if (!src) continue;
+    if (src.startsWith('/') && !src.startsWith('//')) {
+      const cleanSrc = src.split('?')[0].split('#')[0];
+      const diskPath1 = join(OUT, cleanSrc);
+      const diskPath2 = join(process.cwd(), 'apps', 'marketing', 'public', cleanSrc);
+      const diskPath3 = join(process.cwd(), 'public', cleanSrc);
+      if (!existsSync(diskPath1) && !existsSync(diskPath2) && !existsSync(diskPath3)) {
+        err(label, `broken local image asset: ${src} (not found on disk)`);
+      }
+    }
+  }
+
+  // ---- Internal Links Integrity & Accessible Link Names ----
+  const linkMatches = [...html.matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a>/gi)];
+  for (const match of linkMatches) {
+    const fullTag = match[0];
+    const inner = match[2];
+    const href = attr(fullTag, 'href');
+    if (!href) continue;
+
+    const text = inner.replace(/<[^>]+>/g, '').trim();
+    const ariaLabel = attr(fullTag, 'aria-label');
+    const titleAttr = attr(fullTag, 'title');
+    const hasImgWithAlt = /<img\b[^>]*alt="[^"]+"[^>]*>/i.test(inner);
+    const hasSvgAria = /<svg\b[^>]*aria-label="[^"]+"[^>]*>/i.test(inner);
+
+    if (!text && !ariaLabel && !titleAttr && !hasImgWithAlt && !hasSvgAria) {
+      if (href !== '#' && !href.startsWith('javascript:')) {
+        warn(label, `link to "${href}" lacks accessible name (no text, aria-label, title, or image alt)`);
+      }
+    }
+
+    if (href.startsWith('/') && !href.startsWith('//')) {
+      const u = new URL(href, SITE);
+      let targetPath = u.pathname;
+      if (targetPath !== '/') targetPath = targetPath.replace(/\/$/, '');
+
+      if (
+        !targetPath.startsWith('/api') &&
+        !targetPath.startsWith('/_astro') &&
+        !targetPath.startsWith('/images') &&
+        !/\.(png|jpg|jpeg|svg|webp|ico|gif|pdf|xml|txt|json)$/i.test(targetPath)
+      ) {
+        if (!allBuiltPaths.has(targetPath)) {
+          err(label, `broken internal link to ${href} (route ${targetPath} not found)`);
+        }
+      }
+    }
+  }
+
+  // ---- Structured Data (JSON-LD) ----
+  let hasBreadcrumbList = false;
   for (const m of html.matchAll(/<script[^>]*type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/gi)) {
     let json;
     try {
@@ -112,9 +246,29 @@ for (const file of pages) {
     }
     const nodes = json['@graph'] ?? (Array.isArray(json) ? json : [json]);
     const types = nodes.map((n) => (Array.isArray(n['@type']) ? n['@type'][0] : n['@type']));
+
     if (types.some((t) => t === 'HowTo')) err(label, 'HowTo schema is deprecated by Google');
     if (types.filter((t) => t === 'Organization').length > 1) err(label, 'duplicate top-level Organization in JSON-LD');
     if (types.filter((t) => t === 'LocalBusiness').length > 1) err(label, 'duplicate top-level LocalBusiness in JSON-LD');
+
+    if (types.includes('BreadcrumbList')) {
+      hasBreadcrumbList = true;
+    }
+
+    // NAP consistency verification
+    for (const node of nodes) {
+      if (node.telephone && node.telephone !== '+91-7893545818') {
+        err(label, `inconsistent telephone in schema: ${node.telephone} (expected +91-7893545818)`);
+      }
+      if (node.email && !node.email.endsWith('@adhocx.com')) {
+        err(label, `inconsistent email domain in schema: ${node.email} (expected @adhocx.com)`);
+      }
+    }
+  }
+
+  // Subpages that are indexable must have BreadcrumbList schema
+  if (!noindex && path !== '/' && path !== '' && !hasBreadcrumbList) {
+    err(label, 'missing BreadcrumbList schema on public subpage');
   }
 }
 
@@ -131,11 +285,15 @@ for (const u of urls) {
   seenUrls.add(u);
   if (!indexablePaths.has(p)) err('sitemap', `lists a URL that is noindex or has no built page: ${u}`);
 }
+for (const m of readFileSync(join(OUT, 'sitemap.xml'), 'utf8').matchAll(/<lastmod>([^<]+)<\/lastmod>/g)) {
+  const d = Date.parse(m[1]);
+  if (Number.isNaN(d)) err('sitemap', `invalid lastmod date format: ${m[1]}`);
+}
 for (const p of indexablePaths) {
   if (!seenUrls.has(SITE + (p === '/' ? '/' : p))) warn('sitemap', `indexable page missing from sitemap: ${p}`);
 }
 
-// ---- robots.txt / llms.txt -------------------------------------------------
+// ---- robots.txt / llms.txt / llms-full.txt / IndexNow -----------------------
 const robotsPath = join(OUT, 'robots.txt');
 if (!existsSync(robotsPath)) err('robots.txt', 'missing');
 else {
@@ -144,6 +302,19 @@ else {
   if (/^Disallow:\s*\/\s*$/im.test(robots)) err('robots.txt', 'a crawler is blocked site-wide (Disallow: /)');
 }
 if (!existsSync(join(OUT, 'llms.txt'))) err('llms.txt', 'missing');
+else if (statSync(join(OUT, 'llms.txt')).size < 100) err('llms.txt', 'suspiciously small (<100 bytes)');
+
+const llmsFullPath = join(OUT, 'llms-full.txt');
+if (existsSync(llmsFullPath) && statSync(llmsFullPath).size < 100) {
+  err('llms-full.txt', 'suspiciously small (<100 bytes)');
+}
+
+const indexNowKey = 'a9f73c68e14b4a2b91d2ef07a9e5c4d1';
+const indexNowKeyPath = join(OUT, `${indexNowKey}.txt`);
+const pubKeyPath = join(process.cwd(), 'apps', 'marketing', 'public', `${indexNowKey}.txt`);
+if (!existsSync(indexNowKeyPath) && !existsSync(pubKeyPath)) {
+  warn('indexnow', `IndexNow key file '${indexNowKey}.txt' not found in public directory`);
+}
 
 // ---- report ----------------------------------------------------------------
 console.log(`seo-check: scanned ${pages.length} pages in ${OUT}`);
@@ -151,7 +322,6 @@ for (const w of warnings) console.warn(`  warn  ${w}`);
 if (errors.length) {
   for (const e of errors) console.error(`  ERROR ${e}`);
   console.error(`\nseo-check found ${errors.length} error(s).`);
-  // Report-only until the first clean run; then set SEO_STRICT=1 (build env) to fail deploys on regressions.
-  process.exit(process.env.SEO_STRICT === '1' ? 1 : 0);
+  process.exit(1);
 }
 console.log('seo-check: all checks passed.');

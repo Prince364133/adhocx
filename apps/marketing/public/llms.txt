@@ -2,31 +2,43 @@
 
 > AdhocX is a B2B corporate ground-transport platform based in Hyderabad, India. It combines employee transport software (ETS) with a network of verified commercial yellow-plate 4-seater and 7-seater cabs, so companies can run shift commutes, night-shift transport for women employees, executive and airport transfers, and monthly corporate cab rental with GPS tracking and consolidated GST billing.
 
-AdhocX is operated by Estemporaneo Technologies Private Limited. Primary service area: Hyderabad (HITEC City, Gachibowli, Financial District, Madhapur) and Telangana. Site: https://www.adhocx.com. Contact details: https://www.adhocx.com/contact
+AdhocX is operated by Estemporaneo Technologies Private Limited.
+Headquarters: Level 4, Cyber Gateway, HITEC City, Madhapur, Hyderabad, Telangana 500081, India.
+Primary service area: Hyderabad IT corridors (HITEC City, Knowledge City, Mindspace, Gachibowli, Financial District, Kondapur, Madhapur, Nanakramguda, Uppal, Pocharam) and Telangana state.
+Website: https://www.adhocx.com
+Contact: +91-7893545818 | support@adhocx.com | enterprise@adhocx.com
 
-## Services and product
-- [Employee transport services](https://www.adhocx.com/services): shift pickups and drops, night-shift safety, executive and airport cabs for corporates.
-- [Employee Transport Software (ETS)](https://www.adhocx.com/ets): route planning, corporate client portal, employee app, driver app, live GPS tracking.
-- [Corporate cab sourcing and fleet rental](https://www.adhocx.com/vendors): 4-seater and 7-seater yellow-plate fleets, SLA-backed fulfilment.
-- [Industries served](https://www.adhocx.com/industries): IT parks, BPO and GCC night shifts, BFSI, healthcare.
-- [Pricing](https://www.adhocx.com/pricing): corporate contract pricing, monthly rates, automated billing.
-- [Safety and compliance](https://www.adhocx.com/safety): night escort protocols, women-employee safety, verified drivers and vehicles.
+For the complete technical specification, system architecture, and entity documentation, see [llms-full.txt](https://www.adhocx.com/llms-full.txt).
 
-## Apps
-- [Employee app](https://www.adhocx.com/employee-app): cab booking, live tracking, pickup ETAs, SOS.
-- [Driver partner app](https://www.adhocx.com/driver-app): onboarding and scheduled corporate trips for commercial cab owners.
-- [Drivers](https://www.adhocx.com/drivers): driver partner network and payouts.
+## Core Platform & Services
+- [Employee Transport Services](https://www.adhocx.com/services): Shift pickups and drops, late-night safety, executive transit, and airport transfers for enterprise staff in Hyderabad.
+- [Employee Transport Software (ETS)](https://www.adhocx.com/ets): Automated H3 spatial routing and Redis GEO, multi-tenant corporate client portal, employee app, driver app, live GPS tracking, dynamic OTP boarding, and 3-way match billing.
+- [Corporate Cab Sourcing & Fleet Rental](https://www.adhocx.com/vendors): Verified 4-seater sedans (Maruti Dzire) and 6/7-seater MUVs (Maruti Ertiga, Toyota Innova Crysta) with strict SLA-backed fulfillment.
+- [Industries Served](https://www.adhocx.com/industries): IT & Tech Parks, BPO & GCC 24/7 night shifts, BFSI, Healthcare & Hospital shift transit.
+- [Pricing & Rate Cards](https://www.adhocx.com/pricing): Predictable corporate contracts, fixed kilometer and shift package rate cards, zero surge multipliers, and transparent indexation.
+- [Safety & Duty of Care](https://www.adhocx.com/safety): Mandatory night escort protocols (8 PM–6 AM), first-pickup/last-drop protection, sub-15s GPS telemetry, Dial 100/112 emergency integration, and 100% yellow-plate verified fleets.
 
-## Answers and guides
-- [FAQ](https://www.adhocx.com/faq): common questions on employee transport, billing, safety and drivers.
-- [Insights and reports](https://www.adhocx.com/blogs): articles on corporate mobility, fleet costs, driver economics and Telangana transport compliance.
-- [About](https://www.adhocx.com/about)
-- [Contact](https://www.adhocx.com/contact)
+## Applications
+- [Corporate Client Portal](https://portal.adhocx.com): Web dashboard for HR and transport desks to ingest rosters (Darwinbox, Workday, SAP, CSV), monitor live trip feeds, manage exceptions, and download GST invoices.
+- [Employee Mobile App](https://www.adhocx.com/employee-app): Native iOS and Android application with real-time cab tracking, pickup ETAs, dynamic geofenced OTP boarding, and emergency panic SOS.
+- [Driver Partner App](https://www.adhocx.com/driver-app): Native driver app featuring digital trip manifests, turn-by-turn routing, geofenced OTP validation, and automated double-entry instant bank payout ledger.
+- [Driver Community & Network](https://www.adhocx.com/drivers): Driver partner registration, compliance requirements, 1-hour bank payouts, and ₹2,000 milestone bonus structure.
 
-## Policies
-- [Terms](https://www.adhocx.com/terms)
-- [Privacy](https://www.adhocx.com/privacy)
+## Knowledge Base, Research & Guides
+- [Corporate Mobility Insights & Blog](https://www.adhocx.com/blogs): Technical guides, operational benchmarks, and regulatory compliance reports for enterprise transport desks.
+  - [Automated Employee Transport Routing & Nodal Guide](https://www.adhocx.com/blogs/automated-employee-transport-routing-nodal-optimization-guide): H3 hexagonal clustering, Redis GEO, nodal pickups, and 60-min commute caps.
+  - [Corporate Transport vs Public Cabs & Taxi Brokers](https://www.adhocx.com/blogs/corporate-employee-transport-vs-aggregators-and-brokers): MSAs, zero surge pricing, yellow-plate legality, and 3-way match GST audits.
+  - [Women Employee Night Shift Cab Safety & Telangana Rules](https://www.adhocx.com/blogs/women-employee-night-shift-commute-safety-telangana-regulations): Section 23 Telangana Shops Act, Cyberabad SCSC guidelines, mandatory escorts, and DPDP Act 2023 compliance.
+  - [Algorithmic Direct Dispatch Cost Optimization](https://www.adhocx.com/blogs/how-algorithmic-direct-dispatch-cuts-enterprise-cab-costs): Eliminating middleman broker markups.
+  - [Commercial Driver Economics](https://www.adhocx.com/blogs/commercial-4-seater-and-7-seater-driver-economics): 4-seater sedans vs 7-seater MUVs operating costs.
+  - [The 1-Hour Bank Refund SLA](https://www.adhocx.com/blogs/1-hour-bank-refund-sla-in-corporate-mobility): Instant escrow ledger credits and contractual bank refund SLAs.
+  - [Hyderabad Tech Park Transit Compliance](https://www.adhocx.com/blogs/hyderabad-tech-park-employee-transit-compliance): Yellow-board statutory regulations under Telangana Motor Vehicles Act.
+- [Frequently Asked Questions (FAQ)](https://www.adhocx.com/faq): Comprehensive answers across HR mobility, transport operations, finance, driver partnerships, and regulatory compliance.
+- [About AdhocX](https://www.adhocx.com/about): Company background, mission, leadership, and operational footprint in Hyderabad.
+- [Contact Enterprise Desk](https://www.adhocx.com/contact): RFP submissions, platform demonstration scheduling, and corporate account management.
 
-## Optional
-- [RSS feed](https://www.adhocx.com/rss.xml)
-- [Sitemap](https://www.adhocx.com/sitemap.xml)
+## Governance & Policies
+- [Terms of Service](https://www.adhocx.com/terms): Enterprise service level agreements, cancellation rules, commercial terms, and compliance mandates.
+- [Privacy Policy](https://www.adhocx.com/privacy): Data protection practices, AES-256 encryption at rest, TLS 1.3 in transit, and DPDP Act 2023 compliance.
+- [Sitemap](https://www.adhocx.com/sitemap.xml): Machine-readable XML sitemap of all canonical public routes.
+- [RSS Feed](https://www.adhocx.com/rss.xml): Syndication feed of corporate mobility research and engineering articles.

@@ -20,6 +20,10 @@ const jsonLd = {
   description="Enterprise commute safety: 24/7 HITEC City command center, night escort protocols for women employees, live GPS and verified yellow-plate fleets."
   canonical="https://www.adhocx.com/safety"
   activeNav="platform"
+  breadcrumbs={[
+    { name: 'Home', url: '/' },
+    { name: 'Safety & Compliance', url: '/safety' }
+  ]}
   jsonLd={jsonLd}
 >
   <!-- Hero Section -->
@@ -80,7 +84,7 @@ const jsonLd = {
             Mandated Escort Protocols for Women Commuters
           </h2>
           <p style="color: var(--color-text-secondary); font-size: 1rem; line-height: 1.6; margin-bottom: var(--space-4);">
-            In strict compliance with the Telangana Shops and Establishments Act and corporate duty of care guidelines, AdhocX enforces rigorous escort security for female employees traveling between <strong>8:00 PM and 6:00 AM</strong>.
+            In strict compliance with Section 23 of the Telangana Shops and Establishments Act, 1988 (G.O.Ms.No. 40) and Cyberabad Security Council (SCSC) guidelines, AdhocX enforces rigorous escort security for female employees traveling between <strong>8:00 PM and 6:00 AM</strong>.
           </p>
           <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--space-4); font-size: 0.9375rem; color: var(--color-text-secondary);">
             <li style="display: flex; gap: var(--space-3); align-items: flex-start;">
@@ -88,7 +92,7 @@ const jsonLd = {
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
               </div>
               <div>
-                <strong style="color: var(--color-text-primary);">First-Pickup & Last-Drop Rule:</strong> Our PostGIS algorithm sequences routes so that a female passenger is never the first person picked up alone or the last person dropped off alone with the driver without a certified security guard.
+                <strong style="color: var(--color-text-primary);">First-Pickup & Last-Drop Rule:</strong> Our spatial algorithm sequences routes so that a female passenger is never the first person picked up alone or the last person dropped off alone with the driver without a certified security guard.
               </div>
             </li>
             <li style="display: flex; gap: var(--space-3); align-items: flex-start;">
@@ -167,7 +171,7 @@ const jsonLd = {
         <div style="background: var(--color-surface-muted); padding: var(--space-6); border-radius: var(--radius-lg); border: 1px solid var(--color-border);">
           <div style="font-weight: 700; font-size: 1.125rem; color: var(--color-text-primary); margin-bottom: var(--space-2);">Corridor Route Deviation Alarms</div>
           <p style="font-size: 0.875rem; color: var(--color-text-secondary); line-height: 1.5; margin: 0;">
-            If a vehicle diverges from its approved PostGIS corridor or remains stationary for over 5 minutes without reason, an audible dispatcher alarm triggers.
+            If a vehicle diverges from its approved transit corridor (>500m) or remains stationary for over 5 minutes without reason, an audible dispatcher alarm triggers.
           </p>
         </div>
 
@@ -239,8 +243,17 @@ const jsonLd = {
         <a href="/contact" class="btn btn-primary btn-large" style="border-color: var(--color-primary-400); box-shadow: 0 4px 16px rgba(87, 40, 178, 0.5);">
           Contact Safety Command Desk &rarr;
         </a>
-        <a href="/about" class="btn btn-outline btn-large" style="color: #ffffff; border-color: rgba(255,255,255,0.4);">
-          About Our Governance
+        <a href="/services" class="btn btn-outline btn-large" style="color: #ffffff; border-color: rgba(255,255,255,0.4);">
+          Corporate Commute Services
+        </a>
+        <a href="/ets" class="btn btn-outline btn-large" style="color: #ffffff; border-color: rgba(255,255,255,0.4);">
+          ETS Software Controls
+        </a>
+        <a href="/employee-app" class="btn btn-outline btn-large" style="color: #ffffff; border-color: rgba(255,255,255,0.4);">
+          Employee SOS App
+        </a>
+        <a href="/faq" class="btn btn-outline btn-large" style="color: #ffffff; border-color: rgba(255,255,255,0.4);">
+          Safety Compliance FAQ
         </a>
       </div>
     </div>

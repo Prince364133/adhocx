@@ -3,6 +3,13 @@
   "outputDirectory": ".vercel/output/static",
   "cleanUrls": true,
   "trailingSlash": false,
+  "redirects": [
+    {
+      "source": "/blogs/how-adhocx-reverse-auction-cuts-enterprise-cab-costs",
+      "destination": "/blogs/how-algorithmic-direct-dispatch-cuts-enterprise-cab-costs",
+      "permanent": true
+    }
+  ],
   "headers": [
     {
       "source": "/_astro/(.*)",

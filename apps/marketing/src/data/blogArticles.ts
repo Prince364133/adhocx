@@ -4,6 +4,7 @@ export interface ArticleData {
   category: string;
   readTime: string;
   date: string;
+  dateModified?: string;
   author: string;
   authorRole: string;
   summary: string;
@@ -60,38 +61,10 @@ export const ARTICLES_CONTENT: Record<string, ArticleData> = {
 
       <h2>Measurable Financial Recourse: Direct Bank Refund SLA</h2>
       <p>
-        Unlike consumer ride-hailing apps that trap corporate cancellations in proprietary app wallets, AdhocX enforces an industry-first <strong>Direct Bank Refund SLA</strong>. If a vehicle requirement cannot be fulfilled within the agreed SLA cutoff, the full funds are immediately credited back to the corporate account via instant banking rails.
+        Unlike consumer ride-hailing apps that trap corporate cancellations in proprietary app wallets, AdhocX enforces an industry-first <strong>Direct Bank Refund SLA</strong>. If a vehicle requirement cannot be fulfilled within the agreed SLA cutoff, the booking funds are immediately credited to the corporate escrow ledger, with bank account refund processing available under agreed enterprise terms.
       </p>
       <p>
         This financial guarantee eliminates capital lockup, allowing enterprise procurement desks to audit their transport ledger in real time with complete peace of mind.
-      </p>
-    `
-  },
-  'how-adhocx-reverse-auction-cuts-enterprise-cab-costs': {
-    slug: 'how-adhocx-reverse-auction-cuts-enterprise-cab-costs',
-    title: 'How Automated Algorithmic Dispatch Cuts Enterprise Corporate Cab Costs',
-    category: 'Corporate Mobility',
-    readTime: '4 min read',
-    date: 'Oct 15, 2026',
-    author: 'AdhocX Fleet Operations Research',
-    authorRole: 'Enterprise Fleet & Logistics Research Desk',
-    summary: 'Discover how programmatic driver pairing and instant fulfillment eliminate middlemen broker markups for corporate logistics and spot employee transit in Hyderabad.',
-    directAnswer: 'AdhocX reduces corporate cab expenditure by replacing manual broker networks with a direct algorithmic dispatch engine. By connecting enterprise facility desks directly to verified yellow-plate 4-seater and 7-seater drivers with a strict allocation cutoff and zero unfulfilled booking fees, corporate transport desks eliminate hidden markups, surge premiums, and administrative dispatch overhead.',
-    coverImage: '/images/service-executive-airport.jpg',
-    keyTakeaways: [
-      'Eliminates the typical middleman broker markups charged by unorganized transport aggregators in Hyderabad IT corridors.',
-      'Strict allocation cutoff guarantees immediate escalation and prevents employee stranding during evening shift transitions.',
-      'Verified commercial yellow-plate fleet compliance with commercial fitness and statutory motor insurance.',
-      'Automated single-source GST invoicing replaces manual paper trip slips and spreadsheet reconciliation.'
-    ],
-    contentHtml: `
-      <h2>The Crisis of Traditional Corporate Cab Procurement in Hyderabad</h2>
-      <p>
-        In high-density technology hubs like HITEC City, Gachibowli, and the Financial District, corporate employee mobility represents one of the largest operational line items for IT, ITES, and BFSI organizations. Traditionally, transport managers rely on fragmented WhatsApp coordinator groups and manual taxi brokers to handle daily employee roster drops and ad-hoc executive trips.
-      </p>
-      <h2>The AdhocX Algorithmic Dispatch Architecture</h2>
-      <p>
-        AdhocX solves corporate fleet instability by deploying an automated algorithmic dispatch engine built specifically for B2B commercial mobility.
       </p>
     `
   },
@@ -152,13 +125,13 @@ export const ARTICLES_CONTENT: Record<string, ArticleData> = {
     date: 'Sep 28, 2026',
     author: 'AdhocX Legal & Finance Desk',
     authorRole: 'Corporate Governance & Treasury Operations',
-    summary: 'Why enterprise transport desks cannot afford locked balances in consumer cab wallets, and how instant IMPS/UPI refund rails transform corporate travel procurement.',
-    directAnswer: 'The AdhocX 1-Hour Bank Refund SLA guarantees that any unfulfilled or cancelled commercial cab booking is fully credited back to the corporate client’s originating bank account within 60 minutes. Built on automated IMPS and UPI banking APIs, this eliminates wallet balance trapping and provides corporate treasury teams clear, audit-compliant financial recourse.',
+    summary: 'Why enterprise transport desks cannot afford locked wallet balances, and how instant escrow credits and bank refund SLAs protect corporate travel.',
+    directAnswer: 'The AdhocX refund framework guarantees immediate double-entry ledger credit upon unfulfilled ride cancellation. For enterprise clients under corporate Master Service Agreements (MSAs), external bank account refund instructions are initiated via IMPS/NEFT rails within an agreed 1-hour verification SLA window, eliminating locked wallet balances.',
     coverImage: '/images/hero-corporate-commute.jpg',
     keyTakeaways: [
       'Eliminates the risk of locked corporate working capital inside closed-loop app credits.',
-      'Automated programmatic refund trigger: fires immediately upon trip cancellation or fulfillment SLA timeout.',
-      'Provides automated credit note and bank UTR transaction receipt for corporate GST reconciliation.',
+      'Automated double-entry ledger refund: credits corporate escrow immediately upon booking cancellation or timeout.',
+      'Bank payout instructions via IMPS/NEFT initiated within 1 hour for eligible enterprise contract cancellations.',
       'Complies with Indian statutory corporate procurement and expense reporting guidelines.'
     ],
     contentHtml: `
@@ -175,14 +148,14 @@ export const ARTICLES_CONTENT: Record<string, ArticleData> = {
         <li>Manual accounting overhead attempting to claim back unspent balances from customer support.</li>
       </ul>
 
-      <h2>How AdhocX Instant Banking Rails Function</h2>
+      <h2>How the AdhocX Ledger & Settlement Architecture Functions</h2>
       <p>
-        AdhocX treats financial settlement with the same rigorous SLA as physical vehicle dispatch. When a trip cannot be fulfilled within the agreed 15-minute search cutoff or is cancelled before chauffeur dispatch:
+        AdhocX treats financial settlement with the same rigorous SLA as physical vehicle dispatch. When a trip cannot be fulfilled within the agreed dispatch window or is cancelled before driver dispatch:
       </p>
       <ol>
-        <li>The dispatch state transitions to <code>UNFULFILLED_REFUND_TRIGGERED</code>.</li>
-        <li>Our automated banking gateway initiates an instant IMPS / UPI payout directly to the originating corporate bank account or payment card.</li>
-        <li>A digital credit note with a bank UTR number is generated and emailed to the corporate finance desk within 60 minutes.</li>
+        <li>The dispatch state transitions to cancelled, and our double-entry ledger immediately credits the held funds back to the client's corporate escrow balance.</li>
+        <li>For enterprise accounts holding bank refund clauses in their Master Service Agreement, finance initiates an IMPS/NEFT settlement instruction to the originating bank account within 1 hour of ticket verification.</li>
+        <li>A digital credit note with transaction reference details is generated and emailed to the corporate finance desk for GST reconciliation.</li>
       </ol>
     `
   },
@@ -321,6 +294,225 @@ export const ARTICLES_CONTENT: Record<string, ArticleData> = {
         <li><strong>70% Core Baseline:</strong> Maintain dedicated contracts for predictable, high-volume recurring employee routes.</li>
         <li><strong>30% Elastic Buffer with AdhocX:</strong> Utilize AdhocX's automated direct dispatch marketplace for emergency shifts, client airport transfers, VIP delegations, and seasonal peaks.</li>
       </ol>
+    `
+  },
+  'automated-employee-transport-routing-nodal-optimization-guide': {
+    slug: 'automated-employee-transport-routing-nodal-optimization-guide',
+    title: 'Automated Employee Transport Routing & Nodal Guide | AdhocX',
+    category: 'Routing & Technology',
+    readTime: '6 min read',
+    date: 'Nov 12, 2026',
+    dateModified: 'Nov 12, 2026',
+    author: 'AdhocX Fleet Technology Desk',
+    authorRole: 'Spatial Logistics & Routing Optimization Directorate',
+    summary: 'A technical guide on how automated H3 hexagonal routing, Redis GEO clustering, nodal pickups, and ride time caps optimize enterprise shift transport.',
+    directAnswer: 'Automated employee transport routing uses Uber H3 hexagonal spatial indexing and Redis GEO clustering to group employees along optimized geographic corridors, shifting enterprise transit from inefficient door-to-door detours to streamlined nodal pickup hubs. By capping individual passenger ride times to under 60 minutes and maintaining vehicle seat occupancy above 85% on 7-seater commercial MUVs, corporate transport desks in Hyderabad reduce daily fleet mileage by 22% while eliminating shift transit delays.',
+    coverImage: '/images/service-shift-commute.jpg',
+    keyTakeaways: [
+      'Uber H3 hexagonal spatial clustering eliminates erratic manual routing and keeps employee transit strictly under 60 minutes.',
+      'Nodal pickup hubs group neighborhood commuters, increasing 7-seater MUV seat occupancy above 85%.',
+      'Dynamic geofenced OTP verification ensures tamper-proof boarding telemetry without physical paper trip sheets.',
+      'Direct integration between roster planning and live telemetry prevents unauthorized driver route detours.'
+    ],
+    contentHtml: `
+      <h2>The Limitations of Manual Route Planning in Hyderabad</h2>
+      <p>
+        Across Hyderabad’s major tech corridors—spanning HITEC City, Knowledge City, Mindspace, Gachibowli, and the Financial District—managing shift transport for thousands of employees is an intricate logistical challenge. Historically, transport desks relied on manual route planning using spreadsheets and local dispatcher familiarity.
+      </p>
+      <p>
+        Manual routing creates predictable operational inefficiencies:
+      </p>
+      <ul>
+        <li><strong>Excessive Commute Times:</strong> Unoptimized sequential pickups often force the first employee boarded to spend 90 to 120 minutes in transit.</li>
+        <li><strong>Sub-Optimal Vehicle Utilization:</strong> Without automated grouping, 7-seater MUVs frequently run with only 2 or 3 passengers, inflating cost-per-seat metrics.</li>
+        <li><strong>High Deadhead Kilometers:</strong> Empty runs between garage depots, employee pickup points, and office campuses inflate fuel consumption and carbon footprint.</li>
+      </ul>
+
+      <h2>Spatial Clustering: How Uber H3 and Redis GEO Solve the Roster Puzzle</h2>
+      <p>
+        Modern Employee Transport Software (ETS) replaces manual guesswork with hierarchical hexagonal spatial indexing (Uber H3 at resolution 8) paired with high-throughput Redis GEO coordinates and spherical Haversine matrices. When an enterprise uploads shift rosters from HRMS platforms (such as Darwinbox, Workday, or SAP), the routing engine executes multi-stage algorithmic optimization:
+      </p>
+      <ol>
+        <li><strong>Geocoding & Geographic Verification:</strong> Employee residential addresses are converted into validated latitude and longitude coordinates, filtering out invalid or unserviceable locations.</li>
+        <li><strong>Density-Based Spatial Clustering:</strong> Using H3 cell indexing and spatial neighborhood rings (such as 5 km primary and 10 km fallback dispatch rings), commuters residing within adjacent geographic clusters who share identical shift timings are grouped automatically.</li>
+        <li><strong>Corridor Alignment:</strong> Routes are aligned along primary transit arteries—such as the Outer Ring Road (ORR), Gachibowli-Miyapur road, and PVNR Expressway—minimizing narrow inner-lane traversals.</li>
+      </ol>
+
+      <h2>Nodal Pickups vs. Door-to-Door Transit</h2>
+      <p>
+        While door-to-door transit is essential for late-night female commuter safety under Telangana regulations, daytime general shifts benefit substantially from <strong>nodal pickup points</strong>.
+      </p>
+      <p>
+        A nodal pickup strategy designates centralized, well-lit, and accessible rendezvous points (such as metro stations, commercial junctions, or gated community main gates) within 300 to 500 meters of employee homes:
+      </p>
+      <ul>
+        <li><strong>30% Faster Route Completion:</strong> Eliminating winding residential lane maneuvers cuts 15 to 25 minutes from every route cycle.</li>
+        <li><strong>Higher Capacity Fleet Utilization:</strong> High vehicle fill rates on 7-seater commercial MUVs (Maruti Ertiga, Toyota Innova Crysta) lower corporate expenditure per employee.</li>
+        <li><strong>Predictable Boarding Schedules:</strong> Fixed nodal stops ensure punctuality and minimize idling delays caused by employee readiness discrepancies.</li>
+      </ul>
+
+      <h2>Capping Passenger Commute Times at 60 Minutes</h2>
+      <p>
+        A core benchmark in enterprise mobility SLAs is the maximum transit duration cap. Prolonged commutes directly impair employee productivity and workplace satisfaction.
+      </p>
+      <p>
+        AdhocX enforces a strict 60-minute ride time constraint within its routing engine. If adding a fifth pickup to a route causes the first boarded passenger's journey to exceed 60 minutes, the dispatch engine automatically splits the manifest and triggers an additional vehicle allocation.
+      </p>
+
+      <h2>Digital Boarding Verification via Geofenced Dynamic OTP</h2>
+      <p>
+        To eliminate physical paper trip sheets and ghost passenger billing, modern ETS deploys cryptographic boarding verification:
+      </p>
+      <ul>
+        <li>The employee receives a dynamic, expiring 4-digit OTP or secure QR challenge in their mobile app 15 minutes before scheduled arrival.</li>
+        <li>The driver can only validate the boarding code when the vehicle’s GPS coordinates match the geofenced pickup node within a 50-meter radius.</li>
+        <li>Successful boarding instantly updates the corporate facility command dashboard, providing real-time headcount visibility.</li>
+      </ul>
+    `
+  },
+  'corporate-employee-transport-vs-aggregators-and-brokers': {
+    slug: 'corporate-employee-transport-vs-aggregators-and-brokers',
+    title: 'Corporate Transport vs Public Cabs & Taxi Brokers | AdhocX',
+    category: 'Corporate Mobility',
+    readTime: '5 min read',
+    date: 'Nov 15, 2026',
+    dateModified: 'Nov 15, 2026',
+    author: 'AdhocX Enterprise Solutions',
+    authorRole: 'Corporate Mobility Procurement & Audit Desk',
+    summary: 'Comparing dedicated corporate employee transport against consumer cab apps and offline taxi brokers across compliance, safety, surge pricing, and GST audits.',
+    directAnswer: 'Corporate employee transport differs fundamentally from consumer ride-hailing apps and offline taxi brokers through dedicated Master Service Agreements (MSAs), fixed commercial rate cards without surge pricing, 100% yellow-plate fleet legality, and automated 3-way match GST billing. While consumer aggregators suffer high driver cancellations and brokers lack digital compliance audits, dedicated B2B platforms like AdhocX enforce structured dispatch windows and contractual refund recourse.',
+    coverImage: '/images/hero-corporate-commute.jpg',
+    keyTakeaways: [
+      'Fixed contracted rate cards eliminate volatile weather and peak-hour surge multipliers common on consumer cab apps.',
+      '100% yellow-plate commercial fleet compliance eliminates corporate vicarious liability risks under Telangana motor transport laws.',
+      'Automated 3-way match billing reconciles shift rosters, geofenced GPS odometers, and contracted tariffs into unified GST invoices.',
+      'Financial recourse with automated ledger credits and agreed bank refund SLAs prevents trapped working capital in proprietary consumer cab wallets.'
+    ],
+    contentHtml: `
+      <h2>The Corporate Ground Transport Procurement Dilemma</h2>
+      <p>
+        Corporate travel managers, facility directors, and procurement heads face an ongoing choice when structuring employee commute programs: should they rely on consumer ride-hailing apps (such as retail rideshare platforms), engage local offline taxi brokers, or partner with dedicated B2B Employee Transport Service (ETS) providers?
+      </p>
+      <p>
+        While consumer platforms offer app convenience and offline brokers offer localized familiarity, both models exhibit significant drawbacks when subjected to corporate governance, compliance audits, and fiscal scrutiny.
+      </p>
+
+      <h2>Comparing the Three Operating Models</h2>
+      <p>
+        To understand the structural differences, consider how each model handles core enterprise requirements:
+      </p>
+
+      <h2>1. Tariff Predictability vs. Dynamic Surge Multipliers</h2>
+      <p>
+        Consumer ride-hailing algorithms are engineered for retail supply-demand elasticity. During peak shift transitions (such as 06:00 AM or 08:00 PM), severe rainstorms, or transport strikes in Cyberabad, retail algorithms automatically trigger 1.5x to 3.0x surge pricing multipliers.
+      </p>
+      <p>
+        Dedicated corporate transport operates under <strong>fixed commercial rate cards</strong> established in enterprise Master Service Agreements (MSAs). Slab-based rates per kilometer and fixed monthly shift packages ensure complete cost predictability, allowing finance teams to budget accurately with zero surge volatility.
+      </p>
+
+      <h2>2. Regulatory Compliance: Yellow Plates vs. White-Plate Liability</h2>
+      <p>
+        Under Section 66 of the Motor Vehicles Act, 1988 and the Telangana On-Demand Transportation Technology Aggregator Rules, transporting corporate personnel in private white-plate vehicles without commercial permits is strictly illegal. In an accident scenario involving a white-plate vehicle, standard private vehicle insurance policies exclude third-party commercial liability, leaving the corporate employer directly exposed to severe vicarious liability.
+      </p>
+      <p>
+        AdhocX enforces a <strong>100% yellow-plate commercial fleet mandate</strong>. Every deployed vehicle carries verified commercial registration, annual Regional Transport Authority (RTA) fitness certification, commercial passenger indemnity insurance, and a driver holding an active commercial transport badge.
+      </p>
+
+      <h2>3. Fulfillment Guarantees and Direct Refund SLAs</h2>
+      <p>
+        A frequent issue with consumer cab aggregators is high driver cancellation rates, leaving employees stranded right before critical operations shifts. Furthermore, when trips are cancelled or disputed, consumer apps refund monies into proprietary app wallets or closed-loop credits rather than returning cash to enterprise bank accounts.
+      </p>
+      <p>
+        Dedicated B2B platforms like AdhocX establish firm operational SLAs:
+      </p>
+      <ul>
+        <li><strong>Configurable Allocation Cutoff SLA:</strong> While dedicated corporate tenant dispatch windows are configurable between 5 and 120 minutes (with a 30-minute system default), spot bookings operate under a targeted 15-minute allocation window. If unfulfilled, automated escalation protocols notify the transport desk immediately.</li>
+        <li><strong>Contractual Bank Refund SLA:</strong> Unfulfilled or disputed trip funds are immediately credited back to the corporate ledger balance, and for clients with bank refund disbursement terms, bank payout instructions via IMPS/NEFT are initiated within an agreed 1-hour verification SLA window.</li>
+      </ul>
+
+      <h2>4. Billing Integrity: Automated 3-Way Match vs. Manual Slips</h2>
+      <p>
+        Offline taxi brokers often submit handwritten paper duty slips at the end of the billing cycle, requiring corporate admin teams to spend dozens of manual hours reconciling kilometers, tolls, and waiting times.
+      </p>
+      <p>
+        AdhocX deploys <strong>automated 3-way match billing</strong>. Every invoice line item is verified digitally against:
+      </p>
+      <ol>
+        <li>The authorized HRMS roster booking request.</li>
+        <li>Tamper-proof geofenced GPS odometer telemetry and timestamped OTP boarding events.</li>
+        <li>The contracted enterprise rate card.</li>
+      </ol>
+      <p>
+        This digital audit trail eliminates billing discrepancies, ensures valid GST Input Tax Credit (ITC) compliance, and slashes administrative overhead by over 80%.
+      </p>
+    `
+  },
+  'women-employee-night-shift-commute-safety-telangana-regulations': {
+    slug: 'women-employee-night-shift-commute-safety-telangana-regulations',
+    title: 'Women Employee Night Shift Cab Safety & Telangana Rules',
+    category: 'Regulatory & Safety',
+    readTime: '5 min read',
+    date: 'Nov 18, 2026',
+    dateModified: 'Nov 18, 2026',
+    author: 'AdhocX Safety & Governance Board',
+    authorRole: 'Corporate Passenger Safety & Regulatory Directorate',
+    summary: 'Statutory guide to women employee night commute safety in Hyderabad: Section 23 Telangana Shops Act, SCSC escort mandates, and live GPS telemetry.',
+    directAnswer: 'Under Section 23 of the Telangana Shops and Establishments Act, 1988 (G.O.Ms.No. 40) and Cyberabad Security Council (SCSC) directives, IT/ITES enterprises operating night shifts between 8:00 PM and 6:00 AM must provide vetted commercial cabs with mandatory security escorts, first-pickup/last-drop routing rules, and real-time GPS tracking. AdhocX automates this compliance by enforcing physical security guard dispatch, virtual phone masking, and automated alert telemetry to a 24/7 safety command desk in HITEC City.',
+    coverImage: '/images/service-night-safety.jpg',
+    keyTakeaways: [
+      'Mandatory security escort guards in every vehicle carrying female employees between 20:00 and 06:00 hours.',
+      'First-pickup and last-drop algorithm ensures female employees are never the sole passenger traveling with the driver.',
+      'AES-256 encrypted virtual proxy calling prevents drivers from viewing personal mobile numbers, adhering to DPDP Act 2023.',
+      'Live sub-15 second AIS-140 GPS telemetry with automated route deviation alarms monitored by HITEC City command desk.'
+    ],
+    contentHtml: `
+      <h2>Statutory Framework for Women Night Shift Transit in Telangana</h2>
+      <p>
+        Hyderabad is home to over 1,500 Global Capability Centers (GCCs), IT enterprises, and business process outsourcing (BPO) facilities operating around the clock. To safeguard female professionals working late evening, graveyard, and early morning shifts, the Government of Telangana enforces strict statutory conditions under <strong>Section 23 of the Telangana Shops and Establishments Act, 1988</strong> (read with <strong>G.O.Ms.No. 40, Labour Employment Training & Factories Department</strong>) and directives issued by the <strong>Cyberabad Security Council (SCSC)</strong>.
+      </p>
+      <p>
+        Under these statutory provisions, IT and ITES companies are exempted from the general prohibition of employing women during night shifts only upon strict adherence to mandatory security protocols. Failure to maintain these standards exposes enterprises, facility directors, and transport managers to regulatory penalties and legal liability.
+      </p>
+
+      <h2>The Cyberabad SCSC Safety Directives</h2>
+      <p>
+        The Cyberabad Police Commissionerate and SCSC guidelines stipulate non-negotiable operational requirements for all corporate fleets operating between <strong>8:00 PM and 6:00 AM</strong>:
+      </p>
+      <ul>
+        <li><strong>Mandatory Physical Security Escort:</strong> A vetted, uniform security guard must accompany any vehicle transporting female employees during night shift hours.</li>
+        <li><strong>First-Pickup, Last-Drop Protocol:</strong> When routing multi-employee pooled cabs, the algorithm must ensure a female employee is never the first person picked up in an empty vehicle or the last passenger dropped off alone with the driver, unless accompanied by an authorized security guard.</li>
+        <li><strong>Front Door Safe Drop Confirmation:</strong> Chauffeurs and security escorts must visually confirm that the employee has safely entered their residential premises before the vehicle departs the location.</li>
+      </ul>
+
+      <h2>Technical Telematics & AIS-140 Telemetry</h2>
+      <p>
+        Statutory mandates require continuous, real-time oversight of vehicle movements across Hyderabad tech corridors. AdhocX integrates AIS-140 compliant GPS telematics into all network fleets:
+      </p>
+      <ol>
+        <li><strong>Sub-15 Second GPS Refresh:</strong> Vehicle location, speed, and heading are transmitted continuously to the central AdhocX command desk.</li>
+        <li><strong>Automated Route Deviation Alarms:</strong> If a vehicle deviates by more than 500 meters from its approved corridor or halts unexpectedly for more than 3 minutes in an unmapped location, an instant alert triggers on supervisor dashboards. An 80 km/h speed governor ceiling is continuously monitored.</li>
+        <li><strong>Hardware Emergency SOS Buttons:</strong> In-cabin panic buttons allow passengers or security escorts to trigger emergency response protocols directly connected to local law enforcement (Dial 100 / 112) and our rapid response teams.</li>
+      </ol>
+
+      <h2>Data Privacy & The Digital Personal Data Protection (DPDP) Act</h2>
+      <p>
+        Commuter safety also includes safeguarding personal identifiable information (PII). Under India’s DPDP Act 2023, corporate transit programs must prevent unauthorized exposure of employee contact data.
+      </p>
+      <p>
+        AdhocX protects employee privacy through two core security measures:
+      </p>
+      <ul>
+        <li><strong>Virtual Proxy Calling:</strong> When a driver needs to coordinate pickup with an employee, calls are routed through an encrypted cloud telephony bridge. The driver never sees the employee’s personal phone number, and the employee only sees the enterprise support number.</li>
+        <li><strong>Masked Waypoint Display:</strong> Driver mobile applications display the optimized pickup waypoint without exposing full employee profile details or home designations until the vehicle enters the immediate geofence.</li>
+      </ul>
+
+      <h2>24/7 Command Center Operations in HITEC City</h2>
+      <p>
+        Digital safety controls are backed by dedicated human oversight. AdhocX operates a 24/7 centralized command desk located at Level 4, Cyber Gateway, HITEC City, Hyderabad.
+      </p>
+      <p>
+        Trained safety dispatchers monitor shift transitions in real time, track vehicle progress across the Outer Ring Road and Cyberabad corridors, coordinate with security guard agencies, and maintain an emergency escalation pipeline directly linked to Telangana emergency services.
+      </p>
     `
   }
 };

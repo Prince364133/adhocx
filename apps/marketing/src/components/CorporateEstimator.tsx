@@ -22,7 +22,7 @@ export default function CorporateEstimator() {
           <div className="estimator-card-header">
             <div>
               <span className="estimator-card-sub">COMMUTE SPECIFICATIONS</span>
-              <h4 className="estimator-card-title">Shift & Fleet Parameters</h4>
+              <h3 className="estimator-card-title">Shift & Fleet Parameters</h3>
             </div>
             <span className="estimator-status-pill estimator-status-pill-purple">● Live Calculator</span>
           </div>
@@ -116,7 +116,7 @@ export default function CorporateEstimator() {
           <div className="estimator-card-header">
             <div>
               <span className="estimator-card-sub">ESTIMATED REQUIREMENTS</span>
-              <h4 className="estimator-card-title">Corporate Commute Sizing</h4>
+              <h3 className="estimator-card-title">Corporate Commute Sizing</h3>
             </div>
             <span className="estimator-status-pill">● Telangana Corridors</span>
           </div>

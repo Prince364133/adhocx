@@ -19,15 +19,27 @@ const faqs = [
     category: "hr",
     categoryLabel: "HR & People Mobility",
     question: "How does the platform ensure safety for women employees on night shifts?",
-    answer: "Under Telangana state regulations, AdhocX enforces mandatory security escort guards for all female employees traveling between 8:00 PM and 6:00 AM. Our PostGIS routing engine enforces first-pickup and last-drop escort rules, ensuring a female employee is never left alone with the driver in the vehicle."
+    answer: "Under Section 23 of the Telangana Shops and Establishments Act, 1988 (G.O.Ms.No. 40) and Cyberabad Security Council (SCSC) directives, AdhocX enforces mandatory security escort guards for all female employees traveling between 8:00 PM and 6:00 AM. Our spatial routing engine enforces first-pickup and last-drop escort rules, ensuring a female employee is never left alone with the driver in the vehicle."
+  },
+  {
+    category: "hr",
+    categoryLabel: "HR & People Mobility",
+    question: "How does AdhocX handle last-minute overtime or ad-hoc employee drop requests?",
+    answer: "AdhocX features an on-demand ad-hoc booking module that allows authorized corporate managers or employees to request spot cabs outside scheduled rosters. Using our automated direct dispatch engine with an advertised 15-minute spot allocation window (and tenant-configurable dispatch windows ranging from 5 to 120 minutes), verified yellow-plate sedans or MUVs are assigned and dispatched immediately, with automated SMS notifications and live GPS tracking."
   },
 
   // Category: Transport Desk & Operations
   {
     category: "ops",
     categoryLabel: "Transport Operations & Admins",
-    question: "How does the PostGIS routing engine optimize vehicle allocation?",
-    answer: "Our spatial routing engine clusters employees based on residential proximity, shift timings, and corporate campus destinations. Routes are capped at a maximum of 60 minutes commute time, minimizing deadhead kilometers and maintaining an average seat occupancy above 85% on 4-seater sedans and 6/7-seater MUVs."
+    question: "How does the spatial routing engine optimize vehicle allocation?",
+    answer: "Our spatial routing engine clusters employees based on residential proximity using Uber H3 hexagonal indexing and Redis GEO coordinates. Routes are capped at a maximum of 60 minutes commute time, minimizing deadhead kilometers and maintaining an average seat occupancy above 85% on 4-seater sedans and 6/7-seater MUVs."
+  },
+  {
+    category: "ops",
+    categoryLabel: "Transport Operations & Admins",
+    question: "How does the spatial routing engine ensure employee commute times remain under 60 minutes?",
+    answer: "Our spatial routing algorithm models real-time Hyderabad traffic matrices, peak corridor speeds across HITEC City and Gachibowli, and geographic employee clustering. It caps every route to a maximum of 4 pickups per 7-seater MUV and sequence-optimizes waypoints to ensure no individual passenger travels more than 60 minutes door-to-office."
   },
   {
     category: "ops",
@@ -47,7 +59,7 @@ const faqs = [
     category: "finance",
     categoryLabel: "Finance, CFO & Billing",
     question: "What is automated 3-way match billing and how does it prevent overcharging?",
-    answer: "Every billable invoice line is automatically cross-referenced against three immutable data sources: (1) Approved corporate roster request, (2) Actual PostGIS GPS odometer telemetry, and (3) Contracted rate cards. Any unauthorized detours or unserved legs are flagged and stripped prior to invoice generation."
+    answer: "Every billable invoice line is automatically cross-referenced against three immutable data sources: (1) Approved corporate roster request, (2) Actual geofenced GPS odometer telemetry, and (3) Contracted rate cards. Any unauthorized detours or unserved legs are flagged and stripped prior to invoice generation."
   },
   {
     category: "finance",
@@ -58,8 +70,14 @@ const faqs = [
   {
     category: "finance",
     categoryLabel: "Finance, CFO & Billing",
-    question: "How does the guaranteed 1-hour bank refund SLA work?",
-    answer: "If a ride is marked unserved due to driver non-arrival or a verified SLA breach occurs, our finance system issues an immediate account credit or direct IMPS/NEFT bank refund within 60 minutes of ticket verification. We do not hold disputed corporate funds."
+    question: "How does AdhocX corporate transport pricing compare against consumer cab apps?",
+    answer: "Unlike consumer cab apps that impose 1.5x–3.0x dynamic surge pricing during peak hours and rain, AdhocX provides fixed commercial contract rate cards with pre-agreed kilometer slabs. Furthermore, AdhocX provides consolidated B2B GST tax invoices, an automated 3-way invoice match audit, and clear contractual refund protections for unserved trips, rather than non-withdrawable app wallet credits."
+  },
+  {
+    category: "finance",
+    categoryLabel: "Finance, CFO & Billing",
+    question: "How does the corporate cancellation and refund SLA work?",
+    answer: "If a ride is unserved due to driver non-arrival or an SLA breach occurs, held funds are immediately credited back to the client's corporate escrow balance via our double-entry ledger. For enterprise accounts holding bank refund clauses in their contract, bank refund instructions are initiated via IMPS/NEFT within an agreed 1-hour verification SLA window."
   },
 
   // Category: Drivers & Vehicle Owners
@@ -82,6 +100,12 @@ const faqs = [
     categoryLabel: "Legal, Security & Compliance",
     question: "Are private vehicles (white plates) ever deployed for corporate trips?",
     answer: "Strictly prohibited. Every vehicle active on the AdhocX network must hold valid commercial yellow-board registration and commercial taxi permits issued by the Regional Transport Authority (RTA). Private white-plate vehicles cannot be onboarded into our dispatch engine."
+  },
+  {
+    category: "compliance",
+    categoryLabel: "Legal, Security & Compliance",
+    question: "Why is 100% yellow-plate commercial cab compliance mandatory for enterprise employee transport?",
+    answer: "Under the Motor Vehicles Act and Telangana state transport rules, carrying corporate employees in private white-plate cars is an illegal commercial operation subject to steep penalties and vehicle impoundment. Crucially, private car insurance specifically excludes third-party passenger liability during commercial hire, leaving corporations directly exposed to immense vicarious liability during accidents. AdhocX deploys exclusively yellow-plate commercial cabs with active passenger fitness and commercial insurance."
   },
   {
     category: "compliance",
@@ -110,6 +134,10 @@ const jsonLd = {
   description="Answers on AdhocX employee transport software, routing, billing, driver background checks and night-shift escort safety compliance."
   canonical="https://www.adhocx.com/faq"
   activeNav="resources"
+  breadcrumbs={[
+    { name: 'Home', url: '/' },
+    { name: 'Frequently Asked Questions', url: '/faq' }
+  ]}
   jsonLd={jsonLd}
 >
   <!-- Hero Section -->
@@ -176,8 +204,17 @@ const jsonLd = {
           <a href="/contact" class="btn btn-primary">
             Contact Enterprise Desk &rarr;
           </a>
+          <a href="/services" class="btn btn-secondary">
+            Corporate Commute Services
+          </a>
           <a href="/ets" class="btn btn-secondary">
             Explore ETS Software Architecture
+          </a>
+          <a href="/safety" class="btn btn-secondary">
+            Night Escort Protocols
+          </a>
+          <a href="/pricing" class="btn btn-secondary">
+            Corporate Rate Cards
           </a>
         </div>
       </div>

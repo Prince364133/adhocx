@@ -9,8 +9,8 @@
     "allowSyntheticDefaultImports": true,
     "target": "ES2022",
     "sourceMap": true,
+    "rootDir": "../../",
     "outDir": "./dist",
-    "baseUrl": "./",
     "paths": {
       "@adhocx/contracts": ["../../packages/contracts/src"],
       "@adhocx/domain-core": ["../../packages/domain-core/src"]

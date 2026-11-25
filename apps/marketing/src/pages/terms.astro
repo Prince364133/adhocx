@@ -11,9 +11,13 @@ const jsonLd = {
 
 <BaseLayout
   title="Terms & Conditions of Service | AdhocX"
-  description="Terms governing AdhocX corporate bookings, commercial driver partnership, 15-minute cutoff SLAs and 1-hour bank refund obligations."
+  description="Terms governing AdhocX corporate bookings, commercial driver partnership, dispatch cutoff SLAs and contractual refund obligations."
   canonical="https://www.adhocx.com/terms"
   activeNav="terms"
+  breadcrumbs={[
+    { name: 'Home', url: '/' },
+    { name: 'Terms of Service', url: '/terms' }
+  ]}
   jsonLd={jsonLd}
 >
   <section class="legal-page-section">
@@ -31,7 +35,7 @@ const jsonLd = {
 
         <h2 id="compliance">2. Yellow-Board Commercial Fleet Requirements & Telangana Compliance</h2>
         <p>
-          AdhocX exclusively permits commercial yellow-plate motor cabs in 4-seater (Sedan) and 6/7-seater (MUV/SUV) categories. Private white-board passenger vehicles are strictly prohibited from fulfillment under applicable state on-demand technology aggregator rules.
+          AdhocX exclusively permits commercial yellow-plate motor cabs in 4-seater (Sedan) and 6/7-seater (MUV/SUV) categories in compliance with Section 66 of the Motor Vehicles Act, 1988 and Section 23 of the Telangana Shops and Establishments Act, 1988 (G.O.Ms.No. 40). Private white-board passenger vehicles are strictly prohibited from commercial fulfillment.
         </p>
         <ul>
           <li>Drivers must possess a valid Commercial Driving License with required state transport authority badges (including Telangana RTO commercial badges and regional transport badges).</li>
@@ -39,9 +43,9 @@ const jsonLd = {
           <li>Driver Partners agree to adhere to corporate safety standards, passenger dignity policies, and speed limit adherence.</li>
         </ul>
 
-        <h2 id="refunds">3. 15-Minute Search Cutoff & 1-Hour Bank Refund SLA</h2>
+        <h2 id="refunds">3. Dispatch Cutoff Windows & Refund Terms</h2>
         <p>
-          When an Enterprise Booker initiates a ride or shift requirement on the AdhocX platform, our automated dispatch algorithm searches for the optimal verified fleet partner. If a ride cannot be confirmed within fifteen (15) minutes, the booking is automatically marked unfulfilled, and any prepaid booking fees or security holds are triggered for return directly to the corporate bank account within one (1) hour via instant banking rails.
+          When an Enterprise Booker initiates a ride or shift requirement on the AdhocX platform, our dispatch engine searches for verified fleet partners within configured dispatch windows (configurable per corporate policy between 5 and 120 minutes, with a 30-minute system default, or a targeted 15-minute window for spot bookings). If a ride cannot be confirmed within the applicable window, the booking transitions to unfulfilled, and held funds are immediately credited back to the corporate escrow ledger. For corporate clients holding bank refund terms in their enterprise contract, bank refund instructions are initiated via IMPS/NEFT rails within an agreed 1-hour verification SLA window.
         </p>
 
         <h2 id="milestones">4. Driver Partner Milestone Incentive Terms</h2>
@@ -51,7 +55,7 @@ const jsonLd = {
 
         <h2 id="jurisdiction">5. Governing Law & Dispute Resolution</h2>
         <p>
-          This Agreement shall be governed by and construed in accordance with the laws of the Republic of India. Any disputes arising out of or in connection with this platform shall be subject to the exclusive jurisdiction of the competent courts in Hyderabad, Telangana, India.
+          This Agreement shall be governed by and construed in accordance with the laws of the Republic of India. Any disputes arising out of or in connection with this platform shall be subject to the exclusive jurisdiction of the competent courts in Hyderabad, Telangana, India. For questions regarding these terms, please review our <a href="/privacy">Privacy Policy</a> or reach our team via <a href="/contact">Contact & Demo Request</a>.
         </p>
       </div>
     </div>

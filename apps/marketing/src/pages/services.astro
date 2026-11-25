@@ -197,6 +197,7 @@ const jsonLd = [
                 class="hero-main-photo"
                 loading="eager"
                 decoding="async"
+                fetchpriority="high"
               />
               <div class="hero-image-gradient-overlay" aria-hidden="true"></div>
             </div>
@@ -223,7 +224,7 @@ const jsonLd = [
                   <span class="hud-stat-sub text-success-sm">&check; OTP Boarding Verified</span>
                 </div>
                 <div class="hud-stat-cell">
-                  <span class="hud-stat-label">PostGIS Geofence</span>
+                  <span class="hud-stat-label">Spatial Geofence</span>
                   <strong class="hud-stat-value">Corridor Enforced</strong>
                   <span class="hud-stat-sub">0 Route Deviation</span>
                 </div>
@@ -364,10 +365,13 @@ const jsonLd = [
                 <span class="feature-text">Corporate cutoff policy enforcement for orderly roster changes.</span>
               </div>
             </div>
-            <div class="service-action-wrap">
+            <div class="service-action-wrap" style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
               <a href="#request-proposal" class="btn btn-primary" id="btn-cta-shift">
                 <span>Request Shift Commute Proposal</span>
                 <span aria-hidden="true">&rarr;</span>
+              </a>
+              <a href="/ets" class="btn btn-secondary">
+                <span>Explore ETS Software</span>
               </a>
             </div>
           </div>
@@ -426,10 +430,13 @@ const jsonLd = [
                 <span class="feature-text">In-app safe-reach confirmation and continuous GPS corridor tracking.</span>
               </div>
             </div>
-            <div class="service-action-wrap">
+            <div class="service-action-wrap" style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
               <a href="#request-proposal" class="btn btn-primary" id="btn-cta-safety">
                 <span>Request Night Safety Plan</span>
                 <span aria-hidden="true">&rarr;</span>
+              </a>
+              <a href="/safety" class="btn btn-secondary">
+                <span>Duty of Care & Escort Protocols</span>
               </a>
             </div>
           </div>
@@ -488,10 +495,13 @@ const jsonLd = [
                 <span class="feature-text">Masked virtual calling protects corporate executive contact privacy.</span>
               </div>
             </div>
-            <div class="service-action-wrap">
+            <div class="service-action-wrap" style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
               <a href="#request-proposal" class="btn btn-primary" id="btn-cta-exec">
                 <span>Request Executive Fleet Proposal</span>
                 <span aria-hidden="true">&rarr;</span>
+              </a>
+              <a href="/pricing" class="btn btn-secondary">
+                <span>View Rate Cards</span>
               </a>
             </div>
           </div>
@@ -549,7 +559,7 @@ const jsonLd = [
           </div>
           <h3 class="fleet-overview-title">Enterprise Commercial Cab Fleet in Hyderabad</h3>
           <p class="fleet-overview-desc">
-            Serving HITEC City, Gachibowli, Financial District, Kondapur, and Pocharam. Every car operates under valid commercial contracts with digital compliance records maintained in the AdhocX enterprise repository.
+            Serving HITEC City, Gachibowli, Financial District, Kondapur, and Pocharam. Every car operates under valid commercial contracts with digital compliance records maintained in the AdhocX enterprise repository. Explore our <a href="/vendors" style="color: var(--color-primary-600); font-weight: 600;">vendor partner sourcing</a> or discover <a href="/drivers" style="color: var(--color-primary-600); font-weight: 600;">driver network opportunities</a>.
           </p>
           <div class="fleet-quick-metrics">
             <div class="quick-metric-item">
@@ -904,8 +914,24 @@ const jsonLd = [
 
         <!-- Right Column: Enquiry Form Component -->
         <div class="proposal-form-col">
-          <EnterpriseLeadForm client:load defaultPurpose="Enterprise Commute / ETS RFP Proposal" />
+          <EnterpriseLeadForm client:visible defaultPurpose="Enterprise Commute / ETS RFP Proposal" />
         </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Contextual Internal Navigation Strip -->
+  <section style="padding: var(--space-8) 0 var(--space-10); background: var(--color-surface); border-top: 1px solid var(--color-border);">
+    <div class="container text-center">
+      <p style="color: var(--color-text-secondary); margin-bottom: var(--space-4); font-size: 0.95rem; font-weight: 500;">
+        Explore complementary corporate mobility resources:
+      </p>
+      <div style="display: flex; gap: var(--space-4); justify-content: center; flex-wrap: wrap;">
+        <a href="/ets" class="btn btn-secondary">Employee Transport Software (ETS) &rarr;</a>
+        <a href="/safety" class="btn btn-secondary">Safety & Escort Compliance &rarr;</a>
+        <a href="/pricing" class="btn btn-secondary">Corporate Pricing & Rate Cards &rarr;</a>
+        <a href="/industries" class="btn btn-secondary">Industries We Serve &rarr;</a>
+        <a href="/faq" class="btn btn-secondary">Corporate Commute FAQ &rarr;</a>
       </div>
     </div>
   </section>

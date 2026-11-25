@@ -2,10 +2,8 @@
    AdhocX Marketing — Global Design System (Universal Centralized Tokens)
    Colors: Primary Action Blue #5728B2 | Amber Gold #EE9811 | Slate Neutrals #EDEFF0 - #191B1C
    Telangana Operational Scenario Governance
+   Font (Inter) loaded via preconnected <link> in <head> for zero-waterfall performance.
    ============================================================================ */
-
-/* Google Font */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 
 /* ---- Design Tokens ---- */
 :root {

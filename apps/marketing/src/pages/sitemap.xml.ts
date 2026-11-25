@@ -1,4 +1,7 @@
 import type { APIRoute } from 'astro';
+import { execSync } from 'node:child_process';
+import { existsSync, statSync } from 'node:fs';
+import path from 'node:path';
 import { ARTICLES_CONTENT } from '../data/blogArticles';
 
 const SITE = 'https://www.adhocx.com';
@@ -20,28 +23,59 @@ const escapeXml = (s: string) =>
   s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 export const GET: APIRoute = () => {
-  const buildDate = new Date().toISOString();
-
   const staticPaths = Object.keys(pageModules).map((file) => {
     const name = file.replace('./', '').replace('.astro', '');
-    return name === 'index' ? '/' : `/${name}`;
+    const routePath = name === 'index' ? '/' : `/${name}`;
+    const sourceFile = path.join('src/pages', file.replace('./', ''));
+    let lastmod: string | undefined;
+
+    try {
+      const gitDate = execSync(`git log -1 --format=%cI "${sourceFile}"`, {
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'ignore'],
+      }).trim();
+      if (gitDate && !Number.isNaN(Date.parse(gitDate))) {
+        lastmod = new Date(gitDate).toISOString();
+      }
+    } catch {
+      // Git not available
+    }
+
+    if (!lastmod) {
+      try {
+        if (existsSync(sourceFile)) {
+          lastmod = statSync(sourceFile).mtime.toISOString();
+        }
+      } catch {
+        // Fallback stat failed
+      }
+    }
+
+    return { path: routePath, lastmod };
   });
 
-  const articles = Object.values(ARTICLES_CONTENT).map((a) => ({
-    path: `/blogs/${a.slug}`,
-    lastmod: Number.isNaN(Date.parse(a.date)) ? buildDate : new Date(a.date).toISOString(),
-  }));
+  const articles = Object.values(ARTICLES_CONTENT).map((a) => {
+    let lastmod: string | undefined;
+    if (a.dateModified && !Number.isNaN(Date.parse(a.dateModified))) {
+      lastmod = new Date(a.dateModified).toISOString();
+    } else if (!Number.isNaN(Date.parse(a.date))) {
+      lastmod = new Date(a.date).toISOString();
+    }
+    return {
+      path: `/blogs/${a.slug}`,
+      lastmod,
+    };
+  });
 
   const entries = [
-    ...staticPaths.map((path) => ({ path, lastmod: buildDate })),
+    ...staticPaths,
     ...articles,
   ].sort((a, b) => priorityFor(b.path) - priorityFor(a.path) || a.path.localeCompare(b.path));
 
   const urls = entries
     .map(
       ({ path, lastmod }) => `  <url>
-    <loc>${escapeXml(SITE + path)}</loc>
-    <lastmod>${lastmod}</lastmod>
+    <loc>${escapeXml(SITE + path)}</loc>${lastmod ? `\n    <lastmod>${lastmod}</lastmod>` : ''}
     <changefreq>${path.startsWith('/blogs') ? 'weekly' : 'monthly'}</changefreq>
     <priority>${priorityFor(path).toFixed(1)}</priority>
   </url>`,

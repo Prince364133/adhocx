@@ -79,7 +79,7 @@ const defaultOrganizationSchema = {
       "priceRange": "$$",
       "address": {
         "@type": "PostalAddress",
-        "streetAddress": "HITEC City & Financial District",
+        "streetAddress": "Level 4, Cyber Gateway, HITEC City, Madhapur",
         "addressLocality": "Hyderabad",
         "addressRegion": "Telangana",
         "postalCode": "500081",
@@ -127,9 +127,10 @@ const SITE_URL = 'https://www.adhocx.com';
 const DROP_TYPES = new Set(['HowTo', 'HowToStep', 'HowToSection']);
 const typeOf = (n: any): string => (Array.isArray(n?.['@type']) ? n['@type'][0] : n?.['@type']);
 
+const isHome = Astro.url.pathname === '/' || Astro.url.pathname === '';
 const globalNodes = [
   ...(defaultOrganizationSchema['@graph'] as any[]).filter(
-    (n) => typeOf(n) !== 'LocalBusiness',
+    (n) => isHome || typeOf(n) !== 'LocalBusiness',
   ),
   {
     '@type': 'WebSite',

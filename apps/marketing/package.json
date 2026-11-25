@@ -9,6 +9,9 @@
     "build": "astro build",
     "postbuild": "node scripts/seo-check.mjs",
     "seo:check": "node scripts/seo-check.mjs",
+    "seo:diagnostics": "node scripts/monitor.mjs",
+    "indexnow:dry-run": "node scripts/indexnow.mjs --dry-run",
+    "indexnow:submit": "node scripts/indexnow.mjs --submit",
     "preview": "astro preview",
     "astro": "astro"
   },

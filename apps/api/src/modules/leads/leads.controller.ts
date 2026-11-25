@@ -3,12 +3,19 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@ne
 import { UserRole } from '@adhocx/contracts';
 import { JwtAuthGuard, RolesGuard, Roles } from '../../common';
 import { LeadsService } from './leads.service';
-import { CreateEnterpriseLeadDto, SubscribeNewsletterDto } from './dto/create-lead.dto';
+import { CreateEnterpriseLeadDto, SubscribeNewsletterDto, AiChatRequestDto } from './dto/create-lead.dto';
 
 @ApiTags('Marketing & Leads')
 @Controller('leads')
 export class LeadsController {
   constructor(private readonly leadsService: LeadsService) {}
+
+  @Post('ai-chat')
+  @ApiOperation({ summary: 'Process corporate AI assistant chat query (Public)' })
+  @ApiResponse({ status: 200, description: 'AI assistant reply returned' })
+  async handleAiChat(@Body() dto: AiChatRequestDto) {
+    return this.leadsService.processAiChat(dto.messages);
+  }
 
   @Post('enterprise')
   @ApiOperation({ summary: 'Submit corporate enterprise fleet demo inquiry (Public)' })
