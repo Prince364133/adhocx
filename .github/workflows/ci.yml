@@ -178,3 +178,33 @@ jobs:
           # Test DB only: the suite stands in for the admin KYC approval of its fresh driver.
           DATABASE_URL: postgresql://test_user:test_password@localhost:5432/adhocx_test?schema=public
         run: node scripts/test_live_dispatch_e2e.js
+
+  documentation-quality:
+    name: Documentation Governance and Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - name: Setup Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check Documentation Governance and Coverage
+        run: pnpm --filter @adhocx/docs check:docs
+
+      - name: Typecheck Documentation
+        run: pnpm --filter @adhocx/docs typecheck
+
+      - name: Build Documentation
+        run: pnpm --filter @adhocx/docs build
