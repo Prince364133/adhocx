@@ -171,8 +171,10 @@ export const Drawer: React.FC<DrawerProps> = ({
               backgroundColor: 'var(--bg-surface-muted)',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'flex-end',
+              justifyContent: 'space-between',
               gap: '10px',
+              width: '100%',
+              boxSizing: 'border-box',
             }}
           >
             {footer}
