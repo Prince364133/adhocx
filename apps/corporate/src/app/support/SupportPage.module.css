@@ -1,0 +1,19 @@
+.page {
+  min-width: 0;
+}
+
+.page table tbody tr {
+  transition: background-color 120ms ease;
+}
+
+.page table tbody tr:hover {
+  background-color: var(--bg-surface-hover);
+}
+
+.page button:focus-visible,
+.page input:focus-visible,
+.page select:focus-visible,
+.page textarea:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
