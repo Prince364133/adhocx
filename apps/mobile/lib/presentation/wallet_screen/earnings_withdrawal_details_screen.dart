@@ -26,6 +26,7 @@ class EarningsWithdrawalDetailsScreen extends StatefulWidget {
 
 class _EarningsWithdrawalDetailsScreenState extends State<EarningsWithdrawalDetailsScreen> {
   bool _isLoading = true;
+  bool _isCancelling = false;
   List<Map<String, dynamic>> _settlements = [];
   Map<String, dynamic>? _selectedWithdrawal;
   Map<String, dynamic> _walletSummary = {};
@@ -906,32 +907,106 @@ class _EarningsWithdrawalDetailsScreenState extends State<EarningsWithdrawalDeta
     }
 
     if (state == WithdrawalStatusState.requested || state == WithdrawalStatusState.processing) {
-      return Container(
-        margin: const EdgeInsets.only(bottom: AppSpacing.lg),
-        padding: const EdgeInsets.all(AppSpacing.md),
-        decoration: BoxDecoration(
-          color: (isDark ? AppColors.info : AppColors.info.withValues(alpha: 0.1)),
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          border: Border.all(color: AppColors.info.withValues(alpha: 0.3)),
-        ),
-        child: Row(
-          children: [
-            const Icon(Icons.info_outline_rounded, color: AppColors.info, size: 20),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                'Transfers are processed automatically via banking network. Once completed, your reference UTR will appear here.',
-                style: AppTypography.caption(
-                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+      final canCancel = (data['status']?.toString().toUpperCase() == 'PENDING');
+      final amount = data['amount'] ?? 0;
+      return Column(
+        children: [
+          Container(
+            margin: const EdgeInsets.only(bottom: AppSpacing.md),
+            padding: const EdgeInsets.all(AppSpacing.md),
+            decoration: BoxDecoration(
+              color: (isDark ? AppColors.info : AppColors.info.withValues(alpha: 0.1)),
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              border: Border.all(color: AppColors.info.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.info_outline_rounded, color: AppColors.info, size: 20),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Transfers are processed automatically via banking network. Once completed, your reference UTR will appear here.',
+                    style: AppTypography.caption(
+                      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                    ),
+                  ),
                 ),
+              ],
+            ),
+          ),
+          if (canCancel) ...[
+            SizedBox(
+              width: double.infinity,
+              height: 46,
+              child: OutlinedButton(
+                onPressed: _isCancelling ? null : () => _confirmCancelWithdrawal(data['id']?.toString() ?? '', amount),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: AppColors.error),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppRadius.md),
+                  ),
+                ),
+                child: _isCancelling
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.error),
+                      )
+                    : const Text(
+                        'CANCEL WITHDRAWAL REQUEST',
+                        style: TextStyle(
+                          color: AppColors.error,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
               ),
             ),
+            const SizedBox(height: AppSpacing.lg),
           ],
-        ),
+        ],
       );
     }
 
     return const SizedBox.shrink();
+  }
+
+  Future<void> _confirmCancelWithdrawal(String id, dynamic amount) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Cancel Withdrawal?'),
+        content: Text('Are you sure you want to cancel this withdrawal request? ₹$amount will be refunded back to your available wallet balance immediately.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('No, Keep It'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+            child: const Text('Yes, Cancel & Refund', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      setState(() => _isCancelling = true);
+      try {
+        await DriverService.instance.cancelWithdrawal(id);
+        Fluttertoast.showToast(
+          msg: 'Withdrawal cancelled. ₹$amount has been refunded to your wallet balance!',
+          backgroundColor: AppColors.accentGreenDark,
+          toastLength: Toast.LENGTH_LONG,
+        );
+        await _loadLiveDetails();
+      } catch (e) {
+        Fluttertoast.showToast(msg: 'Failed to cancel: $e', backgroundColor: AppColors.error);
+      } finally {
+        if (mounted) setState(() => _isCancelling = false);
+      }
+    }
   }
 
   Widget _buildDetailRow(String label, String value, bool isDark, {bool isBold = false}) {

@@ -29,7 +29,7 @@ export const OpsShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     if (isLogin) return;
 
     const user = getStoredOpsUser();
-    const role = user?.role.toUpperCase();
+    const role = user?.role?.toUpperCase();
     if (!token || !user || (role !== 'OPS' && role !== 'ADMIN')) {
       router.replace(`/login?redirect=${encodeURIComponent(pathname || '/')}`);
       return;

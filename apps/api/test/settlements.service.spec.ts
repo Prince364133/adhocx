@@ -348,4 +348,59 @@ describe('SettlementsService Unit Tests', () => {
       expect.objectContaining({ action: 'SETTLEMENT_REJECTED' }),
     );
   });
+
+  it('should allow driver to cancel their pending withdrawal request and refund wallet', async () => {
+    const now = new Date();
+    db.driver.findUnique.mockResolvedValue({
+      id: 'drv-1',
+      userId: 'usr-drv-1',
+      walletBalance: 0,
+    });
+
+    db.settlement.findUnique.mockResolvedValue({
+      id: 'set-1',
+      driverId: 'drv-1',
+      amount: 1000,
+      status: SettlementStatus.PENDING,
+      createdAt: now,
+      updatedAt: now,
+      driver: { id: 'drv-1', userId: 'usr-drv-1' },
+    });
+
+    db.$transaction.mockImplementation(async (callback: any) => {
+      const tx = {
+        driver: {
+          update: jest.fn().mockResolvedValue({ id: 'drv-1', walletBalance: 1000 }),
+        },
+        ledgerEntry: {
+          create: jest.fn().mockResolvedValue({ id: 'led-ref' }),
+        },
+        settlement: {
+          update: jest.fn().mockResolvedValue({
+            id: 'set-1',
+            driverId: 'drv-1',
+            amount: 1000,
+            status: SettlementStatus.CANCELLED,
+            transactionRef: 'Cancelled by driver',
+            processedAt: now,
+            createdAt: now,
+            updatedAt: now,
+          }),
+        },
+      };
+      return callback(tx);
+    });
+
+    const result = await service.cancelDriverWithdrawal('set-1', 'usr-drv-1');
+
+    expect(result.status).toBe(SettlementStatus.CANCELLED);
+    expect(notifications.emitEvent).toHaveBeenCalledWith(
+      'driver:drv-1',
+      'SETTLEMENT_CANCELLED',
+      expect.objectContaining({ amount: 1000 }),
+    );
+    expect(audit.log).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'SETTLEMENT_CANCELLED_BY_DRIVER' }),
+    );
+  });
 });

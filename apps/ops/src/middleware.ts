@@ -12,6 +12,7 @@ export function middleware(request: NextRequest) {
     pathname.startsWith('/_next') ||
     pathname.startsWith('/api') ||
     pathname.startsWith('/static') ||
+    pathname.startsWith('/test-optimization') ||
     pathname.includes('.')
   ) {
     return NextResponse.next();
@@ -26,12 +27,16 @@ export function middleware(request: NextRequest) {
   );
 
   if (pathname === '/login') {
-    if (request.nextUrl.searchParams.has('redirect') || request.nextUrl.searchParams.has('error')) {
+    if (request.nextUrl.searchParams.has('error')) {
       const response = NextResponse.next();
       response.cookies.delete('adhocx_ops_token');
       return response;
     }
-    return hasValidToken ? NextResponse.redirect(new URL('/', request.url)) : NextResponse.next();
+    if (hasValidToken) {
+      const redirectTarget = request.nextUrl.searchParams.get('redirect') || '/';
+      return NextResponse.redirect(new URL(redirectTarget, request.url));
+    }
+    return NextResponse.next();
   }
 
   if (!hasValidToken) {

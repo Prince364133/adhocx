@@ -313,6 +313,85 @@ export class SettlementsService {
     throw new BadRequestException('Invalid settlement processing status');
   }
 
+  /**
+   * Driver cancels their pending withdrawal request before admin processes it.
+   * Atomically refunds the settlement amount back to the driver's wallet balance
+   * and appends an immutable WITHDRAWAL_REFUND ledger entry.
+   */
+  async cancelDriverWithdrawal(settlementId: string, driverUserId: string): Promise<SettlementResponseDto> {
+    const driver = await this.db.driver.findUnique({ where: { userId: driverUserId } });
+    if (!driver) {
+      throw new NotFoundException('Driver profile not found');
+    }
+
+    const settlement = await this.db.settlement.findUnique({
+      where: { id: settlementId },
+      include: { driver: true },
+    });
+    if (!settlement) {
+      throw new NotFoundException('Settlement request not found');
+    }
+
+    if (settlement.driverId !== driver.id) {
+      throw new ForbiddenException('Not authorized to cancel this settlement request');
+    }
+
+    if (settlement.status !== SettlementStatus.PENDING) {
+      throw new BadRequestException(`Cannot cancel settlement in ${settlement.status} status`);
+    }
+
+    const now = new Date();
+    const updated = await this.db.$transaction(async (tx) => {
+      // 1. Credit driver wallet back
+      const updatedDriver = await tx.driver.update({
+        where: { id: driver.id },
+        data: {
+          walletBalance: { increment: settlement.amount },
+        },
+      });
+
+      // 2. Append refund ledger entry
+      await tx.ledgerEntry.create({
+        data: {
+          accountType: 'DRIVER',
+          accountId: driver.id,
+          entryType: 'CREDIT',
+          amount: settlement.amount,
+          balanceAfter: updatedDriver.walletBalance,
+          referenceType: 'WITHDRAWAL_REFUND',
+          referenceId: settlement.id,
+          description: `Withdrawal request cancelled by driver`,
+        },
+      });
+
+      // 3. Mark settlement CANCELLED
+      return tx.settlement.update({
+        where: { id: settlementId },
+        data: {
+          status: SettlementStatus.CANCELLED,
+          transactionRef: 'Cancelled by driver',
+          processedAt: now,
+        },
+      });
+    }, { timeout: 30000, maxWait: 10000 });
+
+    this.notifications.emitEvent(`driver:${driver.id}`, 'SETTLEMENT_CANCELLED', {
+      settlementId: settlement.id,
+      amount: Number(settlement.amount),
+    });
+
+    await this.audit.log({
+      userId: driverUserId,
+      action: 'SETTLEMENT_CANCELLED_BY_DRIVER',
+      entityType: 'SETTLEMENT',
+      entityId: settlement.id,
+      metadata: { refundedAmount: Number(settlement.amount) },
+    });
+
+    this.logger.log(`Driver ${driver.id} cancelled pending withdrawal ${settlement.id}: ₹${settlement.amount} refunded to wallet`);
+    return this.mapToDto(updated, driver);
+  }
+
   async reviewBankDetails(
     settlementId: string,
     adminUserId: string,

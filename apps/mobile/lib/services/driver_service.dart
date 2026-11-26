@@ -601,6 +601,14 @@ class DriverService {
     return res;
   }
 
+  Future<dynamic> cancelWithdrawal(String settlementId) async {
+    await _ensureDriverSession();
+    final res = await _api.post('/settlements/$settlementId/cancel');
+    invalidateCache(trips: true, profile: true);
+    _cachedWallet = null;
+    return res;
+  }
+
   Future<List<dynamic>> getSettlements({bool forceRefresh = false}) async {
     await _ensureDriverSession();
     final response = await _api.get('/settlements', force: forceRefresh);

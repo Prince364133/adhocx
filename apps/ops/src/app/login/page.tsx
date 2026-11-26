@@ -34,7 +34,7 @@ function LoginContent() {
     refreshToken?: string,
   ) => {
     setOpsSession(accessToken, refreshToken, user);
-    router.replace(redirectUrl);
+    window.location.href = redirectUrl;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

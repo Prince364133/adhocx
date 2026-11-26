@@ -19,6 +19,8 @@
     "@astrojs/react": "^3.6.0",
     "@astrojs/vercel": "^7.8.0",
     "astro": "^4.16.0",
+    "is-unicode-supported": "^2.1.0",
+    "js-yaml": "^5.5.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
