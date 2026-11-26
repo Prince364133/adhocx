@@ -54,3 +54,21 @@ export class SubscribeNewsletterDto {
   @IsNotEmpty()
   email!: string;
 }
+
+export class AiChatMessageDto {
+  @ApiProperty({ description: 'Role of message sender', example: 'user' })
+  @IsString()
+  @IsNotEmpty()
+  role!: 'user' | 'assistant' | 'system';
+
+  @ApiProperty({ description: 'Content of message', example: 'What corporate cab services do you offer in Hyderabad?' })
+  @IsString()
+  @IsNotEmpty()
+  content!: string;
+}
+
+export class AiChatRequestDto {
+  @ApiProperty({ description: 'List of conversation messages', type: [AiChatMessageDto] })
+  @IsNotEmpty()
+  messages!: AiChatMessageDto[];
+}

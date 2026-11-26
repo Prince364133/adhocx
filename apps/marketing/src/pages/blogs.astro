@@ -27,16 +27,62 @@ const glossaryItems = [
   },
   {
     term: 'Cutoff SLA',
-    def: 'The strict operational threshold (15 minutes on AdhocX) within which the dispatch algorithm must confirm a verified commercial vehicle. If unfulfilled, funds automatically refund directly to the bank account within 1 hour.'
+    def: 'The operational threshold within which the dispatch engine confirms a vehicle (targeting 15 minutes for spot requests, or configured between 5 and 120 minutes with a 30-minute default). If unfulfilled, funds are refunded to the corporate escrow ledger.'
+  },
+  {
+    term: 'AIS-140 GPS Telematics',
+    def: 'Automotive industry standard mandating intelligent vehicle tracking systems with dual emergency SOS buttons and real-time location telemetry to emergency monitoring servers.'
+  },
+  {
+    term: 'First-Pickup Last-Drop Protocol',
+    def: 'A critical safety routing policy ensuring a female employee is never the first passenger picked up in an empty vehicle or the last passenger dropped off alone with the driver without an authorized security escort.'
+  },
+  {
+    term: 'Deadhead Kilometers',
+    def: 'The non-revenue distance a commercial fleet vehicle travels while driving empty between the driver residence, parking depot, or previous drop-off point to the initial employee pickup hub.'
+  },
+  {
+    term: 'Geofenced Dwell Time',
+    def: 'The automated measurement of the duration a corporate cab remains stationary within a predefined virtual geographic perimeter to verify attendance and calculate waiting charges.'
+  },
+  {
+    term: 'Rostering Cutoff SLA',
+    def: 'The contractual lead time (typically 2 to 3 hours before shift start) after which employee shift rosters freeze, allowing the routing engine to finalize driver pairing, corridor allocation, and transit schedules without disruption.'
+  },
+  {
+    term: '3-Way Match Audit',
+    def: 'An automated accounting reconciliation system that validates enterprise employee transport invoices by cross-referencing approved roster bookings, GPS odometer telemetry, and contracted commercial rate cards before issuing digital payment.'
   }
 ];
 
 const jsonLd = {
   "@context": "https://schema.org",
-  "@type": "Blog",
-  "name": "AdhocX Commercial Transport Insights & Tech Blog",
-  "url": "https://www.adhocx.com/blogs",
-  "description": "Insights, engineering deep dives, and operational strategies for B2B fleet logistics, commercial drivers, and corporate mobility."
+  "@graph": [
+    {
+      "@type": "Blog",
+      "@id": "https://www.adhocx.com/blogs#blog",
+      "name": "AdhocX Commercial Transport Insights & Tech Blog",
+      "url": "https://www.adhocx.com/blogs",
+      "description": "Insights, engineering deep dives, and operational strategies for B2B fleet logistics, commercial drivers, and corporate mobility.",
+      "publisher": {
+        "@type": "Organization",
+        "name": "Estemporaneo Technologies Private Limited",
+        "url": "https://www.adhocx.com"
+      }
+    },
+    {
+      "@type": "DefinedTermSet",
+      "@id": "https://www.adhocx.com/blogs#glossary",
+      "name": "Commercial Transport & Corporate Mobility Glossary",
+      "description": "Standard industry terminology and technical definitions for corporate employee transport services, fleet operations, and statutory transit safety.",
+      "hasDefinedTerm": glossaryItems.map(item => ({
+        "@type": "DefinedTerm",
+        "name": item.term,
+        "description": item.def,
+        "inDefinedTermSet": "https://www.adhocx.com/blogs#glossary"
+      }))
+    }
+  ]
 };
 ---
 
@@ -45,6 +91,10 @@ const jsonLd = {
   description="Benchmark reports and guides on corporate transport management, driver economics, fleet costs and Telangana transport compliance."
   canonical="https://www.adhocx.com/blogs"
   activeNav="blogs"
+  breadcrumbs={[
+    { name: 'Home', url: '/' },
+    { name: 'Insights & Reports', url: '/blogs' }
+  ]}
   jsonLd={jsonLd}
 >
   <!-- Blog Hero -->
@@ -104,7 +154,7 @@ const jsonLd = {
           </div>
           <div style="background: #FFFFFF; padding: var(--space-4); border-radius: var(--radius-md); border: 1px solid var(--color-border);">
             <div style="font-weight: 700; color: var(--color-amber-600); margin-bottom: 4px;">Week 2: Rate Card Freeze</div>
-            <p style="font-size: 0.875rem; color: var(--color-text-secondary);">Standardize 4-seater and 7-seater tariffs, agree on 15-min cutoff SLAs and 1-hour refund protections.</p>
+            <p style="font-size: 0.875rem; color: var(--color-text-secondary);">Standardize 4-seater and 7-seater tariffs, agree on cutoff SLAs and refund protections.</p>
           </div>
           <div style="background: #FFFFFF; padding: var(--space-4); border-radius: var(--radius-md); border: 1px solid var(--color-border);">
             <div style="font-weight: 700; color: var(--color-amber-600); margin-bottom: 4px;">Week 3: Shadow Dispatch</div>

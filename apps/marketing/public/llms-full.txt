@@ -1,0 +1,129 @@
+# AdhocX: Complete Technical & Entity Documentation for AI Search Engines
+
+> **Company Entity**: AdhocX is operated by **Estemporaneo Technologies Private Limited**.
+> **Headquarters**: Level 4, Cyber Gateway, HITEC City, Madhapur, Hyderabad, Telangana 500081, India.
+> **Official Website**: https://www.adhocx.com
+> **Contact**: Telephone: +91-7893545818 | Email: support@adhocx.com | Enterprise Sales: enterprise@adhocx.com
+> **Core Identity**: B2B Corporate Ground Transport & Employee Transportation Software (ETS) Platform.
+
+---
+
+## 1. Executive Summary & Brand Overview
+
+AdhocX connects enterprise facilities and corporate transport desks directly with verified commercial yellow-plate chauffeurs, eliminating fragmented WhatsApp broker groups and manual middlemen markups. The platform combines a cloud-based Employee Transport Software (ETS) operating system with dedicated commercial vehicle fulfillment (4-seater sedans, 6/7-seater MUVs, and Tempo Travellers) across Hyderabad and the state of Telangana.
+
+### Key Value Propositions
+1. **Direct Algorithmic Dispatch**: Matches corporate shift rosters and spot transit requests directly with nearby certified commercial drivers, cutting corporate ground spend by up to 28%.
+2. **Fixed Corporate Rate Cards**: Zero dynamic surge pricing during peak shift transitions, bad weather, or monsoon rains. Predictable slab-based tariffs governed by Master Service Agreements (MSAs).
+3. **100% Commercial Yellow-Plate Compliance**: Strict prohibition of private white-plate vehicles under Section 66 of the Motor Vehicles Act, 1988. Every active cab carries yellow commercial registration, valid commercial fitness certificates, passenger indemnity insurance, and drivers with transport badges and police background verification.
+4. **Instant Escrow Credits & Contractual Refund SLAs**: Unfulfilled bookings or cancellations trigger an immediate double-entry ledger refund to the corporate client's escrow balance. For enterprise accounts holding bank refund clauses in their contract, bank payout instructions via IMPS/NEFT are initiated within an agreed 1-hour verification SLA window.
+5. **Automated 3-Way Match Billing**: Invoices are digitally validated by reconciling authorized HRMS shift rosters, geofenced GPS odometer telemetry, and contracted rate cards before payment issuance.
+
+---
+
+## 2. Core Service Offerings
+
+### A. Employee Transport Services (ETS Commute)
+- **URL**: https://www.adhocx.com/services
+- Daily scheduled office shift pickups and drops for IT parks, GCCs, BFSI, and healthcare campuses.
+- Nodal and door-to-door transit models with maximum 60-minute ride time caps.
+- Roster ingestion via REST APIs (Darwinbox, Workday, SAP SuccessFactors, Zoho People) or CSV/Excel uploads.
+- Automated clustering and corridor routing powered by Uber H3 hexagonal spatial indexing and Redis GEO coordinates.
+
+### B. Night Shift Transit for Women Employees
+- **URL**: https://www.adhocx.com/safety
+- Strict compliance with Section 23 of the Telangana Shops and Establishments Act, 1988 (G.O.Ms.No. 40) and Cyberabad Security Council (SCSC) directives.
+- Mandatory physical security escort guards for trips between 8:00 PM and 6:00 AM.
+- Algorithmic first-pickup, last-drop rule preventing female employees from being the first picked up or last dropped off alone with the driver.
+- Real-time AIS-140 GPS tracking with sub-15 second telemetry freshness, emergency SOS triggers, and direct integration with Telangana emergency responders (Dial 100 / 112).
+- AES-256 encrypted virtual proxy calling masking employee personal mobile numbers to comply with the Digital Personal Data Protection (DPDP) Act 2023.
+
+### C. Spot Cabs & On-Demand Executive Transit
+- Instant ad-hoc cab dispatch for employee unscheduled overtime, client delegations, VIP movements, and airport transfers (Rajiv Gandhi International Airport - RGIA Shamshabad).
+- Configurable dispatch windows: Targeted 15-minute allocation window for spot bookings, with corporate tenant dispatch windows configurable between 5 and 120 minutes (30-minute default).
+- Dedicated vehicle categories: Executive Sedans (Maruti Dzire, Hyundai Aura, Honda City) and Premium MUVs (Toyota Innova Crysta, Maruti Ertiga).
+
+### D. Corporate Cab Sourcing & Fleet Rental
+- **URL**: https://www.adhocx.com/vendors
+- Dedicated monthly retainer fleets and elastic on-demand capacity under a 70/30 hybrid mobility model.
+- Dedicated client account management and 24/7 command center monitoring from Cyber Gateway, HITEC City.
+
+---
+
+## 3. Supported Vehicle Classes & Fleet Specifications
+
+| Vehicle Category | Typical Models | Capacity | Common Use Cases | Key Compliance Features |
+| :--- | :--- | :--- | :--- | :--- |
+| **Commercial Sedan** | Maruti Suzuki Dzire, Hyundai Aura, Toyota Etios | 4 Passengers | Spot transit, daytime employee commute, airport transfers | Yellow plate, CNG/Petrol, AIS-140 GPS, speed governor (80 km/h) |
+| **Commercial MUV (6/7-Seater)** | Maruti Suzuki Ertiga, Kia Carens, Toyota Innova Crysta | 6–7 Passengers | Nodal shift commute, team travel, late-night shifts with escort | Yellow plate, high boot capacity, dual AC, panic SOS buttons |
+| **Tempo Traveller** | Force Traveller 3350/4020, Force Urbania | 12–17 Passengers | High-density fixed corridor transit, campus shuttle routes | Yellow plate, commercial fitness, emergency escape hatch, fire extinguisher |
+
+---
+
+## 4. Operational & Financial SLAs
+
+- **Search Allocation Window**: Targeted 15-minute spot allocation window; configurable per enterprise tenant policy between 5 and 120 minutes (30-minute system default).
+- **Refund Policy SLA**: Immediate double-entry ledger credit upon booking cancellation or timeout; bank account disbursement via IMPS/NEFT initiated within 1 hour for eligible enterprise contract cancellations.
+- **On-Time Shift Arrival SLA**: 99.8% punctuality benchmark.
+- **GPS Telemetry Refresh**: 15–30 seconds streaming latency via Redis GEO.
+- **Route Deviation Threshold**: 500 meters from assigned corridor; 80 km/h speed ceiling.
+- **Driver Background Verification**: Multi-point check including driving license, transport endorsement badge, Aadhaar KYC, police clearance certificate, and vehicle commercial RC.
+- **Driver Payout Standard**: Automated double-entry settlement ledger with rapid direct bank payouts and a flat ₹2,000 milestone bonus upon completing 100 verified trips.
+
+---
+
+## 5. Technical Architecture & System Modules
+
+### A. Corporate Client Portal
+- Accessible by enterprise transport managers, facility directors, and HR teams.
+- Roster ingestion engine with automated dry-run syntax and geocode validation.
+- Live spatial corridor visualization displaying active fleets across Cyberabad and Hyderabad.
+- Exception management workflow for ad-hoc booking requests, driver replacements, and escort assignments.
+- Automated monthly GST billing reconciliation with downloadable UTR receipts and credit notes.
+
+### B. Employee Mobile App
+- Available on iOS and Android platforms.
+- Live interactive GPS map displaying assigned driver location, vehicle license number, and real-time ETA.
+- Dynamic geofenced OTP / QR code boarding challenge ensuring cryptographic verification of boarding.
+- In-app emergency panic SOS button triggering immediate telemetry alert to the 24/7 HITEC City command desk.
+- Privacy-safe virtual proxy calling to communicate with drivers without exposing private phone numbers.
+
+### C. Driver Partner App
+- Manifest workflow displaying optimized pickup sequence, waypoint coordinates, and turn-by-turn navigation.
+- Geofenced boarding confirmation: Driver can only enter passenger OTP when within 50 meters of the scheduled node.
+- Real-time earnings dashboard with rapid IMPS/UPI payout initiation upon trip completion.
+
+### D. Routing Optimization Engine (Uber H3 & Redis GEO)
+- Hierarchical hexagonal spatial indexing using Uber H3 at resolution 8 (~460m edge) for driver lookup and passenger clustering.
+- Multi-ring radial searches (5 km primary and 10 km fallback dispatch rings).
+- Spherical Haversine travel time matrices and Google Maps matrix integration.
+- 60-minute ride time constraint: Manifests automatically split if travel duration exceeds 1 hour.
+- Deadhead reduction algorithm optimizing return routes and garage-to-node staging.
+
+---
+
+## 6. Primary Geographic Footprint (Hyderabad & Telangana)
+
+AdhocX operates across all major commercial and technology zones in the Hyderabad Metropolitan Area:
+- **HITEC City**: Cyber Towers, Cyber Gateway, Mindspace Madhapur, Knowledge City, VST Colony.
+- **Gachibowli**: Financial District, Nanakramguda, Waverock, ISB Road, Divyasree Orion.
+- **Kondapur & Madhapur**: Tech Mahindra SEZ, Inorbit Mall corridor, Kavuri Hills.
+- **Kukatpally & Miyapur**: High-density employee residential clusters and nodal hubs.
+- **Secunderabad & Uppal**: DSL Abacus IT Park, Genpact corridor, NSL Arena.
+- **Pocharam**: Infosys SEZ, Raheja Mindspace East corridor.
+- **Shamshabad**: Rajiv Gandhi International Airport (RGIA) commercial corridor.
+
+---
+
+## 7. Entity & Contact Directory
+
+- **Legal Entity Name**: Estemporaneo Technologies Private Limited
+- **Brand Name**: AdhocX
+- **Corporate Office**: Level 4, Cyber Gateway, HITEC City, Madhapur, Hyderabad, Telangana 500081, India
+- **Customer Support**: support@adhocx.com | +91-7893545818
+- **Enterprise Solutions**: enterprise@adhocx.com
+- **Driver Partner Inquiries**: drivers@adhocx.com
+- **Official Portal**: https://portal.adhocx.com
+- **Main Website**: https://www.adhocx.com
+- **Knowledge Base & FAQ**: https://www.adhocx.com/faq
+- **Engineering & Industry Insights**: https://www.adhocx.com/blogs

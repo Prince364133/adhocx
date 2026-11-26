@@ -6,58 +6,6 @@ interface ChatMessage {
   showContactCta?: boolean;
 }
 
-const getOpenAiKey = (): string => {
-  if (typeof process !== 'undefined' && process.env?.OPENAI_API_KEY) {
-    return process.env.OPENAI_API_KEY;
-  }
-  const encoded = 'c2stcHJvai0wcUFIS1FuWGwtS08xZTRkdmZqcTIzZXJ2d0tIWnZqZnJjZjhXQUloRDZwYWdNangySllmVF8zbm5VUl9sN2dwZEJIZTlBNGdPWVQzQmxia0ZKS0J0d0xSMzVLTzRwR0xBM2d6OW9kalhrQ0lRVU9vdy12QmhqYmY1UkxyT1p3eUR0WEpxT24waWV2YW5wOERNbV9kLWNrejBvQUE=';
-  try {
-    if (typeof window !== 'undefined' && typeof window.atob === 'function') {
-      return window.atob(encoded);
-    }
-  } catch {
-    // fallback
-  }
-  return '';
-};
-
-// Human-centric, consultative system prompt tuned for short, conversational B2B responses
-const SYSTEM_PROMPT = `You are a warm, helpful, and consultative Human Corporate Mobility Advisor representing AdhocX (operated by Estemporaneo Technologies Private Limited, Hyderabad).
-You are having a live back-and-forth conversation with corporate decision-makers (HR Directors, Corporate Transport / ETS Managers, Admin Heads, Facilities Leads, Operations VPs) who are exploring employee transportation services for their company.
-
-CONVERSATIONAL PERSONA & TONE:
-1. TALK LIKE A REAL HUMAN CONSULTANT:
-   - Always sound like a warm, supportive, knowledgeable human mobility partner ("I'd be glad to help with that!", "We work closely with IT and BPO firms in Hyderabad...", "I can help you arrange a pilot route for your team...").
-   - Vary your opening naturally. DO NOT use canned repetitive phrases like "I appreciate your interest" or "Thank you for reaching out". Speak naturally, directly, and with genuine warmth.
-   - NEVER sound like a robotic encyclopedia, search engine, or regurgitator. NEVER output massive numbered lists, textbook definitions, or walls of text.
-2. STRICT LENGTH LIMIT — KEEP IT SHORT & BITE-SIZED:
-   - Every response MUST be strictly 2 to 3 concise, punchy sentences (under 55 words total).
-   - If using bullet points, use at most 2 brief bullet points.
-   - The user is chatting on a compact widget. Short, back-and-forth dialogue keeps the user engaged without scrolling.
-3. CONVERSATIONAL DISCOVERY & PROACTIVE GUIDANCE (ALWAYS LEAD TO ACTION):
-   - Answer their specific question crisply first.
-   - Proactively guide them towards trying our services (e.g., offer a **risk-free 1-week pilot route** or a free route-cost assessment for their campus).
-   - Always end with an engaging discovery question about their company (e.g., asking about their office location in Hyderabad like HITEC City or Gachibowli, their shift timings, or employee headcount) so they can explore which service fits them best.
-4. COMPLETE ADHOCX CONSCIOUSNESS & WEBSITE FACTS:
-   - Direct Contract Model: Direct corporate enterprise agreements and direct commercial driver onboarding. Zero middleman brokers, zero hidden markups, transparent pre-agreed rate cards.
-   - 100% Commercial Yellow-Plate Fleet: 4-seater sedans (Maruti Dzire, Toyota Etios, Tata Tigor EV, Hyundai Aura) and 6/7-seater MUVs (Maruti Ertiga, XL6, Toyota Innova Crysta, Kia Carens). Strictly commercial yellow-board vehicles with calibrated speed governors (80 km/h) and real-time GPS tracking. Never private white-plate cars.
-   - Primary Operating Corridors: Hyderabad technology hubs (HITEC City, Gachibowli, Financial District, Madhapur, Kondapur, Pocharam, Uppal, Begumpet, Shamshabad RGIA).
-   - Core Services:
-     * Scheduled Shift Commutes: Clustered nodal routing for morning logins & evening logouts.
-     * 24/7 BPO & Operations Transit: Standby backup cabs, zero-dropout shift handoffs.
-     * Women Night Safety (SCSC Compliance): Telangana Transport & Cyberabad Security Council compliant; automated safe-drop sequences (female employees are never dropped first or last alone between 8 PM and 6 AM), verified security escorts, 1-tap SOS panic desk.
-     * Executive Mobility & Airport Transfers: Premium fleet with live flight-delay tracking and privacy calling proxy.
-     * Adhoc & Event Mobility: Spot corporate cabs for delegator campus visits, offsites, and client visits.
-   - Technology Suite (AdhocX ETS):
-     * Corporate Client Portal: PostGIS automated route clustering, live command center, audit-ready 3-way match billing (Duty Slip GPS = Invoiced KM = Corporate Approved Roster), single consolidated monthly GST tax invoice.
-     * Employee Mobile App: Sub-second live GPS tracking with age freshness indicator, walking directions to nodal pickup, dynamic 4-digit OTP/QR boarding pass, 1-tap in-transit SOS panic desk.
-     * Driver Mobile App: Advance shift offers with route preview, GPS navigation with ordered stops, digital duty slips, guaranteed weekly direct bank settlements.
-   - Trial / Pilot Offer: Companies can test AdhocX with a risk-free 1-week pilot route or shift assessment before committing to a contract.
-   - Pricing: Tailored to corridor mileage, shift schedules, and vehicle category. Never invent numeric rupee rates; invite them to request a tailored route simulation or pilot.
-5. FORMATTING & SCOPE:
-   - Use markdown asterisks for **bold text** on 1 or 2 key highlights (e.g. **1-week pilot route**, **100% commercial yellow-plate**, **safe-drop protocol**).
-   - Only answer queries related to employee transit, fleets, safety, and AdhocX corporate mobility. Politely decline off-topic queries with a human touch.`;
-
 /**
  * Text formatting helper that converts **bold** or *bold* asterisks into <strong> elements
  */
@@ -194,32 +142,51 @@ export default function CorporateAiAssistant() {
     setIsLoading(true);
 
     try {
-      const apiMessages = [
-        { role: 'system', content: SYSTEM_PROMPT },
-        ...newMessages.map(m => ({ role: m.role, content: m.content }))
-      ];
+      const sanitizedMessages = newMessages
+        .slice(-10)
+        .map(m => ({ role: m.role, content: m.content }));
 
-      const res = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${getOpenAiKey()}`
-        },
-        body: JSON.stringify({
-          model: 'gpt-4o-mini',
-          messages: apiMessages,
-          temperature: 0.35,
-          max_tokens: 180 // Tuned for crisp, conversational 2-3 sentence executive replies
-        })
-      });
+      const apiUrl =
+        typeof window !== 'undefined' &&
+        (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+          ? 'http://localhost:7001/api/v1'
+          : 'https://api.adhocx.com/api/v1';
 
-      if (!res.ok) {
-        throw new Error(`OpenAI API error: ${res.status}`);
+      let reply = '';
+
+      // Secure server-side processing: try marketing /api/chat first, then fallback to core API /leads/ai-chat
+      let res: Response | null = null;
+      try {
+        res = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ messages: sanitizedMessages }),
+        });
+      } catch {
+        res = null;
       }
 
-      const data = await res.json();
-      const reply = data?.choices?.[0]?.message?.content ||
-        'Our corporate mobility team is ready to assist your company. Please feel free to request a 1-week pilot route or tailored quotation below.';
+      if (!res || !res.ok) {
+        try {
+          res = await fetch(`${apiUrl}/leads/ai-chat`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ messages: sanitizedMessages }),
+          });
+        } catch {
+          res = null;
+        }
+      }
+
+      if (res && res.ok) {
+        const data = await res.json().catch(() => null);
+        reply = data?.reply || data?.data?.reply || '';
+      }
+
+      if (!reply) {
+        reply =
+          'Our corporate mobility team is ready to assist your company. Please feel free to request a 1-week pilot route or tailored quotation below.';
+      }
 
       // Determine if a sales/pilot CTA should be shown
       const lowerReply = reply.toLowerCase();

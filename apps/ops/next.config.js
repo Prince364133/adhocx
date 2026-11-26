@@ -17,6 +17,19 @@ const nextConfig = {
     NEXT_PUBLIC_GOOGLE_MAPS_KEY:
       process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY || process.env.GOOGLE_MAPS_BROWSER_API_KEY || '',
   },
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          {
+            key: 'X-Robots-Tag',
+            value: 'noindex, nofollow, noarchive, nosnippet',
+          },
+        ],
+      },
+    ];
+  },
 };
 
 module.exports = nextConfig;

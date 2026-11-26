@@ -19,8 +19,8 @@ const jsonLd = {
       "postalCode": "500081",
       "addressCountry": "IN"
     },
-    "telephone": "+91-40-4821-7700",
-    "email": "enterprise@adhocx.in",
+    "telephone": "+91-7893545818",
+    "email": "support@adhocx.com",
     "openingHours": "Mo-Su 00:00-24:00"
   }
 };
@@ -31,6 +31,10 @@ const jsonLd = {
   description="Talk to the AdhocX enterprise team. Book a mobility consultation, reach our 24/7 Hyderabad safety command center or visit our HITEC City office."
   canonical="https://www.adhocx.com/contact"
   activeNav="company"
+  breadcrumbs={[
+    { name: 'Home', url: '/' },
+    { name: 'Contact', url: '/contact' }
+  ]}
   jsonLd={jsonLd}
 >
   <!-- Hero Section -->
@@ -75,8 +79,8 @@ const jsonLd = {
               <div style="font-size: 0.875rem; color: var(--color-text-secondary); margin-bottom: var(--space-2);">
                 For formal bids, custom route audits, and campus transport agreements.
               </div>
-              <a href="mailto:enterprise@adhocx.in" style="font-weight: 600; color: var(--color-primary-600); text-decoration: none; font-size: 0.9375rem;">
-                enterprise@adhocx.in
+              <a href="mailto:enterprise@adhocx.com" style="font-weight: 600; color: var(--color-primary-600); text-decoration: none; font-size: 0.9375rem;">
+                enterprise@adhocx.com
               </a>
             </div>
 
@@ -90,12 +94,12 @@ const jsonLd = {
                 Real-time incident response, SOS escalation, and late-night escort check-ins.
               </div>
               <div style="display: flex; align-items: center; gap: var(--space-3);">
-                <a href="tel:+914048217700" style="font-weight: 700; color: var(--color-text-primary); text-decoration: none; font-size: 1.125rem;">
-                  +91 40 4821 7700
+                <a href="tel:+917893545818" style="font-weight: 700; color: var(--color-text-primary); text-decoration: none; font-size: 1.125rem;">
+                  +91 78935 45818
                 </a>
                 <span style="color: var(--color-text-muted);">&bull;</span>
-                <a href="mailto:safety@adhocx.in" style="color: var(--color-primary-600); text-decoration: none; font-size: 0.875rem; font-weight: 600;">
-                  safety@adhocx.in
+                <a href="mailto:safety@adhocx.com" style="color: var(--color-primary-600); text-decoration: none; font-size: 0.875rem; font-weight: 600;">
+                  safety@adhocx.com
                 </a>
               </div>
             </div>
@@ -107,10 +111,10 @@ const jsonLd = {
                 <span class="badge badge-blue" style="font-size: 0.75rem;">SLA &lt; 2 Hours</span>
               </div>
               <div style="font-size: 0.875rem; color: var(--color-text-secondary); margin-bottom: var(--space-2);">
-                Automated 3-way reconciliation, GST e-invoices, and 1-hour refund requests.
+                Automated 3-way reconciliation, GST e-invoices, and corporate refund requests.
               </div>
-              <a href="mailto:billing@adhocx.in" style="font-weight: 600; color: var(--color-primary-600); text-decoration: none; font-size: 0.9375rem;">
-                billing@adhocx.in
+              <a href="mailto:billing@adhocx.com" style="font-weight: 600; color: var(--color-primary-600); text-decoration: none; font-size: 0.9375rem;">
+                billing@adhocx.com
               </a>
             </div>
           </div>
@@ -151,7 +155,7 @@ const jsonLd = {
             </p>
           </div>
           
-          <EnterpriseLeadForm client:load />
+          <EnterpriseLeadForm client:idle />
         </div>
 
       </div>
@@ -189,9 +193,9 @@ const jsonLd = {
 
         <div class="contact-sla-card">
           <div class="contact-sla-value">1 Hour</div>
-          <div class="contact-sla-name">Direct Bank Refund</div>
+          <div class="contact-sla-name">Refund Processing SLA</div>
           <p class="contact-sla-desc">
-            Instant credit settlement for verified disputed or unserved rides.
+            Prompt ledger credit or bank transfer instructions for verified unserved rides.
           </p>
         </div>
 
@@ -202,6 +206,21 @@ const jsonLd = {
             Enterprise cloud SLA with automated multi-zone failover and data redundancy.
           </p>
         </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Contextual Internal Navigation & Resource Links -->
+  <section style="padding: var(--space-8) 0 var(--space-12); background: var(--color-surface); border-top: 1px solid var(--color-border);">
+    <div class="container text-center">
+      <p style="color: var(--color-text-secondary); margin-bottom: var(--space-4); font-size: 0.95rem; font-weight: 500;">
+        Looking for specific corporate mobility documentation or service details?
+      </p>
+      <div style="display: flex; gap: var(--space-4); justify-content: center; flex-wrap: wrap;">
+        <a href="/services" class="btn btn-secondary">Explore Employee Transport Services &rarr;</a>
+        <a href="/ets" class="btn btn-secondary">Discover ETS Software Architecture &rarr;</a>
+        <a href="/safety" class="btn btn-secondary">Review Night Escort Safety &rarr;</a>
+        <a href="/faq" class="btn btn-secondary">Browse Enterprise FAQs &rarr;</a>
       </div>
     </div>
   </section>

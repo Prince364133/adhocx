@@ -161,6 +161,8 @@ const breadcrumbs = [
                 width="840"
                 height="560"
                 loading="eager"
+                decoding="async"
+                fetchpriority="high"
               />
             </div>
 
@@ -687,9 +689,25 @@ const breadcrumbs = [
 
         <!-- Right Side: Existing EnterpriseLeadForm Reused & Loaded -->
         <div class="pricing-rfp-form-card">
-          <EnterpriseLeadForm client:load defaultPurpose="Custom Corporate Quotation & Rate Card" />
+          <EnterpriseLeadForm client:visible defaultPurpose="Custom Corporate Quotation & Rate Card" />
         </div>
 
+      </div>
+    </div>
+  </section>
+
+  <!-- Contextual Solutions Navigation -->
+  <section style="padding: var(--space-8) 0 var(--space-10); background: var(--color-surface); border-top: 1px solid var(--color-border);">
+    <div class="container text-center">
+      <p style="color: var(--color-text-secondary); margin-bottom: var(--space-4); font-size: 0.95rem; font-weight: 500;">
+        Explore connected enterprise mobility solutions:
+      </p>
+      <div style="display: flex; gap: var(--space-4); justify-content: center; flex-wrap: wrap;">
+        <a href="/services" class="btn btn-secondary">Corporate Commute Services &rarr;</a>
+        <a href="/ets" class="btn btn-secondary">Employee Transport Software (ETS) &rarr;</a>
+        <a href="/safety" class="btn btn-secondary">Duty of Care & Safety Framework &rarr;</a>
+        <a href="/industries" class="btn btn-secondary">Industry Solutions &rarr;</a>
+        <a href="/faq" class="btn btn-secondary">Corporate Billing & FAQs &rarr;</a>
       </div>
     </div>
   </section>

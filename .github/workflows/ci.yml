@@ -52,6 +52,9 @@ jobs:
       - name: Typecheck Admin Control Panel
         run: pnpm --filter @adhocx/admin build
 
+      - name: Build & Validate Marketing Site (SEO & Performance Guard)
+        run: pnpm --filter @adhocx/marketing build
+
   # ----------------------------------------------------------------------------
   # Job 2: Security & Dependency Vulnerability Audit
   # ----------------------------------------------------------------------------

@@ -84,8 +84,8 @@ export async function getStaticPaths() {
                 coverImage: p.coverImage || "/images/og/og-default.jpg",
                 keyTakeaways: [
                   'Verified yellow-plate commercial fleet fulfillment across Hyderabad.',
-                  '15-minute search cutoff and automated driver pairing.',
-                  '1-Hour Direct Bank Refund SLA via instant IMPS/UPI rails.'
+                  'SLA-backed dispatch windows and automated driver pairing.',
+                  'Instant ledger refund credit upon unfulfilled ride cancellation.'
                 ],
                 contentHtml: parseMarkdown(p.content) || `<p>${p.excerpt || p.summary || p.title}</p>`
               }
@@ -105,6 +105,15 @@ const { article } = Astro.props as { article: ArticleData };
 // Self-hosted covers are stored as site-relative paths; schema and social tags need absolute URLs.
 const coverUrl = article.coverImage.startsWith('/') ? `https://www.adhocx.com${article.coverImage}` : article.coverImage;
 
+// Derive genuine published and modified ISO dates from article data
+const datePublished = !Number.isNaN(Date.parse(article.date))
+  ? new Date(article.date).toISOString()
+  : '2026-09-01T00:00:00.000Z';
+
+const dateModified = article.dateModified && !Number.isNaN(Date.parse(article.dateModified))
+  ? new Date(article.dateModified).toISOString()
+  : datePublished;
+
 // Schema.org BlogPosting JSON-LD
 const blogPostingSchema = {
   "@context": "https://schema.org",
@@ -113,8 +122,8 @@ const blogPostingSchema = {
   "headline": article.title,
   "description": article.summary,
   "image": coverUrl,
-  "datePublished": "2026-10-15T00:00:00+05:30",
-  "dateModified": "2026-10-27T00:00:00+05:30",
+  "datePublished": datePublished,
+  "dateModified": dateModified,
   "mainEntityOfPage": {
     "@type": "WebPage",
     "@id": `https://www.adhocx.com/blogs/${article.slug}`
@@ -222,6 +231,9 @@ const otherArticles = Object.values(ARTICLES_CONTENT).filter(a => a.slug !== art
           src={article.coverImage}
           alt={article.title}
           loading="eager"
+          width="1200"
+          height="630"
+          fetchpriority="high"
         />
       </div>
     </div>
@@ -279,11 +291,20 @@ const otherArticles = Object.values(ARTICLES_CONTENT).filter(a => a.slug !== art
             Modernize Your Hyderabad Corporate Fleet Transit
           </h3>
           <p style="color: #cbd5e1; max-width: 540px; margin: 0 auto 20px auto; font-size: 0.95rem;">
-            Access verified commercial 4-seater and 7-seater cabs with 15-minute SLA cutoffs and unified GST billing.
+            Access verified commercial 4-seater and 7-seater cabs with SLA-backed dispatch cutoffs and unified GST billing.
           </p>
           <div style="display:flex; justify-content:center; gap:12px; flex-wrap:wrap;">
-            <a href="/vendors" class="btn btn-primary" style="border-color: var(--color-primary-400); box-shadow: 0 4px 14px rgba(87, 40, 178, 0.4);">
-              <Icon name="file-text" size={16} /> Request Corporate Demo
+            <a href="/services" class="btn btn-primary" style="border-color: var(--color-primary-400); box-shadow: 0 4px 14px rgba(87, 40, 178, 0.4);">
+              <Icon name="file-text" size={16} /> Corporate Commute Services
+            </a>
+            <a href="/ets" class="btn btn-secondary" style="background:rgba(255,255,255,0.1); border-color:rgba(255,255,255,0.2); color:#ffffff;">
+              <Icon name="sparkles" size={16} /> ETS Platform
+            </a>
+            <a href="/safety" class="btn btn-secondary" style="background:rgba(255,255,255,0.1); border-color:rgba(255,255,255,0.2); color:#ffffff;">
+              <Icon name="shield-check" size={16} /> Safety & Night Escort
+            </a>
+            <a href="/vendors" class="btn btn-secondary" style="background:rgba(255,255,255,0.1); border-color:rgba(255,255,255,0.2); color:#ffffff;">
+              <Icon name="building" size={16} /> Cab Sourcing
             </a>
             <a href="/drivers" class="btn btn-secondary" style="background:rgba(255,255,255,0.1); border-color:rgba(255,255,255,0.2); color:#ffffff;">
               <Icon name="car" size={16} /> Drive with AdhocX

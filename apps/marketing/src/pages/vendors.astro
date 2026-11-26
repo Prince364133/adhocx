@@ -38,7 +38,7 @@ const jsonLd = [
         "name": "Madhapur"
       }
     ],
-    "description": "Automated B2B corporate 4 & 7 seater cab fulfillment marketplace. Algorithmic dispatch, 15-minute search cutoff SLA, 1-hour bank refund guarantee, and single unified GST billing for enterprise transport desks."
+    "description": "Automated B2B corporate 4 & 7 seater cab fulfillment marketplace. Algorithmic dispatch, SLA-backed search cutoffs, contractual bank refund protections, and single unified GST billing for enterprise transport desks."
   },
   {
     "@context": "https://schema.org",
@@ -57,7 +57,7 @@ const jsonLd = [
         "name": "What is the bank refund SLA for corporate clients?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "If a vehicle requirement cannot be fulfilled within our search cutoff, the full booking funds are credited back to the corporate entity's bank account directly via automated banking rails."
+          "text": "If a vehicle requirement cannot be fulfilled within our search cutoff window, funds are credited immediately to the client's corporate escrow balance, with bank refund processing available under agreed enterprise contract terms."
         }
       },
       {
@@ -80,8 +80,8 @@ const vendorFaqs: FaqItem[] = [
   },
   {
     question: "What financial guarantees back your allocation SLA cutoff and refund policy?",
-    highlight: "Every corporate booking carries an automated search cutoff. If a cab is not secured within the cutoff window, or in cases of eligible cancellation, the full booking funds are refunded directly to your bank account.",
-    answer: "We do not hold vendor balances in proprietary closed wallets. Our automated refund rails interact directly with your registered enterprise bank account via IMPS/UPI, ensuring zero working capital lockup for procurement and finance teams."
+    highlight: "Every corporate booking carries an automated search cutoff. If a cab is not secured within the cutoff window, or in cases of eligible cancellation, booking funds are credited back immediately to your corporate account balance.",
+    answer: "We do not hold vendor balances in proprietary closed consumer wallets. Held balances are credited to your corporate escrow ledger, with bank account refund disbursement available for eligible corporate accounts under agreed contract terms."
   },
   {
     question: "How does billing and GST compliance work for enterprise transport accounts?",
@@ -165,7 +165,7 @@ const vendorFaqs: FaqItem[] = [
 
       <!-- Lead Capture Form Island -->
       <div class="hero-card-wrapper" id="corporate-form" data-animate>
-        <EnterpriseLeadForm client:load />
+        <EnterpriseLeadForm client:idle />
       </div>
     </div>
   </section>
@@ -186,8 +186,8 @@ const vendorFaqs: FaqItem[] = [
         <div class="switch-proof-card">
           <span class="switch-proof-icon" aria-hidden="true">⚡</span>
           <div>
-            <strong>15-Minute Guaranteed SLA Cutoff</strong>
-            <p>Automated driver auto-assignment replacing manual group chats.</p>
+            <strong>SLA-Backed Search Cutoff</strong>
+            <p>Fast automated driver matching with configurable enterprise dispatch windows.</p>
           </div>
         </div>
         <div class="switch-proof-card">
@@ -200,7 +200,7 @@ const vendorFaqs: FaqItem[] = [
         <div class="switch-proof-card">
           <span class="switch-proof-icon" aria-hidden="true">📍</span>
           <div>
-            <strong>PostGIS Corridor Tracking</strong>
+            <strong>Corridor GPS Tracking</strong>
             <p>Continuous telemetry, route deviation alerts, and live SOS command desk.</p>
           </div>
         </div>
@@ -208,7 +208,7 @@ const vendorFaqs: FaqItem[] = [
           <span class="switch-proof-icon" aria-hidden="true">📑</span>
           <div>
             <strong>Single Itemized GST Invoice</strong>
-            <p>Automated 3-way reconciliation with direct bank refunds for unfulfilled rides.</p>
+            <p>Automated 3-way reconciliation with ledger credits for unfulfilled rides.</p>
           </div>
         </div>
       </div>
