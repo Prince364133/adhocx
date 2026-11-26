@@ -39,19 +39,16 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/routes', label: 'Routes', icon: <Route size={18} /> },
   { href: '/employees', label: 'Employees', icon: <Users size={18} /> },
   { href: '/cancellations', label: 'Cancellation Requests', icon: <CalendarX size={18} /> },
-  { href: '/support', label: 'Support', icon: <LifeBuoy size={18} /> },
-  { href: '/employee-support', label: 'Employee Support', icon: <Headphones size={18} /> },
   { href: '/billing', label: 'Billing & Invoices', icon: <Receipt size={18} /> },
+  { href: '/employee-support', label: 'Employee Support', icon: <Headphones size={18} /> },
+  { href: '/support', label: 'Support', icon: <LifeBuoy size={18} /> },
   { href: '/dashboard/analytics', label: 'Transport Analytics', icon: <BarChart3 size={15} /> },
   { href: '/company-profile', label: 'Company Profile', icon: <Building size={18} /> },
 ];
 
 function isActive(pathname: string, href: string): boolean {
   if (href === '/dashboard') {
-    return (
-      pathname === '/dashboard' ||
-      (pathname.startsWith('/dashboard/') && !pathname.startsWith('/dashboard/analytics'))
-    );
+    return pathname === '/dashboard';
   }
   if (pathname === href) return true;
   return pathname.startsWith(href + '/');

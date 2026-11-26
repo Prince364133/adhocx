@@ -89,7 +89,7 @@ adhocx/
 ### Prerequisites
 * **Node.js**: `>= 20.x`
 * **pnpm**: `>= 10.x` (Install via `npm install -g pnpm`)
-* **Flutter SDK**: `^3.38.x` (for mobile development)
+* **Flutter SDK**: `>=3.47.0` (required by the Flutter app dependencies)
 * **Docker & Docker Compose** (for local PostgreSQL & Redis)
 
 ### 1. Installation
