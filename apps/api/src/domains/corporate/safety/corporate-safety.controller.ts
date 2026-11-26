@@ -52,7 +52,7 @@ export class CorporateSafetyController {
   constructor(private readonly safetyService: CorporateSafetyService) {}
 
   @Post('sos')
-  @Roles(UserRole.ADMIN, UserRole.EMPLOYEE, UserRole.DRIVER)
+  @Roles(UserRole.ADMIN, UserRole.OPS, UserRole.EMPLOYEE, UserRole.DRIVER)
   @CorporateResource('route', 'routeId', { from: 'body' })
   @ApiOperation({
     summary: 'P0 Emergency SOS Trigger. Dispatches instant alerts to Super Admin Command Centre & Corporate Safety Desk',
@@ -64,7 +64,8 @@ export class CorporateSafetyController {
     }
 
     const userId = req.user?.id || 'anonymous-emergency';
-    const userRole = req.user?.role === 'DRIVER' ? 'DRIVER' : 'EMPLOYEE';
+    const role = req.user?.role?.toUpperCase();
+    const userRole = role === 'DRIVER' ? 'DRIVER' : role === 'OPS' ? 'OPS' : role === 'ADMIN' ? 'ADMIN' : 'EMPLOYEE';
 
     return this.safetyService.triggerSosAlert(userId, userRole, dto);
   }

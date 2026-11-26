@@ -1958,3 +1958,113 @@ export interface AnalyticsTrendsData {
   };
 }
 
+export interface FleetListItem {
+  id: string;
+  name: string;
+  code: string;
+  ownerName: string;
+  phone: string;
+  email: string | null;
+  status: "ACTIVE" | "INACTIVE";
+  city: string | null;
+  address: string | null;
+  gstin: string | null;
+  notes: string | null;
+  totalDrivers: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FleetDetailDriver {
+  id: string;
+  fullName: string;
+  phone: string | null;
+  verificationStatus: string;
+  availabilityStatus: string;
+  vehiclePlate: string | null;
+  vehicleModel: string | null;
+  averageRating: number;
+  totalTrips: number;
+  fleetAssignedAt: string | null;
+  createdAt: string;
+}
+
+export interface FleetHistoryEntry {
+  id: string;
+  action: string;
+  fromFleetId: string | null;
+  toFleetId: string | null;
+  performedByAdminId: string | null;
+  notes: string | null;
+  createdAt: string;
+  driver?: {
+    id: string;
+    fullName: string;
+    phone: string | null;
+  };
+}
+
+export interface FleetDetail {
+  fleet: FleetListItem;
+  drivers: FleetDetailDriver[];
+  history: FleetHistoryEntry[];
+  activity: {
+    recentTrips: Array<{
+      id: string;
+      status: string;
+      pickupAddress?: string | null;
+      dropAddress?: string | null;
+      totalDriverEarnings?: number | null;
+      driverRate?: number | null;
+      createdAt: string;
+      completedAt?: string | null;
+      driver?: {
+        id: string;
+        fullName: string;
+        phone: string | null;
+      };
+    }>;
+    completedTripsCount: number;
+    totalTrips: number;
+  };
+  financials: {
+    completedTrips: number;
+    estimatedEarnings: number;
+  };
+}
+
+export interface DriverFleetAssociationItem {
+  id: string;
+  driverName: string;
+  driverId: string;
+  phone: string | null;
+  verificationStatus: string;
+  driverStatus: string;
+  vehiclePlate: string | null;
+  vehicleModel: string | null;
+  totalTrips: number;
+  averageRating: number;
+  fleetId: string | null;
+  fleetName: string | null;
+  fleetCode: string | null;
+  fleetStatus: "ACTIVE" | "INACTIVE" | null;
+  associationStatus: "ASSIGNED" | "UNASSIGNED";
+  fleetAssignedAt: string | null;
+  createdAt: string;
+}
+
+export interface FleetMetrics {
+  totalFleets: number;
+  activeFleets: number;
+  inactiveFleets: number;
+  totalFleetDrivers: number;
+}
+
+export interface DriverFleetMetrics {
+  totalDrivers: number;
+  assignedDrivers: number;
+  unassignedDrivers: number;
+  activeDrivers: number;
+}
+
+

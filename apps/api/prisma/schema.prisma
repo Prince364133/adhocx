@@ -254,6 +254,11 @@ model Driver {
   corporatePayouts     CorporatePayout[] // wire/billing-payouts
   corporateTripFeedbacks CorporateTripFeedback[]
 
+  fleetId              String?                     @map("fleet_id") @db.Uuid
+  fleetAssignedAt      DateTime?                   @map("fleet_assigned_at")
+  fleet                Fleet?                      @relation(fields: [fleetId], references: [id], onDelete: SetNull)
+  fleetHistories       FleetDriverHistory[]
+
   referredBy           Driver?                     @relation("DriverReferrals", fields: [referredById], references: [id], onDelete: SetNull)
   referees             Driver[]                    @relation("DriverReferrals")
   referralsMade        DriverReferral[]            @relation("ReferrerReferrals")
@@ -264,6 +269,7 @@ model Driver {
   @@index([availabilityStatus, verificationStatus, lastLocationAt], map: "drivers_dispatch_fallback_idx")
   @@index([referralCode])
   @@index([referredById])
+  @@index([fleetId])
 }
 
 model DriverReferral {
@@ -2295,5 +2301,52 @@ model FeatureFlag {
   @@index([key])
   @@index([isEnabled])
   @@map("feature_flags")
+}
+
+enum FleetStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model Fleet {
+  id            String               @id @default(uuid()) @db.Uuid
+  name          String               @db.VarChar(120)
+  code          String               @unique @db.VarChar(24)
+  ownerName     String               @map("owner_name") @db.VarChar(120)
+  phone         String               @db.VarChar(20)
+  email         String?              @db.VarChar(120)
+  status        FleetStatus          @default(ACTIVE)
+  city          String?              @db.VarChar(80)
+  address       String?
+  gstin         String?              @db.VarChar(30)
+  notes         String?
+  createdAt     DateTime             @default(now()) @map("created_at")
+  updatedAt     DateTime             @updatedAt @map("updated_at")
+
+  drivers       Driver[]
+  driverHistory FleetDriverHistory[]
+
+  @@map("fleets")
+  @@index([status])
+  @@index([code])
+}
+
+model FleetDriverHistory {
+  id                  String   @id @default(uuid()) @db.Uuid
+  fleetId             String   @map("fleet_id") @db.Uuid
+  driverId            String   @map("driver_id") @db.Uuid
+  action              String   @db.VarChar(30) // ASSIGNED, TRANSFERRED, REMOVED
+  fromFleetId         String?  @map("from_fleet_id") @db.Uuid
+  toFleetId           String?  @map("to_fleet_id") @db.Uuid
+  performedByAdminId  String?  @map("performed_by_admin_id") @db.Uuid
+  notes               String?
+  createdAt           DateTime @default(now()) @map("created_at")
+
+  fleet               Fleet    @relation(fields: [fleetId], references: [id], onDelete: Cascade)
+  driver              Driver   @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  @@map("fleet_driver_histories")
+  @@index([fleetId])
+  @@index([driverId])
 }
 

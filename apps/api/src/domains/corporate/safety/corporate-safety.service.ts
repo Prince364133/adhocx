@@ -45,7 +45,7 @@ export class CorporateSafetyService {
    */
   public async triggerSosAlert(
     triggeredById: string,
-    triggeredByRole: 'EMPLOYEE' | 'DRIVER',
+    triggeredByRole: 'EMPLOYEE' | 'DRIVER' | 'OPS' | 'ADMIN' | string,
     dto: TriggerSosAlertDto,
   ) {
     const route = await this.db.corporateRoute.findUnique({
@@ -159,6 +159,7 @@ export class CorporateSafetyService {
             shiftDate: true,
             shiftTime: true,
             driver: { select: { id: true, fullName: true, phone: true } },
+            vehicle: { select: { id: true, registrationNumber: true, model: true } },
             tenant: { select: { id: true, name: true, code: true } },
             office: { select: { id: true, name: true } },
           },
@@ -333,6 +334,13 @@ export class CorporateSafetyService {
     this.logger.log(`SOS Alert ${alertId} resolved as ${dto.status} by ${resolvedById}`);
 
     this.notifications.emitEvent('admin:command-center:sos_resolved', 'CORPORATE_SOS_RESOLVED', {
+      alertId,
+      routeId: alert.routeId,
+      status: dto.status,
+      resolutionNotes: dto.resolutionNotes,
+      resolvedAt: resolved.resolvedAt,
+    });
+    this.notifications.emitEvent('admin:command-center:sos', 'CORPORATE_SOS_RESOLVED', {
       alertId,
       routeId: alert.routeId,
       status: dto.status,

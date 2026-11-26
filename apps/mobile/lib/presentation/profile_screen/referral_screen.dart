@@ -34,7 +34,7 @@ class _ReferralScreenState extends State<ReferralScreen> {
 
   String _computeFallbackReferralCode() {
     final authUser = AuthService.instance.currentUser;
-    final uid = authUser?.id?.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').toUpperCase() ?? '';
+    final uid = authUser?.id.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').toUpperCase() ?? '';
     final phoneDigits = (authUser?.phone ?? '').replaceAll(RegExp(r'\D'), '');
 
     if (uid.length >= 6) {

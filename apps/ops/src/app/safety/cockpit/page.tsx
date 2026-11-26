@@ -15,7 +15,10 @@ import {
   Phone,
   CheckCircle,
   RefreshCw,
+  AlertOctagon,
+  AlertTriangle,
 } from 'lucide-react';
+import { Modal } from '../../../components/common/Modal';
 
 export default function SosEmergencyCockpitPage() {
   const [alerts, setAlerts] = useState<SosAlertItem[]>([]);
@@ -25,6 +28,15 @@ export default function SosEmergencyCockpitPage() {
   const [resolveNotes, setResolveNotes] = useState<Record<string, string>>({});
   const [loadError, setLoadError] = useState('');
   const [actionError, setActionError] = useState('');
+  const [isRaiseModalOpen, setIsRaiseModalOpen] = useState(false);
+  const [raiseRouteId, setRaiseRouteId] = useState('');
+  const [raiseLat, setRaiseLat] = useState('17.4435');
+  const [raiseLng, setRaiseLng] = useState('78.3772');
+  const [raiseReason, setRaiseReason] = useState('Passenger emergency panic button pressed');
+  const [raiseBattery, setRaiseBattery] = useState('85');
+  const [availableRoutes, setAvailableRoutes] = useState<Array<{ id: string; label: string }>>([]);
+  const [isSubmittingSos, setIsSubmittingSos] = useState(false);
+  const [raiseSuccessMsg, setRaiseSuccessMsg] = useState('');
   const inFlightRef = useRef(false);
   const requestSeqRef = useRef(0);
 
@@ -164,15 +176,55 @@ export default function SosEmergencyCockpitPage() {
           </p>
         </div>
 
-        <Button
-          size="md"
-          variant="outline"
-          leftIcon={<RefreshCw size={14} className={refreshing ? 'spin' : ''} />}
-          isLoading={refreshing}
-          onClick={handleRefresh}
-        >
-          Refresh Feed
-        </Button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Button
+            size="md"
+            variant="outline"
+            leftIcon={<RefreshCw size={14} className={refreshing ? 'spin' : ''} />}
+            isLoading={refreshing}
+            onClick={handleRefresh}
+          >
+            Refresh Feed
+          </Button>
+          <button
+            type="button"
+            onClick={async () => {
+              setIsRaiseModalOpen(true);
+              try {
+                const routes = await opsApi.getRoutes({});
+                if (Array.isArray(routes) && routes.length > 0) {
+                  const items = routes.slice(0, 15).map((r: any) => ({
+                    id: r.id,
+                    label: `${r.tenant?.name || 'Client'} · Route ${r.id.slice(0, 8)} (${r.direction || 'SHIFT'})`,
+                  }));
+                  setAvailableRoutes(items);
+                  if (!raiseRouteId && items.length > 0) {
+                    setRaiseRouteId(items[0].id);
+                  }
+                }
+              } catch {
+                // Keep manual input
+              }
+            }}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '8px 16px',
+              borderRadius: 'var(--radius-md, 8px)',
+              backgroundColor: 'var(--color-danger, #DC2626)',
+              color: '#FFFFFF',
+              border: 'none',
+              fontWeight: 600,
+              fontSize: '13px',
+              cursor: 'pointer',
+              boxShadow: '0 2px 8px rgba(220, 38, 38, 0.3)',
+            }}
+          >
+            <AlertOctagon size={15} />
+            Raise SOS Alert
+          </button>
+        </div>
       </div>
 
       {/* P0 Active Crisis Alerts Section */}
@@ -486,6 +538,230 @@ export default function SosEmergencyCockpitPage() {
           </div>
         </div>
       )}
+
+      {/* Raise SOS Modal */}
+      <Modal
+        isOpen={isRaiseModalOpen}
+        onClose={() => {
+          setIsRaiseModalOpen(false);
+          setRaiseSuccessMsg('');
+        }}
+        title="Raise Emergency SOS Alert"
+        subtitle="Simulate or dispatch an immediate P0 emergency SOS on an active corporate route."
+      >
+        <form
+          onSubmit={async (e) => {
+            e.preventDefault();
+            if (!raiseRouteId.trim()) {
+              setActionError('Route ID is required to raise an SOS alert.');
+              return;
+            }
+            setIsSubmittingSos(true);
+            setActionError('');
+            setRaiseSuccessMsg('');
+            try {
+              await opsApi.triggerSosAlert({
+                routeId: raiseRouteId.trim(),
+                latitude: parseFloat(raiseLat) || 17.4435,
+                longitude: parseFloat(raiseLng) || 78.3772,
+                triggerReason: raiseReason.trim() || 'Emergency SOS raised by operations dispatcher',
+                batteryPct: parseInt(raiseBattery, 10) || 85,
+              });
+              setRaiseSuccessMsg('Emergency SOS triggered successfully! Synced across Ops & Admin Command Centres.');
+              await loadAlerts(true);
+              setTimeout(() => {
+                setIsRaiseModalOpen(false);
+                setRaiseSuccessMsg('');
+              }, 1800);
+            } catch (err: any) {
+              setActionError(err?.message || 'Failed to trigger SOS alert');
+            } finally {
+              setIsSubmittingSos(false);
+            }
+          }}
+          style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}
+        >
+          {raiseSuccessMsg && (
+            <div
+              style={{
+                padding: '10px 14px',
+                borderRadius: '8px',
+                backgroundColor: 'rgba(22, 163, 74, 0.12)',
+                color: '#16A34A',
+                border: '1px solid rgba(22, 163, 74, 0.3)',
+                fontSize: '13px',
+                fontWeight: 600,
+              }}
+            >
+              ✓ {raiseSuccessMsg}
+            </div>
+          )}
+
+          <div>
+            <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+              Select Route or Enter Route ID *
+            </label>
+            {availableRoutes.length > 0 && (
+              <select
+                value={raiseRouteId}
+                onChange={(e) => setRaiseRouteId(e.target.value)}
+                style={{
+                  width: '100%',
+                  height: '38px',
+                  backgroundColor: 'var(--bg-input)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: 'var(--radius-md, 8px)',
+                  padding: '0 10px',
+                  color: 'var(--text-primary)',
+                  fontSize: '13px',
+                  marginBottom: '8px',
+                  outline: 'none',
+                }}
+              >
+                {availableRoutes.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.label}
+                  </option>
+                ))}
+              </select>
+            )}
+            <input
+              type="text"
+              placeholder="e.g. 13031ad2-854f-48cc-86d5-da2e3a1b1b43"
+              value={raiseRouteId}
+              onChange={(e) => setRaiseRouteId(e.target.value)}
+              required
+              style={{
+                width: '100%',
+                height: '38px',
+                backgroundColor: 'var(--bg-input)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: 'var(--radius-md, 8px)',
+                padding: '0 12px',
+                color: 'var(--text-primary)',
+                fontSize: '13px',
+                outline: 'none',
+              }}
+            />
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                Latitude
+              </label>
+              <input
+                type="number"
+                step="any"
+                value={raiseLat}
+                onChange={(e) => setRaiseLat(e.target.value)}
+                required
+                style={{
+                  width: '100%',
+                  height: '38px',
+                  backgroundColor: 'var(--bg-input)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: 'var(--radius-md, 8px)',
+                  padding: '0 12px',
+                  color: 'var(--text-primary)',
+                  fontSize: '13px',
+                  outline: 'none',
+                }}
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                Longitude
+              </label>
+              <input
+                type="number"
+                step="any"
+                value={raiseLng}
+                onChange={(e) => setRaiseLng(e.target.value)}
+                required
+                style={{
+                  width: '100%',
+                  height: '38px',
+                  backgroundColor: 'var(--bg-input)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: 'var(--radius-md, 8px)',
+                  padding: '0 12px',
+                  color: 'var(--text-primary)',
+                  fontSize: '13px',
+                  outline: 'none',
+                }}
+              />
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '12px' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                Emergency Reason
+              </label>
+              <input
+                type="text"
+                value={raiseReason}
+                onChange={(e) => setRaiseReason(e.target.value)}
+                style={{
+                  width: '100%',
+                  height: '38px',
+                  backgroundColor: 'var(--bg-input)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: 'var(--radius-md, 8px)',
+                  padding: '0 12px',
+                  color: 'var(--text-primary)',
+                  fontSize: '13px',
+                  outline: 'none',
+                }}
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                Battery %
+              </label>
+              <input
+                type="number"
+                min="1"
+                max="100"
+                value={raiseBattery}
+                onChange={(e) => setRaiseBattery(e.target.value)}
+                style={{
+                  width: '100%',
+                  height: '38px',
+                  backgroundColor: 'var(--bg-input)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: 'var(--radius-md, 8px)',
+                  padding: '0 12px',
+                  color: 'var(--text-primary)',
+                  fontSize: '13px',
+                  outline: 'none',
+                }}
+              />
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
+            <Button
+              type="button"
+              variant="outline"
+              size="md"
+              onClick={() => setIsRaiseModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="danger"
+              size="md"
+              isLoading={isSubmittingSos}
+              leftIcon={<AlertOctagon size={15} />}
+            >
+              Broadcast P0 SOS
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

@@ -22,6 +22,8 @@ import {
   ExternalLink,
   Building2,
   Sliders,
+  ShieldAlert,
+  Truck,
 } from "lucide-react";
 import { AdhocxBrandLogo } from "./AdhocxBrandLogo";
 import { ConfirmDialog } from "./common/ConfirmDialog";
@@ -50,8 +52,9 @@ const navSections: NavSection[] = [
         label: "Verification Center",
         icon: ShieldCheck,
       },
+      { href: "/fleets", label: "Fleet List", icon: Truck },
       { href: "/drivers", label: "Driver Fleet", icon: Car },
-      { href: "/users", label: "Corporate Vendors", icon: Building2 },
+      { href: "/users", label: "Vendors", icon: Building2 },
     ],
   },
   {
@@ -59,6 +62,17 @@ const navSections: NavSection[] = [
     items: [
       { href: "/settlements", label: "Settlements", icon: CreditCard },
       { href: "/pricing", label: "Pricing & Tariffs", icon: Tag },
+    ],
+  },
+  {
+    title: "SAFETY & EMERGENCY",
+    items: [
+      {
+        href: "/safety/sos",
+        label: "Emergency SOS",
+        icon: ShieldAlert,
+        badge: "P0",
+      },
     ],
   },
   {
