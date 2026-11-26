@@ -16,9 +16,7 @@ import {
   Navigation,
   Pencil,
   Phone,
-  Plus,
   Radio,
-  RefreshCw,
   Route as RouteIcon,
   Search,
   Sparkles,
@@ -184,6 +182,18 @@ function OpsRoutesContent() {
     return () => clearTimeout(timer);
   }, [tenantResolved, loadRoutes]);
 
+  useEffect(() => {
+    const handleSidebarRefresh = () => {
+      void loadRoutes();
+    };
+    window.addEventListener('adhocx:ops-routes-refresh', handleSidebarRefresh);
+    return () => window.removeEventListener('adhocx:ops-routes-refresh', handleSidebarRefresh);
+  }, [loadRoutes]);
+
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent('adhocx:ops-routes-loading', { detail: { loading } }));
+  }, [loading]);
+
   async function handleRetryDispatch(e: React.MouseEvent, routeId: string) {
     e.stopPropagation();
     setRetryingRouteId(routeId);
@@ -320,54 +330,6 @@ function OpsRoutesContent() {
               Scoped routes, trips, pickup manifests, live traffic ETAs, and autonomous 10km driver dispatch for this company.
             </p>
           </div>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-          <Link href="/" style={{ textDecoration: 'none' }}>
-            <Button variant="outline" leftIcon={<ArrowLeft size={15} />}>
-              Company Hub
-            </Button>
-          </Link>
-          <Button
-            variant="secondary"
-            leftIcon={<RefreshCw size={15} />}
-            onClick={() => void loadRoutes()}
-            disabled={loading}
-          >
-            Refresh
-          </Button>
-          <Link
-            href={`/map?tenantId=${encodeURIComponent(selectedTenantId)}`}
-            style={{ textDecoration: 'none' }}
-          >
-            <Button variant="outline" leftIcon={<MapPin size={15} />}>
-              Fleet Live Map
-            </Button>
-          </Link>
-          <Link
-            href={`/planner?tenantId=${encodeURIComponent(selectedTenantId)}&tab=MANUAL`}
-            style={{ textDecoration: 'none' }}
-          >
-            <Button variant="outline" leftIcon={<Plus size={15} />}>
-              Create Manual Route
-            </Button>
-          </Link>
-          <Link
-            href={`/employees?tenantId=${encodeURIComponent(selectedTenantId)}`}
-            style={{ textDecoration: 'none' }}
-          >
-            <Button variant="outline" leftIcon={<Users size={15} />}>
-              Employees
-            </Button>
-          </Link>
-          <Link
-            href={`/planner?tenantId=${encodeURIComponent(selectedTenantId)}`}
-            style={{ textDecoration: 'none' }}
-          >
-            <Button variant="primary" leftIcon={<Sparkles size={15} />}>
-              Open Route Optimizer
-            </Button>
-          </Link>
         </div>
       </div>
 

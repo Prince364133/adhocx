@@ -191,7 +191,7 @@ export const OptimizationAuditModal: React.FC<OptimizationAuditModalProps> = ({
               }}
             >
               <CheckCircle size={13} />
-              {audit.isRealRoad ? 'Live Road API' : 'Local Road Matrix'}
+              {audit.isRealRoad ? 'Verified Road Route' : 'Road Distance Matrix'}
             </div>
             <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '2px' }}>
               {result.source}
@@ -353,7 +353,7 @@ export const OptimizationAuditModal: React.FC<OptimizationAuditModalProps> = ({
                   <th style={{ padding: '8px 10px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-secondary)' }}>Distance</th>
                   <th style={{ padding: '8px 10px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-secondary)' }}>Duration</th>
                   <th style={{ padding: '8px 10px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-secondary)' }}>Dist Score</th>
-                  <th style={{ padding: '8px 10px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-secondary)' }}>Detour / IDF</th>
+                  <th style={{ padding: '8px 10px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-secondary)' }}>Detour Score</th>
                   <th style={{ padding: '8px 10px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-secondary)' }}>Time Score</th>
                   <th style={{ padding: '8px 10px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-secondary)' }}>Overall Score</th>
                   <th style={{ padding: '8px 10px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-secondary)' }}>Status</th>
@@ -375,9 +375,6 @@ export const OptimizationAuditModal: React.FC<OptimizationAuditModalProps> = ({
                     <td style={{ padding: '8px 10px' }}>{opt.scoreBreakdown?.distanceScore ?? '-'}</td>
                     <td style={{ padding: '8px 10px' }}>
                       <div>{opt.scoreBreakdown?.detourScore ?? '-'}</div>
-                      {opt.averageIdf !== undefined && (
-                        <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>IDF: {opt.averageIdf}x</div>
-                      )}
                     </td>
                     <td style={{ padding: '8px 10px' }}>{opt.scoreBreakdown?.timeScore ?? '-'}</td>
                     <td style={{ padding: '8px 10px', fontWeight: 800, color: 'var(--brand-blue-500, #5728B2)' }}>

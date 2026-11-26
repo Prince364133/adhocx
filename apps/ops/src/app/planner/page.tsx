@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { opsApi, ShiftOptimizationResponse } from '../../lib/api/opsClient';
-import { escapeHtml, isValidIndianMobile } from '../../lib/opsHelpers';
+import { escapeHtml } from '../../lib/opsHelpers';
 import {
   CorporateRouteItem,
   CorporateTenantOption,
@@ -17,6 +17,11 @@ import { useToast } from '../../components/common/ToastProvider';
 import { OfficeHubRequiredModal } from '../../components/operations/OfficeHubRequiredModal';
 import { OfficeLocationMismatchModal } from '../../components/operations/OfficeLocationMismatchModal';
 import { SpatialTopologyCanvas } from '../../components/operations/SpatialTopologyCanvas';
+import {
+  CompanyRouteSearchPanel,
+  matchRoutesWithQuery,
+} from '../../components/planner/CompanyRouteSearchPanel';
+import { CompanyRouteSearchMap } from '../../components/planner/CompanyRouteSearchMap';
 import {
   Cpu,
   CheckCircle,
@@ -33,9 +38,7 @@ import {
   Radar,
   Map as MapIcon,
   Database,
-  Plus,
-  Trash2,
-  Route as RouteIcon,
+  Search,
 } from 'lucide-react';
 
 const COMPANY_STORAGE_KEY = 'adhocx_ops_selected_tenant';
@@ -144,19 +147,20 @@ export default function RouteOptimizerPage() {
     return 'FILE_UPLOAD';
   });
 
-  // Manual Route Builder State
-  const [manualDirection, setManualDirection] = useState<'LOGIN' | 'LOGOUT'>('LOGIN');
-  const [manualShiftDate, setManualShiftDate] = useState<string>(
-    () => new Date(Date.now() + 330 * 60_000).toISOString().slice(0, 10),
-  );
-  const [manualShiftTime, setManualShiftTime] = useState<string>('09:00');
-  const [manualVehicleCategory, setManualVehicleCategory] = useState<string>('SEDAN');
-  const [manualMaxCapacity, setManualMaxCapacity] = useState<number>(4);
-  const [manualStops, setManualStops] = useState<
-    Array<{ id: string; name: string; phoneNumber: string; email: string; address: string }>
-  >([{ id: 'stop-1', name: '', phoneNumber: '', email: '', address: '' }]);
-  const [manualSaving, setManualSaving] = useState(false);
-  const [manualCreatedRoute, setManualCreatedRoute] = useState<CorporateRouteItem | null>(null);
+  // Company Route Search Engine State (Route Search / MANUAL tab)
+  const [searchRoutes, setSearchRoutes] = useState<CorporateRouteItem[]>([]);
+  const [searchRoutesLoading, setSearchRoutesLoading] = useState(false);
+  const [searchRoutesError, setSearchRoutesError] = useState<string | null>(null);
+  const [routeSearchQuery, setRouteSearchQuery] = useState('');
+  const [routeDirectionFilter, setRouteDirectionFilter] = useState<'ALL' | 'LOGIN' | 'LOGOUT'>('ALL');
+  const [routeStatusFilter, setRouteStatusFilter] = useState<string>('ALL');
+  const [routeOfficeFilter, setRouteOfficeFilter] = useState<string>('ALL');
+  const [routeShiftDateFilter, setRouteShiftDateFilter] = useState<string>('');
+  const [selectedSearchRouteId, setSelectedSearchRouteId] = useState<string | null>(null);
+  const [selectedSearchRouteDetail, setSelectedSearchRouteDetail] = useState<CorporateRouteItem | null>(null);
+  const [searchRouteDetailLoading, setSearchRouteDetailLoading] = useState(false);
+  const [highlightedSearchStopSeq, setHighlightedSearchStopSeq] = useState<number | null>(null);
+  const routeDetailCacheRef = useRef<Map<string, CorporateRouteItem>>(new Map());
 
   // File Upload Form State
   const [officeAddress, setOfficeAddress] = useState('');
@@ -347,7 +351,9 @@ export default function RouteOptimizerPage() {
     setSelectedOfficeId('');
     setOfficeAddress('');
     setErrorMsg(null);
-    setManualCreatedRoute(null);
+    setSelectedSearchRouteId(null);
+    setSelectedSearchRouteDetail(null);
+    setHighlightedSearchStopSeq(null);
 
     if (typeof window !== 'undefined' && nextTenantId) {
       try {
@@ -396,64 +402,127 @@ export default function RouteOptimizerPage() {
     }
   }
 
-  async function handleCreateManualRoute(e: React.FormEvent) {
-    e.preventDefault();
-    const targetTenantId = selectedUploadTenantId || selectedTenantId;
-    if (!targetTenantId || !selectedOfficeId) {
-      setErrorMsg('Please select a corporate company and office hub first.');
+  const loadCompanyRoutesForSearch = useCallback(async (tenantId: string) => {
+    if (!tenantId) {
+      setSearchRoutes([]);
+      setSearchRoutesError(null);
       return;
     }
-    const cleanedStops = manualStops
-      .map((s) => ({
-        name: s.name.trim(),
-        phoneNumber: s.phoneNumber.trim(),
-        email: s.email.trim() || undefined,
-        address: s.address.trim(),
-      }))
-      .filter((s) => s.name || s.phoneNumber || s.address);
-
-    if (cleanedStops.length === 0) {
-      setErrorMsg('Add at least one employee stop with name, phone number, and address.');
-      return;
-    }
-    for (let i = 0; i < cleanedStops.length; i++) {
-      const s = cleanedStops[i];
-      if (!s.name || !s.phoneNumber || !s.address) {
-        setErrorMsg(`Stop #${i + 1}: Name, Phone Number, and Address are all required.`);
-        return;
-      }
-      if (!isValidIndianMobile(s.phoneNumber)) {
-        setErrorMsg(`Stop #${i + 1}: Enter a valid 10-digit Indian mobile number (e.g. 9876543210 or +919876543210).`);
-        return;
-      }
-    }
-
-    setManualSaving(true);
-    setErrorMsg(null);
-    setManualCreatedRoute(null);
+    setSearchRoutesLoading(true);
+    setSearchRoutesError(null);
     try {
-      const created = await opsApi.createManualRoute({
-        tenantId: targetTenantId,
-        officeId: selectedOfficeId,
-        shiftDate: manualShiftDate,
-        shiftTime: manualShiftTime,
-        direction: manualDirection,
-        vehicleCategory: manualVehicleCategory || 'SEDAN',
-        maxCapacity: Math.max(cleanedStops.length, Number(manualMaxCapacity) || 4),
-        stops: cleanedStops,
+      const data = await opsApi.getRoutes({
+        tenantId,
+        includeStops: true,
+        limit: 200,
       });
-      setManualCreatedRoute(created);
-      toast.success(
-        `Created manual route with ${cleanedStops.length} employee stop${cleanedStops.length === 1 ? '' : 's'} (all employees auto-registered).`,
-        'Manual Route Created',
+      const scoped = (Array.isArray(data) ? data : []).filter(
+        (route) => !route.tenantId || route.tenantId === tenantId,
       );
-      setManualStops([{ id: `stop-${Date.now()}`, name: '', phoneNumber: '', email: '', address: '' }]);
+      setSearchRoutes(scoped);
+      routeDetailCacheRef.current.clear();
     } catch (err: any) {
-      setErrorMsg(stripApiErrorPrefix(err?.message || 'Could not create manual route.'));
+      setSearchRoutesError(stripApiErrorPrefix(err?.message || 'Failed to load company routes.'));
     } finally {
-      setManualSaving(false);
+      setSearchRoutesLoading(false);
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    if (activeTab !== 'MANUAL' || !selectedUploadTenantId) return;
+    setRouteOfficeFilter('ALL');
+    setHighlightedSearchStopSeq(null);
+    void loadCompanyRoutesForSearch(selectedUploadTenantId);
+  }, [activeTab, selectedUploadTenantId, loadCompanyRoutesForSearch]);
+
+  useEffect(() => {
+    const syncTabFromUrl = () => {
+      if (typeof window === 'undefined') return;
+      const tabParam = new URLSearchParams(window.location.search).get('tab')?.toUpperCase();
+      if (tabParam === 'MANUAL') {
+        setPlanResult(null);
+        setActiveTab('MANUAL');
+      } else if (tabParam === 'DB_SHIFT') {
+        setActiveTab('DB_SHIFT');
+      } else if (tabParam === 'FILE_UPLOAD') {
+        setActiveTab('FILE_UPLOAD');
+      }
+    };
+    window.addEventListener('popstate', syncTabFromUrl);
+    return () => window.removeEventListener('popstate', syncTabFromUrl);
+  }, []);
+
+  const searchMatches = useMemo(
+    () =>
+      matchRoutesWithQuery(
+        searchRoutes,
+        routeSearchQuery,
+        routeDirectionFilter,
+        routeStatusFilter,
+        routeOfficeFilter,
+        routeShiftDateFilter,
+      ),
+    [
+      searchRoutes,
+      routeSearchQuery,
+      routeDirectionFilter,
+      routeStatusFilter,
+      routeOfficeFilter,
+      routeShiftDateFilter,
+    ],
+  );
+
+  useEffect(() => {
+    if (searchMatches.length === 0) {
+      setSelectedSearchRouteId(null);
+      setSelectedSearchRouteDetail(null);
+      setHighlightedSearchStopSeq(null);
+      return;
+    }
+    const stillExists = searchMatches.some((item) => item.route.id === selectedSearchRouteId);
+    if (!stillExists) {
+      setSelectedSearchRouteId(searchMatches[0].route.id);
+      setHighlightedSearchStopSeq(null);
+    }
+  }, [searchMatches, selectedSearchRouteId]);
+
+  useEffect(() => {
+    if (activeTab !== 'MANUAL' || !selectedSearchRouteId) {
+      setSearchRouteDetailLoading(false);
+      return;
+    }
+    const cached = routeDetailCacheRef.current.get(selectedSearchRouteId);
+    if (cached) {
+      setSelectedSearchRouteDetail(cached);
+      setSearchRouteDetailLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setSearchRouteDetailLoading(true);
+    void opsApi
+      .getRouteById(selectedSearchRouteId, true)
+      .then((detail) => {
+        if (cancelled) return;
+        routeDetailCacheRef.current.set(selectedSearchRouteId, detail);
+        setSelectedSearchRouteDetail(detail);
+      })
+      .catch(() => {
+        if (!cancelled) setSelectedSearchRouteDetail(null);
+      })
+      .finally(() => {
+        if (!cancelled) setSearchRouteDetailLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab, selectedSearchRouteId]);
+
+  const selectedSearchRoute = useMemo(
+    () => searchMatches.find((item) => item.route.id === selectedSearchRouteId)?.route ?? null,
+    [searchMatches, selectedSearchRouteId],
+  );
 
   const selectedUploadTenant = tenants.find((tenant) => tenant.id === selectedUploadTenantId);
   const hasConfiguredOffices = Boolean(selectedUploadTenant?.offices?.length);
@@ -537,6 +606,7 @@ export default function RouteOptimizerPage() {
 
   // Initialize or update Google Map when planResult changes
   useEffect(() => {
+    if (activeTab === 'MANUAL' && !planResult) return;
     if (!mapContainerRef.current) return;
 
     if (!(window as any).google || !(window as any).google.maps) {
@@ -544,7 +614,7 @@ export default function RouteOptimizerPage() {
     } else {
       initMap(planResult ?? undefined);
     }
-  }, [planResult, viewMode, useTopologyFallback]);
+  }, [planResult, viewMode, useTopologyFallback, activeTab]);
 
   function loadGoogleMapsScript(callback: () => void) {
     if (!googleMapsApiKey) {
@@ -1490,7 +1560,10 @@ export default function RouteOptimizerPage() {
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'minmax(360px, 420px) minmax(0, 1fr)',
+          gridTemplateColumns:
+            activeTab === 'MANUAL' && !planResult
+              ? 'minmax(400px, 470px) minmax(0, 1fr)'
+              : 'minmax(360px, 420px) minmax(0, 1fr)',
           gap: '16px',
           alignItems: 'stretch',
           flex: 1,
@@ -1514,9 +1587,9 @@ export default function RouteOptimizerPage() {
         >
           {!planResult ? (
             /* PARAMETER CONFIGURATION & DUAL INGEST TABS */
-            <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, overflow: 'hidden' }}>
               {/* Segmented Mode Selector */}
-              <div style={{ display: 'flex', borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-surface-muted)' }}>
+              <div style={{ display: 'flex', flexShrink: 0, borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-surface-muted)' }}>
                 <button
                   type="button"
                   onClick={() => setActiveTab('FILE_UPLOAD')}
@@ -1583,8 +1656,8 @@ export default function RouteOptimizerPage() {
                     transition: 'all 0.15s ease',
                   }}
                 >
-                  <RouteIcon size={14} />
-                  <span>Manual Route</span>
+                  <Search size={14} />
+                  <span>Route Search</span>
                 </button>
               </div>
 
@@ -2293,386 +2366,43 @@ export default function RouteOptimizerPage() {
                   </div>
                 </form>
               ) : (
-                /* MANUAL ROUTE BUILDER FORM */
-                <form onSubmit={handleCreateManualRoute} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}>
-                  <div style={{ padding: '16px 20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px', flex: 1, minHeight: 0 }}>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                        Corporate Client (Company) *
-                      </label>
-                      <select
-                        value={selectedUploadTenantId}
-                        onChange={(e) => void handleSelectCompany(e.target.value)}
-                        style={{
-                          width: '100%',
-                          padding: '8px 12px',
-                          backgroundColor: 'var(--bg-input)',
-                          border: '1px solid var(--border-subtle)',
-                          borderRadius: '6px',
-                          color: 'var(--text-primary)',
-                          fontSize: '13px',
-                          outline: 'none',
-                        }}
-                      >
-                        {tenants.length === 0 && <option value="">No companies onboarded</option>}
-                        {tenants.map((t) => (
-                          <option key={t.id} value={t.id}>
-                            {t.name} ({t.code})
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                        Company Office Hub *
-                      </label>
-                      <select
-                        value={selectedOfficeId}
-                        disabled={uploadCompanyLoading || !selectedUploadTenant?.offices?.length}
-                        onChange={(e) => setSelectedOfficeId(e.target.value)}
-                        style={{
-                          width: '100%',
-                          padding: '8px 12px',
-                          backgroundColor: 'var(--bg-input)',
-                          border: '1px solid var(--border-subtle)',
-                          borderRadius: '6px',
-                          color: 'var(--text-primary)',
-                          fontSize: '13px',
-                          outline: 'none',
-                        }}
-                      >
-                        {!selectedUploadTenant?.offices?.length && <option value="">No office hubs configured</option>}
-                        {selectedUploadTenant?.offices?.map((off) => (
-                          <option key={off.id} value={off.id}>
-                            {off.name} ({off.code})
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                      <div>
-                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                          Shift Date *
-                        </label>
-                        <input
-                          type="date"
-                          required
-                          value={manualShiftDate}
-                          onChange={(e) => setManualShiftDate(e.target.value)}
-                          style={{
-                            width: '100%',
-                            padding: '8px 10px',
-                            backgroundColor: 'var(--bg-input)',
-                            border: '1px solid var(--border-subtle)',
-                            borderRadius: '6px',
-                            color: 'var(--text-primary)',
-                            fontSize: '13px',
-                            outline: 'none',
-                          }}
-                        />
-                      </div>
-                      <div>
-                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                          Shift Time (IST) *
-                        </label>
-                        <input
-                          type="time"
-                          required
-                          value={manualShiftTime}
-                          onChange={(e) => setManualShiftTime(e.target.value)}
-                          style={{
-                            width: '100%',
-                            padding: '8px 10px',
-                            backgroundColor: 'var(--bg-input)',
-                            border: '1px solid var(--border-subtle)',
-                            borderRadius: '6px',
-                            color: 'var(--text-primary)',
-                            fontSize: '13px',
-                            outline: 'none',
-                          }}
-                        />
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 80px', gap: '10px' }}>
-                      <div>
-                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                          Direction *
-                        </label>
-                        <select
-                          value={manualDirection}
-                          onChange={(e) => setManualDirection(e.target.value as 'LOGIN' | 'LOGOUT')}
-                          style={{
-                            width: '100%',
-                            padding: '8px 10px',
-                            backgroundColor: 'var(--bg-input)',
-                            border: '1px solid var(--border-subtle)',
-                            borderRadius: '6px',
-                            color: 'var(--text-primary)',
-                            fontSize: '12px',
-                            outline: 'none',
-                          }}
-                        >
-                          <option value="LOGIN">LOGIN</option>
-                          <option value="LOGOUT">LOGOUT</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                          Vehicle *
-                        </label>
-                        <select
-                          value={manualVehicleCategory}
-                          onChange={(e) => setManualVehicleCategory(e.target.value)}
-                          style={{
-                            width: '100%',
-                            padding: '8px 10px',
-                            backgroundColor: 'var(--bg-input)',
-                            border: '1px solid var(--border-subtle)',
-                            borderRadius: '6px',
-                            color: 'var(--text-primary)',
-                            fontSize: '12px',
-                            outline: 'none',
-                          }}
-                        >
-                          {vehicleCategories.length > 0 ? (
-                            vehicleCategories.map((cat) => (
-                              <option key={cat.vehicleType} value={cat.vehicleType}>
-                                {cat.categoryLabel}
-                              </option>
-                            ))
-                          ) : (
-                            <>
-                              <option value="SEDAN">Sedan</option>
-                              <option value="SUV">SUV</option>
-                              <option value="HATCHBACK">Hatchback</option>
-                              <option value="TEMPO_TRAVELLER">Tempo Traveller</option>
-                            </>
-                          )}
-                        </select>
-                      </div>
-                      <div>
-                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                          Seats
-                        </label>
-                        <input
-                          type="number"
-                          min={1}
-                          max={40}
-                          value={manualMaxCapacity}
-                          onChange={(e) => setManualMaxCapacity(Math.max(1, Number(e.target.value) || 4))}
-                          style={{
-                            width: '100%',
-                            padding: '8px 8px',
-                            backgroundColor: 'var(--bg-input)',
-                            border: '1px solid var(--border-subtle)',
-                            borderRadius: '6px',
-                            color: 'var(--text-primary)',
-                            fontSize: '12px',
-                            outline: 'none',
-                          }}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Dynamic Employee Stops */}
-                    <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '10px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)' }}>
-                          Employee Stops ({manualStops.length})
-                        </span>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          leftIcon={<Plus size={13} />}
-                          onClick={() =>
-                            setManualStops((prev) => [
-                              ...prev,
-                              { id: `stop-${Date.now()}-${prev.length}`, name: '', phoneNumber: '', email: '', address: '' },
-                            ])
-                          }
-                        >
-                          Add Stop
-                        </Button>
-                      </div>
-                      <p style={{ margin: 0, fontSize: '11px', color: 'var(--text-muted)' }}>
-                        Every employee added here is automatically registered in the company directory with a commuter login account.
-                      </p>
-
-                      {manualStops.map((stop, idx) => (
-                        <div
-                          key={stop.id}
-                          style={{
-                            padding: '10px',
-                            borderRadius: '8px',
-                            backgroundColor: 'var(--bg-surface-muted)',
-                            border: '1px solid var(--border-subtle)',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: '8px',
-                          }}
-                        >
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--brand-blue-500, #5728B2)' }}>
-                              Stop #{idx + 1}
-                            </span>
-                            {manualStops.length > 1 && (
-                              <button
-                                type="button"
-                                onClick={() => setManualStops((prev) => prev.filter((item) => item.id !== stop.id))}
-                                style={{
-                                  background: 'transparent',
-                                  border: 'none',
-                                  color: 'var(--color-danger, #DC2626)',
-                                  cursor: 'pointer',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '4px',
-                                  fontSize: '11px',
-                                  fontWeight: 600,
-                                }}
-                              >
-                                <Trash2 size={12} /> Remove
-                              </button>
-                            )}
-                          </div>
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                            <input
-                              type="text"
-                              required
-                              placeholder="Employee Name *"
-                              value={stop.name}
-                              onChange={(e) =>
-                                setManualStops((prev) =>
-                                  prev.map((item) => (item.id === stop.id ? { ...item, name: e.target.value } : item)),
-                                )
-                              }
-                              style={{
-                                width: '100%',
-                                padding: '7px 9px',
-                                backgroundColor: 'var(--bg-input)',
-                                border: '1px solid var(--border-subtle)',
-                                borderRadius: '6px',
-                                color: 'var(--text-primary)',
-                                fontSize: '12px',
-                              }}
-                            />
-                            <input
-                              type="tel"
-                              required
-                              placeholder="Phone (+91...) *"
-                              value={stop.phoneNumber}
-                              onChange={(e) =>
-                                setManualStops((prev) =>
-                                  prev.map((item) => (item.id === stop.id ? { ...item, phoneNumber: e.target.value } : item)),
-                                )
-                              }
-                              style={{
-                                width: '100%',
-                                padding: '7px 9px',
-                                backgroundColor: 'var(--bg-input)',
-                                border: '1px solid var(--border-subtle)',
-                                borderRadius: '6px',
-                                color: 'var(--text-primary)',
-                                fontSize: '12px',
-                              }}
-                            />
-                          </div>
-                          <input
-                            type="email"
-                            placeholder="Email (optional)"
-                            value={stop.email}
-                            onChange={(e) =>
-                              setManualStops((prev) =>
-                                prev.map((item) => (item.id === stop.id ? { ...item, email: e.target.value } : item)),
-                              )
-                            }
-                            style={{
-                              width: '100%',
-                              padding: '7px 9px',
-                              backgroundColor: 'var(--bg-input)',
-                              border: '1px solid var(--border-subtle)',
-                              borderRadius: '6px',
-                              color: 'var(--text-primary)',
-                              fontSize: '12px',
-                            }}
-                          />
-                          <input
-                            type="text"
-                            required
-                            placeholder="Pickup / Drop Address *"
-                            value={stop.address}
-                            onChange={(e) =>
-                              setManualStops((prev) =>
-                                prev.map((item) => (item.id === stop.id ? { ...item, address: e.target.value } : item)),
-                              )
-                            }
-                            style={{
-                              width: '100%',
-                              padding: '7px 9px',
-                              backgroundColor: 'var(--bg-input)',
-                              border: '1px solid var(--border-subtle)',
-                              borderRadius: '6px',
-                              color: 'var(--text-primary)',
-                              fontSize: '12px',
-                            }}
-                          />
-                        </div>
-                      ))}
-                    </div>
-
-                    {manualCreatedRoute && (
-                      <div
-                        style={{
-                          padding: '12px 14px',
-                          borderRadius: '8px',
-                          backgroundColor: 'var(--color-success-bg)',
-                          border: '1px solid var(--color-success-border)',
-                          fontSize: '12px',
-                          color: 'var(--color-success)',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: '8px',
-                        }}
-                      >
-                        <div>
-                          <strong>Manual route created!</strong> RT-{manualCreatedRoute.id.slice(0, 8).toUpperCase()} ({manualCreatedRoute.assignedPassengerCount} passengers auto-registered).
-                        </div>
-                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                          <Link href={`/routes/${manualCreatedRoute.id}`} style={{ textDecoration: 'none' }}>
-                            <Button type="button" size="sm" variant="primary" rightIcon={<ExternalLink size={12} />}>
-                              Inspect Route
-                            </Button>
-                          </Link>
-                          <Link
-                            href={selectedUploadTenantId ? `/routes?tenantId=${encodeURIComponent(selectedUploadTenantId)}` : '/routes'}
-                            style={{ textDecoration: 'none' }}
-                          >
-                            <Button type="button" size="sm" variant="outline">
-                              Open Routes Page
-                            </Button>
-                          </Link>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <div style={{ padding: '16px 20px', borderTop: '1px solid var(--border-subtle)' }}>
-                    <Button
-                      type="submit"
-                      variant="primary"
-                      style={{ width: '100%' }}
-                      isLoading={manualSaving}
-                      disabled={!selectedUploadTenantId || !selectedOfficeId}
-                      leftIcon={<Plus size={16} />}
-                    >
-                      {manualSaving ? 'Creating Route...' : 'Create Manual Route'}
-                    </Button>
-                  </div>
-                </form>
+                /* COMPANY ROUTE SEARCH ENGINE */
+                <CompanyRouteSearchPanel
+                  tenants={tenants}
+                  selectedTenantId={selectedUploadTenantId}
+                  onSelectCompany={(tenantId) => void handleSelectCompany(tenantId)}
+                  routes={searchRoutes}
+                  loading={searchRoutesLoading}
+                  errorMsg={searchRoutesError}
+                  searchQuery={routeSearchQuery}
+                  onSearchQueryChange={setRouteSearchQuery}
+                  directionFilter={routeDirectionFilter}
+                  onDirectionFilterChange={setRouteDirectionFilter}
+                  statusFilter={routeStatusFilter}
+                  onStatusFilterChange={setRouteStatusFilter}
+                  officeFilter={routeOfficeFilter}
+                  onOfficeFilterChange={setRouteOfficeFilter}
+                  shiftDateFilter={routeShiftDateFilter}
+                  onShiftDateFilterChange={setRouteShiftDateFilter}
+                  matches={searchMatches}
+                  selectedRouteId={selectedSearchRouteId}
+                  selectedRouteDetail={selectedSearchRouteDetail}
+                  detailLoading={searchRouteDetailLoading}
+                  highlightedStopSequence={highlightedSearchStopSeq}
+                  onSelectRoute={(route) => {
+                    setSelectedSearchRouteId(route.id);
+                    setHighlightedSearchStopSeq(null);
+                  }}
+                  onSelectStop={(seq) => setHighlightedSearchStopSeq(seq)}
+                  onRefresh={() => void loadCompanyRoutesForSearch(selectedUploadTenantId)}
+                  onResetFilters={() => {
+                    setRouteSearchQuery('');
+                    setRouteDirectionFilter('ALL');
+                    setRouteStatusFilter('ALL');
+                    setRouteOfficeFilter('ALL');
+                    setRouteShiftDateFilter('');
+                  }}
+                />
               )}
             </div>
           ) : (
@@ -2998,148 +2728,162 @@ export default function RouteOptimizerPage() {
             transition: 'background-color 0.2s, border-color 0.2s',
           }}
         >
-          {/* View Switcher Controls (Top Right) */}
-          {planResult && (
-            <div
-              style={{
-                position: 'absolute',
-                top: '12px',
-                right: '14px',
-                zIndex: 20,
-                display: 'flex',
-                gap: '4px',
-                backgroundColor: 'var(--bg-surface)',
-                padding: '4px',
-                borderRadius: '8px',
-                border: '1px solid var(--border-subtle)',
-                boxShadow: 'var(--shadow-sm)',
-              }}
-            >
-              <button
-                type="button"
-                onClick={() => {
-                  setMapLoadError(false);
-                  setViewMode('MAP');
-                }}
-                style={{
-                  padding: '6px 10px',
-                  fontSize: '11px',
-                  fontWeight: 600,
-                  borderRadius: '6px',
-                  border: 'none',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '5px',
-                  backgroundColor: viewMode === 'MAP' ? 'var(--brand-blue-500, #5728B2)' : 'transparent',
-                  color: viewMode === 'MAP' ? '#FFFFFF' : 'var(--text-secondary)',
-                }}
-              >
-                <MapIcon size={13} />
-                <span>Vector Map</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewMode('TOPOLOGY')}
-                style={{
-                  padding: '6px 10px',
-                  fontSize: '11px',
-                  fontWeight: 600,
-                  borderRadius: '6px',
-                  border: 'none',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '5px',
-                  backgroundColor: viewMode === 'TOPOLOGY' ? 'var(--brand-blue-500, #5728B2)' : 'transparent',
-                  color: viewMode === 'TOPOLOGY' ? '#FFFFFF' : 'var(--text-secondary)',
-                }}
-              >
-                <Radar size={13} />
-                <span>Radar Topology</span>
-              </button>
-            </div>
-          )}
-
-          {planResult && viewMode === 'MAP' && !useTopologyFallback && (
-            <div
-              style={{
-                position: 'absolute',
-                left: '14px',
-                bottom: '14px',
-                zIndex: 10,
-                padding: '7px 10px',
-                borderRadius: '7px',
-                backgroundColor: 'var(--bg-surface)',
-                border: '1px solid var(--border-subtle)',
-                boxShadow: 'var(--shadow-sm)',
-                color: 'var(--text-secondary)',
-                fontSize: '11px',
-                fontWeight: 600,
-                lineHeight: 1.5,
-              }}
-            >
-                <div>Select a cab to highlight its route and show location names</div>
-              </div>
-            )}
-
-          {/* Canvas Render: Either Google Maps or SVG Topology */}
-          {planResult && (viewMode === 'TOPOLOGY' || useTopologyFallback) ? (
-            <SpatialTopologyCanvas
-              plan={planResult}
-              selectedCab={selectedCab}
-              onSelectCab={handleSelectCab}
-              routeColors={ROUTE_COLORS}
+          {activeTab === 'MANUAL' && !planResult ? (
+            <CompanyRouteSearchMap
+              selectedRoute={selectedSearchRoute}
+              selectedRouteDetail={selectedSearchRouteDetail}
+              company={selectedUploadTenant}
+              detailLoading={searchRouteDetailLoading}
+              filteredCount={searchMatches.length}
+              highlightedStopSequence={highlightedSearchStopSeq}
+              onSelectStop={(seq) => setHighlightedSearchStopSeq(seq)}
             />
           ) : (
-            <div ref={mapContainerRef} style={{ width: '100%', height: '100%' }} />
-          )}
-
-          {/* Empty State Banner if no plan yet */}
-          {!planResult && (
-            <div
-              style={{
-                position: 'absolute',
-                top: '16px',
-                left: '16px',
-                textAlign: 'left',
-                backgroundColor: 'var(--bg-surface)',
-                padding: '12px 16px',
-                borderRadius: '12px',
-                border: '1px solid var(--border-subtle)',
-                boxShadow: 'var(--shadow-sm)',
-                maxWidth: '320px',
-              }}
-            >
-              <Compass size={18} style={{ color: 'var(--brand-blue-500, #5728B2)', marginBottom: '4px' }} />
-              <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
-                {mapLoadError || !googleMapsApiKey ? 'Google Maps unavailable' : 'Route map preview'}
-              </div>
-              <p style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px', lineHeight: 1.5 }}>
-                {mapLoadError || !googleMapsApiKey
-                  ? 'Check that a valid Google Maps browser key is configured and allowed for this local origin.'
-                  : 'Upload a roster or optimize a shift to view routes, pickup pins, and the office catchment.'}
-              </p>
-              {(mapLoadError || !googleMapsApiKey) && googleMapsApiKey && (
-                <button
-                  type="button"
-                  onClick={retryGoogleMaps}
+            <>
+              {/* View Switcher Controls (Top Right) */}
+              {planResult && (
+                <div
                   style={{
-                    marginTop: '8px',
-                    padding: '6px 10px',
-                    border: 'none',
-                    borderRadius: '6px',
-                    backgroundColor: 'var(--brand-blue-500, #5728B2)',
-                    color: '#FFFFFF',
-                    cursor: 'pointer',
-                    fontSize: '11px',
-                    fontWeight: 600,
+                    position: 'absolute',
+                    top: '12px',
+                    right: '14px',
+                    zIndex: 20,
+                    display: 'flex',
+                    gap: '4px',
+                    backgroundColor: 'var(--bg-surface)',
+                    padding: '4px',
+                    borderRadius: '8px',
+                    border: '1px solid var(--border-subtle)',
+                    boxShadow: 'var(--shadow-sm)',
                   }}
                 >
-                  Retry Google Maps
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMapLoadError(false);
+                      setViewMode('MAP');
+                    }}
+                    style={{
+                      padding: '6px 10px',
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      borderRadius: '6px',
+                      border: 'none',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      backgroundColor: viewMode === 'MAP' ? 'var(--brand-blue-500, #5728B2)' : 'transparent',
+                      color: viewMode === 'MAP' ? '#FFFFFF' : 'var(--text-secondary)',
+                    }}
+                  >
+                    <MapIcon size={13} />
+                    <span>Vector Map</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setViewMode('TOPOLOGY')}
+                    style={{
+                      padding: '6px 10px',
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      borderRadius: '6px',
+                      border: 'none',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      backgroundColor: viewMode === 'TOPOLOGY' ? 'var(--brand-blue-500, #5728B2)' : 'transparent',
+                      color: viewMode === 'TOPOLOGY' ? '#FFFFFF' : 'var(--text-secondary)',
+                    }}
+                  >
+                    <Radar size={13} />
+                    <span>Radar Topology</span>
+                  </button>
+                </div>
               )}
-            </div>
+
+              {planResult && viewMode === 'MAP' && !useTopologyFallback && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    left: '14px',
+                    bottom: '14px',
+                    zIndex: 10,
+                    padding: '7px 10px',
+                    borderRadius: '7px',
+                    backgroundColor: 'var(--bg-surface)',
+                    border: '1px solid var(--border-subtle)',
+                    boxShadow: 'var(--shadow-sm)',
+                    color: 'var(--text-secondary)',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    lineHeight: 1.5,
+                  }}
+                >
+                  <div>Select a cab to highlight its route and show location names</div>
+                </div>
+              )}
+
+              {/* Canvas Render: Either Google Maps or SVG Topology */}
+              {planResult && (viewMode === 'TOPOLOGY' || useTopologyFallback) ? (
+                <SpatialTopologyCanvas
+                  plan={planResult}
+                  selectedCab={selectedCab}
+                  onSelectCab={handleSelectCab}
+                  routeColors={ROUTE_COLORS}
+                />
+              ) : (
+                <div ref={mapContainerRef} style={{ width: '100%', height: '100%' }} />
+              )}
+
+              {/* Empty State Banner if no plan yet */}
+              {!planResult && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: '16px',
+                    left: '16px',
+                    textAlign: 'left',
+                    backgroundColor: 'var(--bg-surface)',
+                    padding: '12px 16px',
+                    borderRadius: '12px',
+                    border: '1px solid var(--border-subtle)',
+                    boxShadow: 'var(--shadow-sm)',
+                    maxWidth: '320px',
+                  }}
+                >
+                  <Compass size={18} style={{ color: 'var(--brand-blue-500, #5728B2)', marginBottom: '4px' }} />
+                  <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                    {mapLoadError || !googleMapsApiKey ? 'Google Maps unavailable' : 'Route map preview'}
+                  </div>
+                  <p style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px', lineHeight: 1.5 }}>
+                    {mapLoadError || !googleMapsApiKey
+                      ? 'Check that a valid Google Maps browser key is configured and allowed for this local origin.'
+                      : 'Upload a roster or optimize a shift to view routes, pickup pins, and the office catchment.'}
+                  </p>
+                  {(mapLoadError || !googleMapsApiKey) && googleMapsApiKey && (
+                    <button
+                      type="button"
+                      onClick={retryGoogleMaps}
+                      style={{
+                        marginTop: '8px',
+                        padding: '6px 10px',
+                        border: 'none',
+                        borderRadius: '6px',
+                        backgroundColor: 'var(--brand-blue-500, #5728B2)',
+                        color: '#FFFFFF',
+                        cursor: 'pointer',
+                        fontSize: '11px',
+                        fontWeight: 600,
+                      }}
+                    >
+                      Retry Google Maps
+                    </button>
+                  )}
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
