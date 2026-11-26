@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
 import 'package:adhocx_employee/shared/components/components.dart';
 import 'package:adhocx_employee/shared/components/trip/trip_widgets.dart';
@@ -9,6 +10,7 @@ import 'package:adhocx_employee/theme/app_radius.dart';
 import 'package:adhocx_employee/theme/app_spacing.dart';
 import 'package:adhocx_employee/theme/app_typography.dart';
 import 'package:adhocx_employee/theme/employee_palette.dart';
+import 'package:adhocx_employee/state/employee_feature_provider.dart';
 
 /// Pickup Point Details backed by live nextTrip & profile APIs.
 class PickupPointDetailsScreen extends StatelessWidget {
@@ -31,6 +33,7 @@ class PickupPointDetailsScreen extends StatelessWidget {
       },
       builder: (context, data) {
         final p = EmployeePalette.of(context);
+        final features = context.watch<EmployeeFeatureProvider>();
         final next = (data['nextTrip'] as Map<String, dynamic>?) ?? const {};
         final profile = (data['profile'] as Map<String, dynamic>?) ?? const {};
         final pickupLoc = next['pickupLocation'] as Map? ??
@@ -111,6 +114,58 @@ class PickupPointDetailsScreen extends StatelessWidget {
                     onPressed: () => context.push(AppRoutes.walkingDirections),
                   ),
                   const SizedBox(height: AppSpacing.xxl),
+                  if (features.confirmedPickupPoint != null) ...[
+                    FeatureSectionCard(
+                      borderColor: AppColors.brightPurple.withAlpha(120),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(
+                            Icons.check_circle_rounded,
+                            color: AppColors.brightPurple,
+                          ),
+                          const SizedBox(width: AppSpacing.sm),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Selected pickup point',
+                                  style: AppTypography.caption(
+                                    color: p.textMuted,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  features.confirmedPickupPoint!.name,
+                                  style: AppTypography.bodyMedium(
+                                    color: p.textPrimary,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                Text(
+                                  '${features.confirmedPickupPoint!.landmark} • ${features.confirmedPickupPoint!.distance}',
+                                  style: AppTypography.small(
+                                    color: p.textSecondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                  ],
+                  EmployeePrimaryButton(
+                    label: features.confirmedPickupPoint == null
+                        ? 'Choose Alternative Pickup Point'
+                        : 'Change Pickup Point',
+                    icon: Icons.map_rounded,
+                    onPressed: () =>
+                        context.push(AppRoutes.pickupPointSelection),
+                  ),
+                  const SizedBox(height: AppSpacing.xl),
                   AppCard(
                     width: double.infinity,
                     child: Column(

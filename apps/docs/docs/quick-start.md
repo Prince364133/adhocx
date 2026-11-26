@@ -258,7 +258,7 @@ pnpm --filter @adhocx/docs typecheck
 pnpm --filter @adhocx/docs check:docs
 ```
 
-Open port `7007`. The production build creates the static site and local search index. No separate Docs unit-test script is declared; use the listed type, governance, and production-build checks.
+Open port `7007`. The docs development command builds and serves the static site so local search works; use `pnpm --filter @adhocx/docs run dev:watch` for hot reload (search indexing is unavailable in that mode). No separate Docs unit-test script is declared; use the listed type, governance, and production-build checks.
 
 ### Flutter / Android notes
 

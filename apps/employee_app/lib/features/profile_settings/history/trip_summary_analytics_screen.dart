@@ -75,6 +75,7 @@ class _TripSummaryAnalyticsScreenState
     if (!_initialized && (data?.loadingTripsHistory ?? false)) {
       return const EmployeeLoadingScaffold(
         appBar: EmployeeAppBar(title: 'Trip Summary'),
+        skeletonLayout: SkeletonLayout.analytics,
       );
     }
 

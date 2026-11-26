@@ -73,6 +73,7 @@ class _RequestDetailsTrackingScreenState
     if (_loading) {
       return const EmployeeLoadingScaffold(
         appBar: EmployeeAppBar(title: 'Request Details'),
+        skeletonLayout: SkeletonLayout.tickets,
       );
     }
     final p = EmployeePalette.of(context);

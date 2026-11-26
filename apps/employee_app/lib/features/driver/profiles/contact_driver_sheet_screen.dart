@@ -4,7 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
 import 'package:adhocx_employee/shared/components/components.dart';
 import 'package:adhocx_employee/shared/components/trip/trip_widgets.dart';
-import 'package:adhocx_employee/theme/app_colors.dart';
+import 'package:adhocx_employee/theme/app_spacing.dart';
 
 /// Contact Driver Sheet backed by live nextTrip / tracking driver info.
 class ContactDriverSheetScreen extends StatefulWidget {
@@ -96,12 +96,31 @@ class _ContactDriverSheetScreenState extends State<ContactDriverSheetScreen> {
                     title: 'Contact Driver',
                     scrollController: scrollController,
                     child: _isLoading
-                        ? const SizedBox(
+                        ? const SkeletonCard(
                             height: 180,
-                            child: Center(
-                              child: CircularProgressIndicator(
-                                color: AppColors.primary,
-                              ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    SkeletonAvatar(size: 56),
+                                    SizedBox(width: AppSpacing.md),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          SkeletonText(height: 14),
+                                          SizedBox(height: AppSpacing.sm),
+                                          SkeletonText(width: 120, height: 10),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                SizedBox(height: AppSpacing.xl),
+                                SkeletonButton(),
+                              ],
                             ),
                           )
                         : EmployeeDriverContactSheet(

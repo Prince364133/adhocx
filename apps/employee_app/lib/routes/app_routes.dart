@@ -78,6 +78,8 @@ class AppRoutes {
   static const String liveTrackingOverview = '/tracking/overview';
   static const String tripLiveMapFull = '/tracking/map-full';
   static const String pickupPointDetails = '/tracking/pickup-point';
+  static const String pickupPointSelection =
+      '/tracking/pickup-point-selection';
   static const String walkingDirections = '/tracking/walking-directions';
   static const String cabApproaching = '/tracking/cab-approaching';
   static const String cabArrived = '/tracking/cab-arrived';
@@ -134,6 +136,9 @@ class AppRoutes {
   static const String aboutAdhocx = '/about';
   static const String logoutConfirm = '/logout-confirm';
   static const String deleteAccount = '/delete-account';
+  static const String myNoShows = '/no-shows';
+  static const String addressRequestStatus = '/profile/address-request';
+  static const String addressUpdateForm = '/profile/address-update-form';
 
   // Route Aliases
   static const String safetyCenterOverview = safetyOverview;
@@ -367,6 +372,10 @@ class AppRoutes {
           path: pickupPointDetails,
           builder: (context, state) => const PickupPointDetailsScreen()),
       GoRoute(
+          path: pickupPointSelection,
+          builder: (context, state) =>
+              const PickupPointSelectionScreen()),
+      GoRoute(
           path: walkingDirections,
           builder: (context, state) => const WalkingDirectionsScreen()),
       GoRoute(
@@ -517,6 +526,18 @@ class AppRoutes {
               ? state.extra as EmployeeEmergencyContact
               : null,
         ),
+      ),
+      GoRoute(
+        path: myNoShows,
+        builder: (context, state) => const MyNoShowsScreen(),
+      ),
+      GoRoute(
+        path: addressRequestStatus,
+        builder: (context, state) => const AddressRequestStatusScreen(),
+      ),
+      GoRoute(
+        path: addressUpdateForm,
+        builder: (context, state) => const AddressUpdateRequestScreen(),
       ),
       GoRoute(
           path: settingsOverview,

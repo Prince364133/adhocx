@@ -11,4 +11,5 @@ export 'connectivity/gps_unavailable_screen.dart';
 export 'connectivity/stale_location_screen.dart';
 export 'connectivity/poor_network_screen.dart';
 export 'connectivity/reconnecting_screen.dart';
+export 'directions/pickup_point_selection_screen.dart';
 

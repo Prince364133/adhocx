@@ -6,6 +6,7 @@ import 'package:adhocx_employee/shared/components/components.dart';
 import 'package:adhocx_employee/shared/illustrations/trip_illustrations.dart';
 import 'package:adhocx_employee/state/employee_auth_provider.dart';
 import 'package:adhocx_employee/state/employee_data_provider.dart';
+import 'package:adhocx_employee/state/employee_feature_provider.dart';
 import 'package:adhocx_employee/theme/app_spacing.dart';
 import 'package:adhocx_employee/theme/app_typography.dart';
 import 'package:adhocx_employee/theme/employee_palette.dart';
@@ -47,6 +48,7 @@ class _HomeNoUpcomingTripScreenState extends State<HomeNoUpcomingTripScreen> {
         authProvider?.currentUser?.fullName ??
         'Commuter';
     final unreadCount = dataProvider?.unreadNotificationsCount ?? 0;
+    final features = context.watch<EmployeeFeatureProvider>();
 
     return Scaffold(
       backgroundColor: p.background,
@@ -70,6 +72,8 @@ class _HomeNoUpcomingTripScreenState extends State<HomeNoUpcomingTripScreen> {
                       onNotificationTap: () =>
                           context.push(AppRoutes.notificationsCenter),
                       onSosTap: () => context.push(AppRoutes.safetySos),
+                      onNoShowTap: () => context.push(AppRoutes.myNoShows),
+                      noShowCount: features.noShowCount,
                       onProfileTap: () =>
                           context.push(AppRoutes.profileDetails),
                     ),

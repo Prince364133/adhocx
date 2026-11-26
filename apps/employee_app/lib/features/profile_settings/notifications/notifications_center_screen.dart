@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
 import 'package:adhocx_employee/shared/components/components.dart';
 import 'package:adhocx_employee/state/employee_data_provider.dart';
+import 'package:adhocx_employee/state/employee_feature_provider.dart';
 import 'package:adhocx_employee/theme/app_colors.dart';
 import 'package:adhocx_employee/theme/app_spacing.dart';
 import 'package:adhocx_employee/theme/app_typography.dart';
@@ -92,14 +93,19 @@ class _NotificationsCenterScreenState extends State<NotificationsCenterScreen> {
     try {
       data = context.watch<EmployeeDataProvider>();
     } catch (_) {}
+    final features = context.watch<EmployeeFeatureProvider>();
 
     if (!_initialized && (data?.loadingNotifications ?? false)) {
       return const EmployeeLoadingScaffold(
         appBar: EmployeeAppBar(title: 'Notifications'),
+        skeletonLayout: SkeletonLayout.notifications,
       );
     }
 
-    final items = (data?.notifications ?? const <Map<String, dynamic>>[])
+    final items = [
+      ...features.featureNotifications,
+      ...(data?.notifications ?? const <Map<String, dynamic>>[]),
+    ]
         .where(_matches)
         .toList();
 

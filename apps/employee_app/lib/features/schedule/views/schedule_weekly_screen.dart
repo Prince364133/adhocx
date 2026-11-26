@@ -93,9 +93,14 @@ class _ScheduleWeeklyScreenState extends State<ScheduleWeeklyScreen> {
       onRefresh: _fetchWeek,
       children: [
         if (_loading)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: AppSpacing.xxl),
-            child: Center(child: CircularProgressIndicator()),
+          const Column(
+            children: [
+              SkeletonListItem(height: 76),
+              SizedBox(height: AppSpacing.sm),
+              SkeletonListItem(height: 76),
+              SizedBox(height: AppSpacing.sm),
+              SkeletonListItem(height: 76),
+            ],
           )
         else
           for (var offset = 0; offset < 7; offset++)

@@ -126,9 +126,9 @@ class _ScheduleMonthlyScreenState extends State<ScheduleMonthlyScreen> {
         ),
         const SizedBox(height: AppSpacing.md),
         if (_loading)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: AppSpacing.xl),
-            child: Center(child: CircularProgressIndicator()),
+          const SkeletonCard(
+            height: 240,
+            child: SkeletonBone(width: double.infinity, height: 180),
           )
         else
           GridView.builder(

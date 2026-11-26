@@ -85,9 +85,12 @@ class _ScheduleDailyScreenState extends State<ScheduleDailyScreen> {
       onRefresh: _fetchDay,
       children: [
         if (_loading)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: AppSpacing.xxl),
-            child: Center(child: CircularProgressIndicator()),
+          const Column(
+            children: [
+              SkeletonListItem(height: 84),
+              SizedBox(height: AppSpacing.sm),
+              SkeletonListItem(height: 84),
+            ],
           )
         else if (_dayItems.isEmpty)
           AppCard(

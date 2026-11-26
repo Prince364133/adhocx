@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../theme/app_spacing.dart';
 import '../../../theme/app_typography.dart';
 import '../../../theme/employee_palette.dart';
+import '../feedback/skeleton_loading.dart';
 
 /// Full-screen "centred message" layout used by onboarding, permission,
 /// verification and status screens:
@@ -112,11 +113,16 @@ class EmployeeCenteredLayout extends StatelessWidget {
   }
 }
 
-/// Full-screen loading state: page background + brand spinner.
+/// Full-screen loading state: adaptive page-specific skeleton layout.
 class EmployeeLoadingScaffold extends StatelessWidget {
   final PreferredSizeWidget? appBar;
+  final SkeletonLayout skeletonLayout;
 
-  const EmployeeLoadingScaffold({super.key, this.appBar});
+  const EmployeeLoadingScaffold({
+    super.key,
+    this.appBar,
+    this.skeletonLayout = SkeletonLayout.generic,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -124,7 +130,9 @@ class EmployeeLoadingScaffold extends StatelessWidget {
     return Scaffold(
       backgroundColor: p.background,
       appBar: appBar,
-      body: Center(child: CircularProgressIndicator(color: p.accent)),
+      body: SafeArea(
+        child: SkeletonContainer(layout: skeletonLayout),
+      ),
     );
   }
 }

@@ -186,6 +186,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     if (_isLoading) {
       return const EmployeeLoadingScaffold(
         appBar: EmployeeAppBar(title: 'Edit Profile'),
+        skeletonLayout: SkeletonLayout.form,
       );
     }
     final p = EmployeePalette.of(context);
