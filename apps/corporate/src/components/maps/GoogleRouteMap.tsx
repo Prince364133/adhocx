@@ -62,6 +62,21 @@ function formatIstTime(iso?: string | null): string {
   }).format(parsed);
 }
 
+function isValidMapPoint(point: { lat: number; lng: number }): boolean {
+  return (
+    Number.isFinite(point.lat) &&
+    Number.isFinite(point.lng) &&
+    point.lat >= -85 &&
+    point.lat <= 85 &&
+    point.lng >= -180 &&
+    point.lng <= 180
+  );
+}
+
+function mercatorY(latitude: number): number {
+  return Math.log(Math.tan(Math.PI / 4 + (latitude * Math.PI) / 360));
+}
+
 const darkMapStyles = [
   { elementType: 'geometry', stylers: [{ color: '#242424' }] },
   { elementType: 'labels.text.fill', stylers: [{ color: '#B0B0B0' }] },
@@ -124,13 +139,56 @@ export function GoogleRouteMap({
     }
     return pts;
   }, [decodedPath, validStops, office]);
-  const hasCoordinates =
-    validStops.length > 0 ||
-    (office !== null && Number.isFinite(Number(office.lat)) && Number.isFinite(Number(office.lng))) ||
-    (livePosition !== null &&
-      livePosition !== undefined &&
-      Number.isFinite(livePosition.lat) &&
-      Number.isFinite(livePosition.lng));
+  const mapPoints = useMemo(
+    () =>
+      [
+        ...pathPoints,
+        ...validStops.map((stop) => ({ lat: Number(stop.lat), lng: Number(stop.lng) })),
+        ...(office ? [{ lat: Number(office.lat), lng: Number(office.lng) }] : []),
+        ...(livePosition ? [{ lat: livePosition.lat, lng: livePosition.lng }] : []),
+      ].filter(isValidMapPoint),
+    [pathPoints, validStops, office, livePosition],
+  );
+  const hasCoordinates = mapPoints.length > 0;
+  const projectFallbackPoint = useMemo(() => {
+    if (!mapPoints.length) return null;
+
+    const xs = mapPoints.map((point) => point.lng);
+    const ys = mapPoints.map((point) => mercatorY(point.lat));
+    const xPadding = Math.max((Math.max(...xs) - Math.min(...xs)) * 0.15, 0.00003);
+    const yPadding = Math.max((Math.max(...ys) - Math.min(...ys)) * 0.15, 0.00003);
+    const west = Math.min(...xs) - xPadding;
+    const east = Math.max(...xs) + xPadding;
+    const south = Math.min(...ys) - yPadding;
+    const north = Math.max(...ys) + yPadding;
+    const width = 800;
+    const height = 440;
+    const margin = 36;
+    const scale = Math.min((width - margin * 2) / (east - west), (height - margin * 2) / (north - south));
+    const offsetX = (width - (east - west) * scale) / 2;
+    const offsetY = (height - (north - south) * scale) / 2;
+
+    return (point: { lat: number; lng: number }) => ({
+      x: offsetX + (point.lng - west) * scale,
+      y: offsetY + (north - mercatorY(point.lat)) * scale,
+    });
+  }, [mapPoints]);
+  const fallbackRoutePath = useMemo(() => {
+    if (!projectFallbackPoint) return '';
+
+    return pathPoints
+      .filter(isValidMapPoint)
+      .map((point) => projectFallbackPoint(point))
+      .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`)
+      .join(' ');
+  }, [pathPoints, projectFallbackPoint]);
+  const openStreetMapUrl = useMemo(() => {
+    if (!mapPoints.length) return null;
+
+    const centerLat = mapPoints.reduce((sum, point) => sum + point.lat, 0) / mapPoints.length;
+    const centerLng = mapPoints.reduce((sum, point) => sum + point.lng, 0) / mapPoints.length;
+    return `https://www.openstreetmap.org/?mlat=${centerLat}&mlon=${centerLng}#map=14/${centerLat}/${centerLng}`;
+  }, [mapPoints]);
 
   useEffect(() => {
     if (!apiKey) return;
@@ -385,40 +443,155 @@ export function GoogleRouteMap({
           backgroundColor: 'var(--bg-canvas)',
           display: 'flex',
           flexDirection: 'column',
-          justifyContent: 'space-between',
-          padding: '18px',
+          overflow: 'hidden',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--color-warning-text)' }}>
-          <AlertTriangle size={18} />
-          <div>
-            <div style={{ fontSize: '13px', fontWeight: 700 }}>Interactive Google Map Unavailable</div>
-            <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: 2 }}>{mapError}</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 14px' }}>
+          {hasCoordinates ? (
+            <MapPin size={18} color="var(--color-success-text)" />
+          ) : (
+            <AlertTriangle size={18} color="var(--color-warning-text)" />
+          )}
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
+              {hasCoordinates ? 'Coordinate Route Preview' : 'Route Map Unavailable'}
+            </div>
+            <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: 2 }}>
+              {hasCoordinates
+                ? `${mapError || 'Google Maps is unavailable.'} Showing the saved route coordinates instead.`
+                : 'No valid route or GPS coordinates are available.'}
+            </div>
           </div>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', overflowY: 'auto', marginTop: '12px' }}>
-          {validStops.map((s) => (
-            <div
-              key={`${s.stopSequence}-${s.id || s.lat}`}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                padding: '8px 10px',
-                borderRadius: '8px',
-                backgroundColor: 'var(--bg-surface)',
-                border: '1px solid var(--border-subtle)',
-                fontSize: '12px',
-              }}
+        {hasCoordinates && projectFallbackPoint ? (
+          <div style={{ flex: 1, minHeight: 220, padding: '8px 12px 0' }}>
+            <svg
+              viewBox="0 0 800 440"
+              role="img"
+              aria-label="Coordinate-based route overview with numbered pickup stops and office destination"
+              style={{ display: 'block', width: '100%', height: '100%', background: 'var(--bg-surface)', borderRadius: 8 }}
             >
-              <MapPin size={14} />
-              <span style={{ fontWeight: 600 }}>#{s.stopSequence} {s.employeeName || s.stopType}</span>
-              <span style={{ color: 'var(--text-muted)', marginLeft: 'auto', fontFamily: 'monospace' }}>
-                {Number(s.lat).toFixed(4)}, {Number(s.lng).toFixed(4)}
-              </span>
-            </div>
-          ))}
-        </div>
+              <path
+                d={fallbackRoutePath}
+                fill="none"
+                stroke="var(--color-map-route, #4F46E5)"
+                strokeWidth="6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeDasharray={decodedPath && decodedPath.length >= 2 ? undefined : '10 9'}
+              />
+              {validStops.filter((stop) => isValidMapPoint({ lat: Number(stop.lat), lng: Number(stop.lng) })).map((stop) => {
+                const point = projectFallbackPoint({ lat: Number(stop.lat), lng: Number(stop.lng) });
+                const isHighlighted = highlightedStopSequence === stop.stopSequence;
+                const fillColor =
+                  stop.status === 'BOARDED' || stop.status === 'COMPLETED'
+                    ? '#10B981'
+                    : isHighlighted
+                      ? '#F59E0B'
+                      : '#4F46E5';
+
+                return (
+                  <g
+                    key={`fallback-stop-${stop.stopSequence}-${stop.id || stop.lat}`}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Select stop ${stop.stopSequence}: ${stop.employeeName || stop.stopType}`}
+                    onClick={() => onSelectStop?.(stop.stopSequence)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        onSelectStop?.(stop.stopSequence);
+                      }
+                    }}
+                    style={{ cursor: onSelectStop ? 'pointer' : 'default' }}
+                  >
+                    <circle cx={point.x} cy={point.y} r={isHighlighted ? 16 : 13} fill={fillColor} stroke="#FFFFFF" strokeWidth="3" />
+                    <text
+                      x={point.x}
+                      y={point.y + 4}
+                      fill="#FFFFFF"
+                      fontSize="12"
+                      fontWeight="700"
+                      textAnchor="middle"
+                    >
+                      {stop.stopSequence}
+                    </text>
+                  </g>
+                );
+              })}
+              {office && isValidMapPoint({ lat: Number(office.lat), lng: Number(office.lng) }) && (() => {
+                const point = projectFallbackPoint({ lat: Number(office.lat), lng: Number(office.lng) });
+                return (
+                  <g aria-label={`Office destination: ${office.name}`}>
+                    <circle cx={point.x} cy={point.y} r="15" fill="#059669" stroke="#FFFFFF" strokeWidth="3" />
+                    <text x={point.x} y={point.y + 4} fill="#FFFFFF" fontSize="10" fontWeight="700" textAnchor="middle">
+                      HQ
+                    </text>
+                  </g>
+                );
+              })()}
+              {livePosition && isValidMapPoint(livePosition) && (() => {
+                const point = projectFallbackPoint(livePosition);
+                return (
+                  <g aria-label={`${livePosition.gpsState} vehicle position`}>
+                    <circle cx={point.x} cy={point.y} r="15" fill="#2563EB" stroke="#FFFFFF" strokeWidth="3" />
+                    <text x={point.x} y={point.y + 4} fill="#FFFFFF" fontSize="9" fontWeight="700" textAnchor="middle">
+                      GPS
+                    </text>
+                  </g>
+                );
+              })()}
+            </svg>
+          </div>
+        ) : (
+          <div style={{ flex: 1, minHeight: 220, display: 'grid', placeItems: 'center', color: 'var(--text-muted)' }}>
+            Route location data is not available.
+          </div>
+        )}
+        {openStreetMapUrl && (
+          <a
+            href={openStreetMapUrl}
+            target="_blank"
+            rel="noreferrer"
+            style={{ padding: '4px 14px 0', fontSize: 12, color: 'var(--text-secondary)', textDecoration: 'underline' }}
+          >
+            View this area on OpenStreetMap
+          </a>
+        )}
+        {validStops.length > 0 && (
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '8px',
+              overflowY: 'auto',
+              maxHeight: 150,
+              padding: '10px 12px',
+            }}
+          >
+            {validStops.map((s) => (
+              <div
+                key={`${s.stopSequence}-${s.id || s.lat}`}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  padding: '8px 10px',
+                  borderRadius: '8px',
+                  backgroundColor: 'var(--bg-surface)',
+                  border: '1px solid var(--border-subtle)',
+                  fontSize: '12px',
+                }}
+              >
+                <MapPin size={14} />
+                <span style={{ fontWeight: 600 }}>#{s.stopSequence} {s.employeeName || s.stopType}</span>
+                <span style={{ color: 'var(--text-muted)', marginLeft: 'auto', fontFamily: 'monospace' }}>
+                  {Number(s.lat).toFixed(4)}, {Number(s.lng).toFixed(4)}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     );
   }

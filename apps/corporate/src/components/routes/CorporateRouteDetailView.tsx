@@ -434,7 +434,7 @@ export function CorporateRouteDetailView({ routeId }: { routeId: string }) {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
               <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>
-                Route Map (Google Maps)
+                Route Map
               </h2>
               <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
                 Numbered employee pickup stops, road path, and office campus destination
@@ -450,7 +450,7 @@ export function CorporateRouteDetailView({ routeId }: { routeId: string }) {
                 color: directions?.isRealRoad ? 'var(--color-success-text)' : 'var(--color-warning-text)',
               }}
             >
-              {directions?.isRealRoad ? 'Live Google Roads' : 'Route Fallback'}
+              {directions?.isRealRoad ? 'Road Directions' : 'Planned Route'}
             </span>
           </div>
 
