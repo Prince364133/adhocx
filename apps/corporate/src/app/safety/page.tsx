@@ -12,7 +12,10 @@ import {
 import { safetyApi } from '../../lib/api/corporate';
 import { OPEN_SOS_STATUSES, type SosAlert, type SafetyIncident } from '../../lib/api/types';
 import { useSession } from '../../lib/auth/SessionContext';
+import { ContentLoadingSkeleton } from '@adhocx/ui/page-loading';
 import MetricCard from '../../components/common/MetricCard';
+import LazyScrollSentinel from '../../components/common/LazyScrollSentinel';
+import { useLazySlice } from '../../lib/hooks/useInfiniteScroll';
 
 export default function SafetyOverviewPage() {
   const { tenantId } = useSession();
@@ -68,6 +71,11 @@ export default function SafetyOverviewPage() {
     const matchesSeverity = severityFilter === 'All' || inc.severity === severityFilter;
     return matchesSearch && matchesSeverity;
   });
+  const { visibleItems: visibleIncidents, hasMore, sentinelRef } = useLazySlice(
+    filteredIncidents,
+    `${severityFilter}|${searchTerm}`,
+    20,
+  );
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -130,25 +138,28 @@ export default function SafetyOverviewPage() {
       >
         <MetricCard
           label="Incident records"
-          value={loading ? '...' : incidents.length.toString()}
+          value={incidents.length.toString()}
           delta={`${incidents.filter((i) => i.status === 'RESOLVED').length} Resolved`}
           deltaType="positive"
+          loading={loading}
           icon={<ShieldAlert size={20} />}
           category="primary"
         />
         <MetricCard
           label="SOS alert records"
-          value={loading ? '...' : alerts.length.toString()}
+          value={alerts.length.toString()}
           delta="Tenant API records"
           deltaType="neutral"
+          loading={loading}
           icon={<Radio size={20} />}
           category="info"
         />
         <MetricCard
           label="Active SOS alerts"
-          value={loading ? '...' : activeSosCount.toString()}
+          value={activeSosCount.toString()}
           delta={activeSosCount > 0 ? 'Requires review' : 'No active alert records'}
           deltaType={activeSosCount > 0 ? 'negative' : 'positive'}
+          loading={loading}
           icon={<PhoneCall size={20} />}
           category={activeSosCount > 0 ? 'danger' : 'success'}
         />
@@ -218,88 +229,91 @@ export default function SafetyOverviewPage() {
         }}
       >
         {loading ? (
-          <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-secondary)' }}>
-            Loading incidents...
+          <div style={{ padding: 20 }}>
+            <ContentLoadingSkeleton kind="table" count={6} label="Loading safety incidents…" />
           </div>
         ) : filteredIncidents.length === 0 ? (
           <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-secondary)' }}>
             No safety incidents match this filter.
           </div>
         ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, textAlign: 'left' }}>
-              <thead>
-                <tr style={{ backgroundColor: 'var(--bg-surface-muted)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: 12, fontWeight: 600 }}>
-                  <th style={{ padding: '12px 16px' }}>Incident ID</th>
-                  <th style={{ padding: '12px 16px' }}>Severity</th>
-                  <th style={{ padding: '12px 16px' }}>Summary / Type</th>
-                  <th style={{ padding: '12px 16px' }}>Logged Time</th>
-                  <th style={{ padding: '12px 16px' }}>Status</th>
-                  <th style={{ padding: '12px 16px', textAlign: 'right' }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredIncidents.map((inc) => (
-                  <tr key={inc.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                    <td style={{ padding: '14px 16px', fontWeight: 800, color: 'var(--text-primary)' }}>
-                      {inc.id.slice(0, 8)}
-                    </td>
-                    <td style={{ padding: '14px 16px' }}>
-                      <span
-                        style={{
-                          padding: '3px 8px',
-                          backgroundColor: inc.severity === 'CRITICAL' ? '#FEE2E2' : '#FEF3C7',
-                          color: inc.severity === 'CRITICAL' ? '#DC2626' : '#D97706',
-                          borderRadius: 4,
-                          fontSize: 11,
-                          fontWeight: 700,
-                        }}
-                      >
-                        {inc.severity}
-                      </span>
-                    </td>
-                    <td style={{ padding: '14px 16px', fontWeight: 600, color: 'var(--text-primary)' }}>
-                      {inc.title}
-                    </td>
-                    <td style={{ padding: '14px 16px', color: 'var(--text-secondary)', fontSize: 12 }}>
-                      {new Date(inc.createdAt).toLocaleString()}
-                    </td>
-                    <td style={{ padding: '14px 16px' }}>
-                      <span
-                        style={{
-                          padding: '3px 8px',
-                          backgroundColor: inc.status === 'RESOLVED' ? '#DCFCE7' : '#EFF6FF',
-                          color: inc.status === 'RESOLVED' ? '#16A34A' : '#5728B2',
-                          borderRadius: 4,
-                          fontSize: 11,
-                          fontWeight: 700,
-                        }}
-                      >
-                        {inc.status}
-                      </span>
-                    </td>
-                    <td style={{ padding: '14px 16px', textAlign: 'right' }}>
-                      <Link
-                        href={`/safety/incidents/details?id=${inc.id}`}
-                        style={{
-                          padding: '4px 10px',
-                          borderRadius: 4,
-                          border: '1px solid var(--border-strong)',
-                          backgroundColor: 'var(--bg-surface)',
-                          fontSize: 12,
-                          fontWeight: 600,
-                          color: '#5728B2',
-                          textDecoration: 'none',
-                        }}
-                      >
-                        Dossier
-                      </Link>
-                    </td>
+          <>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, textAlign: 'left' }}>
+                <thead>
+                  <tr style={{ backgroundColor: 'var(--bg-surface-muted)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: 12, fontWeight: 600 }}>
+                    <th style={{ padding: '12px 16px' }}>Incident ID</th>
+                    <th style={{ padding: '12px 16px' }}>Severity</th>
+                    <th style={{ padding: '12px 16px' }}>Summary / Type</th>
+                    <th style={{ padding: '12px 16px' }}>Logged Time</th>
+                    <th style={{ padding: '12px 16px' }}>Status</th>
+                    <th style={{ padding: '12px 16px', textAlign: 'right' }}>Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {visibleIncidents.map((inc) => (
+                    <tr key={inc.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                      <td style={{ padding: '14px 16px', fontWeight: 800, color: 'var(--text-primary)' }}>
+                        {inc.id.slice(0, 8)}
+                      </td>
+                      <td style={{ padding: '14px 16px' }}>
+                        <span
+                          style={{
+                            padding: '3px 8px',
+                            backgroundColor: inc.severity === 'CRITICAL' ? '#FEE2E2' : '#FEF3C7',
+                            color: inc.severity === 'CRITICAL' ? '#DC2626' : '#D97706',
+                            borderRadius: 4,
+                            fontSize: 11,
+                            fontWeight: 700,
+                          }}
+                        >
+                          {inc.severity}
+                        </span>
+                      </td>
+                      <td style={{ padding: '14px 16px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                        {inc.title}
+                      </td>
+                      <td style={{ padding: '14px 16px', color: 'var(--text-secondary)', fontSize: 12 }}>
+                        {new Date(inc.createdAt).toLocaleString()}
+                      </td>
+                      <td style={{ padding: '14px 16px' }}>
+                        <span
+                          style={{
+                            padding: '3px 8px',
+                            backgroundColor: inc.status === 'RESOLVED' ? '#DCFCE7' : '#EFF6FF',
+                            color: inc.status === 'RESOLVED' ? '#16A34A' : '#5728B2',
+                            borderRadius: 4,
+                            fontSize: 11,
+                            fontWeight: 700,
+                          }}
+                        >
+                          {inc.status}
+                        </span>
+                      </td>
+                      <td style={{ padding: '14px 16px', textAlign: 'right' }}>
+                        <Link
+                          href={`/safety/incidents/details?id=${inc.id}`}
+                          style={{
+                            padding: '4px 10px',
+                            borderRadius: 4,
+                            border: '1px solid var(--border-strong)',
+                            backgroundColor: 'var(--bg-surface)',
+                            fontSize: 12,
+                            fontWeight: 600,
+                            color: '#5728B2',
+                            textDecoration: 'none',
+                          }}
+                        >
+                          Dossier
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <LazyScrollSentinel sentinelRef={sentinelRef} hasMore={hasMore} label="Loading more incidents…" />
+          </>
         )}
       </div>
     </div>

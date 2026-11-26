@@ -1,11 +1,14 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
+import { ContentLoadingSkeleton, LazyMount } from '@adhocx/ui/page-loading';
 import { Car, MapPin, Radio, Search, User } from 'lucide-react';
-import { GoogleRouteMap } from '../../../components/maps/GoogleRouteMap';
+import { LazyScrollSentinel } from '../../../components/common/LazyScrollSentinel';
+import { LazyGoogleRouteMap } from '../../../components/maps/LazyGoogleRouteMap';
 import { employeeApi, routesApi } from '../../../lib/api/corporate';
 import type { CorporateEmployee, CorporateRoute, RouteTracking } from '../../../lib/api/types';
 import { useSession } from '../../../lib/auth/SessionContext';
+import { useLazySlice } from '../../../lib/hooks/useInfiniteScroll';
 
 export default function EmployeeLiveTrackingPage() {
   const { tenantId } = useSession();
@@ -95,6 +98,11 @@ export default function EmployeeLiveTrackingPage() {
       employee.department,
     ].some((value) => value?.toLowerCase().includes(query));
   });
+  const { visibleItems: visibleEmployees, hasMore, sentinelRef } = useLazySlice(
+    searchResults,
+    search,
+    30,
+  );
 
   const mapStops = selectedRoute?.stops?.map((stop) => ({
     id: stop.id,
@@ -134,31 +142,40 @@ export default function EmployeeLiveTrackingPage() {
           />
         </div>
         {loading ? (
-          <p style={{ color: 'var(--text-secondary)' }}>Loading tenant employees and active routes...</p>
+          <div style={{ marginTop: 14 }}>
+            <ContentLoadingSkeleton kind="list" count={4} label="Loading tenant employees and active routes…" />
+          </div>
         ) : error ? (
           <p role="alert" style={{ color: '#B91C1C' }}>{error}</p>
         ) : searchResults.length === 0 ? (
           <p style={{ color: 'var(--text-secondary)' }}>No tenant employees match this search.</p>
         ) : (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 14 }}>
-            {searchResults.map((employee) => (
-              <button
-                type="button"
-                key={employee.id}
-                onClick={() => setSelectedId(employee.id)}
-                aria-pressed={selectedId === employee.id}
-                style={{
-                  padding: '7px 10px',
-                  borderRadius: 6,
-                  border: `1px solid ${selectedId === employee.id ? '#5728B2' : 'var(--border-strong)'}`,
-                  background: selectedId === employee.id ? '#EFF6FF' : 'var(--bg-surface)',
-                  cursor: 'pointer',
-                }}
-              >
-                {employee.fullName} · {employee.employeeCode}
-              </button>
-            ))}
-          </div>
+          <>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 14 }}>
+              {visibleEmployees.map((employee) => (
+                <button
+                  type="button"
+                  key={employee.id}
+                  onClick={() => setSelectedId(employee.id)}
+                  aria-pressed={selectedId === employee.id}
+                  style={{
+                    padding: '7px 10px',
+                    borderRadius: 6,
+                    border: `1px solid ${selectedId === employee.id ? '#5728B2' : 'var(--border-strong)'}`,
+                    background: selectedId === employee.id ? '#EFF6FF' : 'var(--bg-surface)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {employee.fullName} · {employee.employeeCode}
+                </button>
+              ))}
+            </div>
+            <LazyScrollSentinel
+              sentinelRef={sentinelRef}
+              hasMore={hasMore}
+              label="Loading more employees…"
+            />
+          </>
         )}
       </div>
 
@@ -193,24 +210,29 @@ export default function EmployeeLiveTrackingPage() {
                   <Radio size={14} /> GPS: {tracking?.gpsState ?? 'Unavailable'}
                   {tracking?.position && ` · recorded ${new Date(tracking.position.recordedAt).toLocaleString()}`}
                 </p>
-                <GoogleRouteMap
-                  height={340}
-                  office={selectedRoute.office?.latitude !== undefined && selectedRoute.office.longitude !== undefined
-                    ? {
-                        name: selectedRoute.office.name,
-                        addressText: selectedRoute.office.addressText,
-                        lat: Number(selectedRoute.office.latitude),
-                        lng: Number(selectedRoute.office.longitude),
-                      }
-                    : null}
-                  stops={mapStops}
-                  livePosition={tracking?.position ? {
-                    lat: tracking.position.lat,
-                    lng: tracking.position.lng,
-                    recordedAt: tracking.position.recordedAt,
-                    gpsState: tracking.gpsState,
-                  } : null}
-                />
+                <LazyMount
+                  minHeight={340}
+                  fallback={<ContentLoadingSkeleton kind="map" height={340} label="Preparing live map…" />}
+                >
+                  <LazyGoogleRouteMap
+                    height={340}
+                    office={selectedRoute.office?.latitude !== undefined && selectedRoute.office.longitude !== undefined
+                      ? {
+                          name: selectedRoute.office.name,
+                          addressText: selectedRoute.office.addressText,
+                          lat: Number(selectedRoute.office.latitude),
+                          lng: Number(selectedRoute.office.longitude),
+                        }
+                      : null}
+                    stops={mapStops}
+                    livePosition={tracking?.position ? {
+                      lat: tracking.position.lat,
+                      lng: tracking.position.lng,
+                      recordedAt: tracking.position.recordedAt,
+                      gpsState: tracking.gpsState,
+                    } : null}
+                  />
+                </LazyMount>
               </>
             ) : (
               <p style={{ color: 'var(--text-secondary)' }}>No active route is linked to this employee.</p>

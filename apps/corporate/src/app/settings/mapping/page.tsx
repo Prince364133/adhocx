@@ -1,8 +1,11 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { ContentLoadingSkeleton } from '@adhocx/ui/page-loading';
 import { tenantApi } from '../../../lib/api/corporate';
 import type { TenantIntegrations } from '../../../lib/api/types';
+import LazyScrollSentinel from '../../../components/common/LazyScrollSentinel';
+import { useLazySlice } from '../../../lib/hooks/useInfiniteScroll';
 import { useSession } from '../../../lib/auth/SessionContext';
 
 export default function ImportMappingEnginePage() {
@@ -34,6 +37,9 @@ export default function ImportMappingEnginePage() {
     void loadMappings();
   }, [loadMappings]);
 
+  const fieldMappings = integrations?.fieldMappings ?? [];
+  const { visibleItems: visibleMappings, hasMore, sentinelRef } = useLazySlice(fieldMappings, fieldMappings.length, 20);
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       <header>
@@ -43,14 +49,18 @@ export default function ImportMappingEnginePage() {
         </p>
       </header>
       {error && <p role="alert" style={{ color: 'var(--color-danger)' }}>{error}</p>}
-      {loading && <p role="status">Loading field mappings…</p>}
+      {loading && (
+        <section className="surface-card" style={{ padding: 20 }}>
+          <ContentLoadingSkeleton kind="table" count={5} label="Loading field mappings…" />
+        </section>
+      )}
       {!loading && !error && integrations && (
-        integrations.fieldMappings.length > 0 ? (
+        fieldMappings.length > 0 ? (
           <section className="surface-card" style={{ padding: 20 }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
               <thead><tr><th>System field</th><th>External field</th><th>Required</th><th>Status</th></tr></thead>
               <tbody>
-                {integrations.fieldMappings.map((mapping) => (
+                {visibleMappings.map((mapping) => (
                   <tr key={mapping.systemField}>
                     <td>{mapping.systemField}</td>
                     <td>{mapping.hrmsField}</td>
@@ -60,6 +70,7 @@ export default function ImportMappingEnginePage() {
                 ))}
               </tbody>
             </table>
+            <LazyScrollSentinel sentinelRef={sentinelRef} hasMore={hasMore} label="Loading more field mappings…" />
           </section>
         ) : (
           <section className="surface-card" style={{ padding: 32, textAlign: 'center' }}>

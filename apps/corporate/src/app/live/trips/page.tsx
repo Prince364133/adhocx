@@ -2,8 +2,9 @@
 
 import React, { useState, useEffect, Suspense } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
+import { ContentLoadingSkeleton, LazyMount, PageLoadingSkeleton } from '@adhocx/ui/page-loading';
 import { Navigation } from 'lucide-react';
-import { GoogleRouteMap } from '../../../components/maps/GoogleRouteMap';
+import { LazyGoogleRouteMap } from '../../../components/maps/LazyGoogleRouteMap';
 import { routesApi } from '../../../lib/api/corporate';
 import type { CorporateRoute, RouteTracking } from '../../../lib/api/types';
 
@@ -66,11 +67,7 @@ function LiveTripDetailsContent() {
   }, [selectedRouteId]);
 
   if (loading) {
-    return (
-      <div className="surface-card" style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)' }}>
-        Loading live trip details...
-      </div>
-    );
+    return <PageLoadingSkeleton variant="map" />;
   }
 
   if (!selectedRoute) {
@@ -181,24 +178,29 @@ function LiveTripDetailsContent() {
               </span>
             </div>
 
-            <GoogleRouteMap
-              height={360}
-              office={selectedRoute.office?.latitude !== undefined && selectedRoute.office.longitude !== undefined
-                ? {
-                    name: selectedRoute.office.name,
-                    addressText: selectedRoute.office.addressText,
-                    lat: Number(selectedRoute.office.latitude),
-                    lng: Number(selectedRoute.office.longitude),
-                  }
-                : null}
-              stops={mapStops}
-              livePosition={tracking?.position ? {
-                lat: tracking.position.lat,
-                lng: tracking.position.lng,
-                recordedAt: tracking.position.recordedAt,
-                gpsState: tracking.gpsState,
-              } : null}
-            />
+            <LazyMount
+              minHeight={360}
+              fallback={<ContentLoadingSkeleton kind="map" height={360} label="Preparing route map…" />}
+            >
+              <LazyGoogleRouteMap
+                height={360}
+                office={selectedRoute.office?.latitude !== undefined && selectedRoute.office.longitude !== undefined
+                  ? {
+                      name: selectedRoute.office.name,
+                      addressText: selectedRoute.office.addressText,
+                      lat: Number(selectedRoute.office.latitude),
+                      lng: Number(selectedRoute.office.longitude),
+                    }
+                  : null}
+                stops={mapStops}
+                livePosition={tracking?.position ? {
+                  lat: tracking.position.lat,
+                  lng: tracking.position.lng,
+                  recordedAt: tracking.position.recordedAt,
+                  gpsState: tracking.gpsState,
+                } : null}
+              />
+            </LazyMount>
           </div>
 
           {/* Bottom Driver & Vehicle Summary Card */}
@@ -452,7 +454,7 @@ function LiveTripDetailsContent() {
 
 export default function LiveTripDetailsPage() {
   return (
-    <Suspense fallback={<div className="surface-card" style={{ padding: '40px', textAlign: 'center' }}>Loading trip...</div>}>
+    <Suspense fallback={<PageLoadingSkeleton variant="map" />}>
       <LiveTripDetailsContent />
     </Suspense>
   );

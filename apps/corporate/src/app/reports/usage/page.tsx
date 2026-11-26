@@ -2,10 +2,13 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { Download, Users, UserCheck, Route, CheckCircle2 } from 'lucide-react';
+import { ContentLoadingSkeleton, LazyMount } from '@adhocx/ui/page-loading';
 import { analyticsApi, employeeApi } from '../../../lib/api/corporate';
 import type { AttendancePage, Employee } from '../../../lib/api/types';
 import MetricCard from '../../../components/common/MetricCard';
-import { DonutChart } from '../../../components/charts/DonutChart';
+import LazyScrollSentinel from '../../../components/common/LazyScrollSentinel';
+import { LazyDonutChart } from '../../../components/charts/LazyCharts';
+import { useLazySlice } from '../../../lib/hooks/useInfiniteScroll';
 import { useSession } from '../../../lib/auth/SessionContext';
 import { addDays, todayIst } from '../../../lib/format';
 
@@ -81,6 +84,7 @@ export default function EmployeeUsageReportPage() {
     pct: employeeTotal > 0 ? Math.round((item.employees / employeeTotal) * 100) : 0,
     color: chartColors[index % chartColors.length],
   }));
+  const { visibleItems: visibleDepartments, hasMore, sentinelRef } = useLazySlice(departmentUsage, departmentUsage.length, 20);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -106,10 +110,10 @@ export default function EmployeeUsageReportPage() {
       {error && <div role="alert" className="surface-card" style={{ padding: 14, color: '#B91C1C' }}>{error}</div>}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
-        <MetricCard label="Registered employees" value={loading ? '...' : employeeTotal.toLocaleString()} icon={<Users size={20} />} category="primary" />
-        <MetricCard label="Active employees loaded" value={loading ? '...' : activeEmployees.toLocaleString()} icon={<UserCheck size={20} />} category="success" />
-        <MetricCard label="Scheduled rides (30 days)" value={loading ? '...' : attendance ? scheduledRides.toLocaleString() : '—'} icon={<Route size={20} />} category="info" />
-        <MetricCard label="Boarded rides (30 days)" value={loading ? '...' : attendance ? boardedRides.toLocaleString() : '—'} icon={<CheckCircle2 size={20} />} category="warning" />
+        <MetricCard label="Registered employees" value={employeeTotal.toLocaleString()} loading={loading} icon={<Users size={20} />} category="primary" />
+        <MetricCard label="Active employees loaded" value={activeEmployees.toLocaleString()} loading={loading} icon={<UserCheck size={20} />} category="success" />
+        <MetricCard label="Scheduled rides (30 days)" value={attendance ? scheduledRides.toLocaleString() : '—'} loading={loading} icon={<Route size={20} />} category="info" />
+        <MetricCard label="Boarded rides (30 days)" value={attendance ? boardedRides.toLocaleString() : '—'} loading={loading} icon={<CheckCircle2 size={20} />} category="warning" />
       </div>
 
       {attendance && attendance.total > attendance.items.length && (
@@ -121,35 +125,47 @@ export default function EmployeeUsageReportPage() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: 16 }}>
         <section className="surface-card" style={{ padding: 20 }}>
           <h2 style={{ fontSize: 15, fontWeight: 700, marginTop: 0 }}>Employee distribution by department</h2>
-          {chartData.length === 0 ? (
+          {loading ? (
+            <ContentLoadingSkeleton kind="chart" height={200} label="Loading department breakdown…" />
+          ) : chartData.length === 0 ? (
             <p style={{ color: 'var(--text-secondary)' }}>No employee department data is available.</p>
           ) : (
-            <DonutChart segments={chartData} totalValue={employeeTotal} totalLabel="Employees" size={180} />
+            <LazyMount
+              minHeight={200}
+              fallback={<ContentLoadingSkeleton kind="chart" height={200} label="Preparing department breakdown…" />}
+            >
+              <LazyDonutChart segments={chartData} totalValue={employeeTotal} totalLabel="Employees" size={180} />
+            </LazyMount>
           )}
         </section>
 
         <section className="surface-card" style={{ padding: 20 }}>
           <h2 style={{ fontSize: 15, fontWeight: 700, marginTop: 0 }}>Department usage</h2>
-          {departmentUsage.length === 0 ? (
+          {loading ? (
+            <ContentLoadingSkeleton kind="table" count={5} label="Loading department usage…" />
+          ) : departmentUsage.length === 0 ? (
             <p style={{ color: 'var(--text-secondary)' }}>No department records are available.</p>
           ) : (
-            <div className="table-scroll">
-              <table className="data-table">
-                <thead>
-                  <tr><th>Department</th><th>Employees</th><th>Scheduled rides</th><th>Boarded rides</th></tr>
-                </thead>
-                <tbody>
-                  {departmentUsage.map((item) => (
-                    <tr key={item.department}>
-                      <td>{item.department}</td>
-                      <td>{item.employees}</td>
-                      <td>{item.scheduled}</td>
-                      <td>{item.boarded}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <>
+              <div className="table-scroll">
+                <table className="data-table">
+                  <thead>
+                    <tr><th>Department</th><th>Employees</th><th>Scheduled rides</th><th>Boarded rides</th></tr>
+                  </thead>
+                  <tbody>
+                    {visibleDepartments.map((item) => (
+                      <tr key={item.department}>
+                        <td>{item.department}</td>
+                        <td>{item.employees}</td>
+                        <td>{item.scheduled}</td>
+                        <td>{item.boarded}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <LazyScrollSentinel sentinelRef={sentinelRef} hasMore={hasMore} label="Loading more departments…" />
+            </>
           )}
         </section>
       </div>

@@ -1,9 +1,10 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ContentLoadingSkeleton, LazyMount } from '@adhocx/ui/page-loading';
 import { AlertTriangle, CheckCircle2, Clock, RefreshCw, Ticket, XCircle } from 'lucide-react';
 import { MetricCard } from '../../../components/common/MetricCard';
-import { DonutChart } from '../../../components/charts/DonutChart';
+import { LazyDonutChart } from '../../../components/charts/LazyCharts';
 import { analyticsApi } from '../../../lib/api/corporate';
 import type { Dashboard } from '../../../lib/api/types';
 import { useSession } from '../../../lib/auth/SessionContext';
@@ -60,10 +61,10 @@ export default function BookingOverviewPage() {
       }));
   }, [requests]);
   const metrics = [
-    { label: 'Total requests', value: requests?.total.toLocaleString() ?? '—', icon: <Ticket size={18} />, color: '#5728B2' },
-    { label: 'Unserved', value: requests?.unserved.toLocaleString() ?? '—', icon: <Clock size={18} />, color: '#F59E0B' },
-    { label: 'Cancelled', value: requests?.cancelled.toLocaleString() ?? '—', icon: <XCircle size={18} />, color: '#DC2626' },
-    { label: 'No-shows', value: requests?.noShows.toLocaleString() ?? '—', icon: <AlertTriangle size={18} />, color: '#7C3AED' },
+    { label: 'Total requests', value: (requests?.total ?? 0).toLocaleString(), icon: <Ticket size={18} />, color: '#5728B2' },
+    { label: 'Unserved', value: (requests?.unserved ?? 0).toLocaleString(), icon: <Clock size={18} />, color: '#F59E0B' },
+    { label: 'Cancelled', value: (requests?.cancelled ?? 0).toLocaleString(), icon: <XCircle size={18} />, color: '#DC2626' },
+    { label: 'No-shows', value: (requests?.noShows ?? 0).toLocaleString(), icon: <AlertTriangle size={18} />, color: '#7C3AED' },
   ];
 
   return (
@@ -79,17 +80,33 @@ export default function BookingOverviewPage() {
       {error && <p role="alert" style={{ color: 'var(--color-danger)' }}>{error}</p>}
       <div className="metric-grid">
         {metrics.map((metric) => (
-          <MetricCard key={metric.label} label={metric.label} value={loading ? '…' : metric.value} icon={metric.icon} highlightColor={metric.color} />
+          <MetricCard
+            key={metric.label}
+            label={metric.label}
+            value={metric.value}
+            icon={metric.icon}
+            highlightColor={metric.color}
+            loading={loading}
+          />
         ))}
       </div>
-      {!loading && !error && (
+      {loading ? (
+        <section className="surface-card" style={{ padding: 20, maxWidth: 620 }}>
+          <ContentLoadingSkeleton kind="chart" height={220} label="Loading request breakdown…" />
+        </section>
+      ) : !error ? (
         <section className="surface-card" style={{ padding: 20, maxWidth: 620 }}>
           <h2 style={{ marginTop: 0, fontSize: 15 }}>Requests by status</h2>
           {segments.length ? (
-            <DonutChart totalLabel="Requests" totalValue={String(requests?.total ?? 0)} segments={segments} size={180} thickness={22} />
+            <LazyMount
+              minHeight={220}
+              fallback={<ContentLoadingSkeleton kind="chart" height={220} label="Preparing request breakdown…" />}
+            >
+              <LazyDonutChart totalLabel="Requests" totalValue={String(requests?.total ?? 0)} segments={segments} size={180} thickness={22} />
+            </LazyMount>
           ) : <p>No request records are available for this tenant.</p>}
         </section>
-      )}
+      ) : null}
     </div>
   );
 }

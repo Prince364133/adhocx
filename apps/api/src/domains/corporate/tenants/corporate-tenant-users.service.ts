@@ -34,6 +34,7 @@ export interface UpdateCorporateUserInput {
   fullName?: string;
   email?: string;
   phone?: string;
+  password?: string;
   corporateRole?: CorporateRole | string;
   officeIds?: string[];
   isActive?: boolean;
@@ -205,12 +206,20 @@ export class CorporateTenantUsersService {
     // A scoped actor may not edit a user who reaches outside the actor's own scope either.
     this.assertActorMayGrant(actor, effectiveCorporateRole(existing) as CorporateRole, existing.corporateOfficeIds ?? []);
 
+    let passwordHash: string | undefined;
+    if (input?.password !== undefined && input.password !== null && String(input.password).length > 0) {
+      const rawPwd = String(input.password);
+      if (rawPwd.length < 8) throw new BadRequestException('password must be at least 8 characters');
+      passwordHash = await hashPassword(rawPwd);
+    }
+
     const updated = await this.db.user.update({
       where: { id: userId },
       data: {
         ...(fullName !== undefined ? { fullName } : {}),
         ...(email !== undefined ? { email: email || null } : {}),
         ...(phone !== undefined ? { phone: phone || null } : {}),
+        ...(passwordHash ? { passwordHash } : {}),
         role: userRoleForCorporateRole(corporateRole) as any,
         corporateRole: corporateRole as any,
         corporateOfficeIds: officeIds,
@@ -246,6 +255,7 @@ export class CorporateTenantUsersService {
           corporateRole,
           officeIds,
         },
+        ...(passwordHash ? { passwordUpdated: true } : {}),
         note: 'Takes effect on the next token refresh / login',
       } as any,
     });

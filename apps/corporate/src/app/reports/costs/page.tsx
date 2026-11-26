@@ -2,9 +2,12 @@
 
 import React, { useEffect, useState } from 'react';
 import { Download, FileText, Layers } from 'lucide-react';
+import { ContentLoadingSkeleton } from '@adhocx/ui/page-loading';
 import { billingApi, tenantApi } from '../../../lib/api/corporate';
 import type { CostCenter, Invoice } from '../../../lib/api/types';
 import MetricCard from '../../../components/common/MetricCard';
+import LazyScrollSentinel from '../../../components/common/LazyScrollSentinel';
+import { useLazySlice } from '../../../lib/hooks/useInfiniteScroll';
 import { useSession } from '../../../lib/auth/SessionContext';
 
 function formatPaiseToRupees(paise: string | number): string {
@@ -59,6 +62,8 @@ export default function CostDepartmentReportsPage() {
   }, [tenantId]);
 
   const invoicedPaise = invoices.reduce((sum, invoice) => sum + Number(invoice.totalAmountPaise), 0);
+  const { visibleItems: visibleInvoices, hasMore: hasMoreInvoices, sentinelRef: invoiceSentinelRef } = useLazySlice(invoices, invoices.length, 20);
+  const { visibleItems: visibleCostCenters, hasMore: hasMoreCenters, sentinelRef: centerSentinelRef } = useLazySlice(costCenters, costCenters.length, 20);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -79,53 +84,63 @@ export default function CostDepartmentReportsPage() {
       {error && <div role="alert" className="surface-card" style={{ padding: 14, color: '#B91C1C' }}>{error}</div>}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
-        <MetricCard label="Invoices in current page" value={loading ? '...' : invoices.length.toLocaleString()} icon={<FileText size={20} />} category="primary" />
-        <MetricCard label="Total invoice records" value={loading ? '...' : invoiceTotal.toLocaleString()} icon={<FileText size={20} />} category="info" />
-        <MetricCard label="Invoiced amount (loaded records)" value={loading ? '...' : formatPaiseToRupees(invoicedPaise)} icon={<Download size={20} />} category="success" />
-        <MetricCard label="Configured cost centers" value={loading ? '...' : costCenters.length.toLocaleString()} icon={<Layers size={20} />} category="warning" />
+        <MetricCard label="Invoices in current page" value={invoices.length.toLocaleString()} loading={loading} icon={<FileText size={20} />} category="primary" />
+        <MetricCard label="Total invoice records" value={invoiceTotal.toLocaleString()} loading={loading} icon={<FileText size={20} />} category="info" />
+        <MetricCard label="Invoiced amount (loaded records)" value={formatPaiseToRupees(invoicedPaise)} loading={loading} icon={<Download size={20} />} category="success" />
+        <MetricCard label="Configured cost centers" value={costCenters.length.toLocaleString()} loading={loading} icon={<Layers size={20} />} category="warning" />
       </div>
 
       <section className="surface-card" style={{ padding: 20 }}>
         <h2 style={{ fontSize: 15, fontWeight: 700, marginTop: 0 }}>Invoices</h2>
-        {loading ? <p>Loading invoices...</p> : invoices.length === 0 ? (
+        {loading ? (
+          <ContentLoadingSkeleton kind="table" count={5} label="Loading invoices…" />
+        ) : invoices.length === 0 ? (
           <p style={{ color: 'var(--text-secondary)' }}>No tenant invoices are available.</p>
         ) : (
-          <div className="table-scroll">
-            <table className="data-table">
-              <thead>
-                <tr><th>Invoice</th><th>Period</th><th>Status</th><th>Lines</th><th>Total</th></tr>
-              </thead>
-              <tbody>
-                {invoices.map((invoice) => (
-                  <tr key={invoice.id}>
-                    <td>{invoice.invoiceNumber}</td>
-                    <td>{invoice.billingPeriodStart.slice(0, 10)} – {invoice.billingPeriodEnd.slice(0, 10)}</td>
-                    <td>{invoice.status}</td>
-                    <td>{invoice._count?.lines ?? '—'}</td>
-                    <td>{formatPaiseToRupees(invoice.totalAmountPaise)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <>
+            <div className="table-scroll">
+              <table className="data-table">
+                <thead>
+                  <tr><th>Invoice</th><th>Period</th><th>Status</th><th>Lines</th><th>Total</th></tr>
+                </thead>
+                <tbody>
+                  {visibleInvoices.map((invoice) => (
+                    <tr key={invoice.id}>
+                      <td>{invoice.invoiceNumber}</td>
+                      <td>{invoice.billingPeriodStart.slice(0, 10)} – {invoice.billingPeriodEnd.slice(0, 10)}</td>
+                      <td>{invoice.status}</td>
+                      <td>{invoice._count?.lines ?? 0}</td>
+                      <td>{formatPaiseToRupees(invoice.totalAmountPaise)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <LazyScrollSentinel sentinelRef={invoiceSentinelRef} hasMore={hasMoreInvoices} label="Loading more invoices…" />
+          </>
         )}
       </section>
 
       <section className="surface-card" style={{ padding: 20 }}>
         <h2 style={{ fontSize: 15, fontWeight: 700, marginTop: 0 }}>Configured cost centers</h2>
-        {costCenters.length === 0 ? (
+        {loading ? (
+          <ContentLoadingSkeleton kind="table" count={3} label="Loading cost centers…" />
+        ) : costCenters.length === 0 ? (
           <p style={{ color: 'var(--text-secondary)' }}>No cost centers are configured for this tenant.</p>
         ) : (
-          <div className="table-scroll">
-            <table className="data-table">
-              <thead><tr><th>Name</th><th>Code</th></tr></thead>
-              <tbody>
-                {costCenters.map((center) => (
-                  <tr key={center.id ?? center.code}><td>{center.name}</td><td>{center.code}</td></tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <>
+            <div className="table-scroll">
+              <table className="data-table">
+                <thead><tr><th>Name</th><th>Code</th></tr></thead>
+                <tbody>
+                  {visibleCostCenters.map((center) => (
+                    <tr key={center.id ?? center.code}><td>{center.name}</td><td>{center.code}</td></tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <LazyScrollSentinel sentinelRef={centerSentinelRef} hasMore={hasMoreCenters} label="Loading more cost centers…" />
+          </>
         )}
         <p style={{ color: 'var(--text-secondary)', fontSize: 12 }}>
           The current API does not associate invoice totals with cost centers or expose budget allocations, so no departmental spend split is shown.

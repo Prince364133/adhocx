@@ -1,9 +1,12 @@
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { CalendarClock, Clock, Plus, RefreshCw } from 'lucide-react';
+import { CalendarClock, Plus, RefreshCw } from 'lucide-react';
+import { ContentLoadingSkeleton } from '@adhocx/ui/page-loading';
 import { schedulingApi, tenantApi } from '../../../lib/api/corporate';
 import type { Office, ShiftTemplate } from '../../../lib/api/types';
+import LazyScrollSentinel from '../../../components/common/LazyScrollSentinel';
+import { useLazySlice } from '../../../lib/hooks/useInfiniteScroll';
 import { useSession } from '../../../lib/auth/SessionContext';
 
 const weekdays = [
@@ -100,6 +103,8 @@ export default function ShiftManagementPage() {
     }));
   };
 
+  const { visibleItems: visibleShifts, hasMore, sentinelRef } = useLazySlice(shifts, shifts.length, 20);
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
@@ -166,32 +171,33 @@ export default function ShiftManagementPage() {
           Shift templates ({shifts.length})
         </h2>
         {isLoading ? (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 40, gap: 10, color: 'var(--text-secondary)' }}>
-            <Clock size={18} /> Loading tenant shift templates...
-          </div>
+          <ContentLoadingSkeleton kind="table" count={5} label="Loading tenant shift templates…" />
         ) : shifts.length === 0 ? (
           <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-secondary)' }}>
             <CalendarClock size={32} style={{ marginBottom: 8 }} />
             <p>No shift templates are configured for this tenant.</p>
           </div>
         ) : (
-          <div className="table-scroll">
-            <table className="data-table">
-              <thead><tr><th>Template</th><th>Office</th><th>Login</th><th>Logout</th><th>Working days</th><th>Status</th></tr></thead>
-              <tbody>
-                {shifts.map((shift) => (
-                  <tr key={shift.id}>
-                    <td>{shift.name}</td>
-                    <td>{offices.find((office) => office.id === shift.officeId)?.name ?? '—'}</td>
-                    <td>{shift.loginTime}</td>
-                    <td>{shift.logoutTime}</td>
-                    <td>{shift.weekdays?.map((day) => weekdays.find((item) => item.day === day)?.label ?? day).join(', ') || '—'}</td>
-                    <td>{shift.isActive ? 'Active' : 'Inactive'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <>
+            <div className="table-scroll">
+              <table className="data-table">
+                <thead><tr><th>Template</th><th>Office</th><th>Login</th><th>Logout</th><th>Working days</th><th>Status</th></tr></thead>
+                <tbody>
+                  {visibleShifts.map((shift) => (
+                    <tr key={shift.id}>
+                      <td>{shift.name}</td>
+                      <td>{offices.find((office) => office.id === shift.officeId)?.name ?? '—'}</td>
+                      <td>{shift.loginTime}</td>
+                      <td>{shift.logoutTime}</td>
+                      <td>{shift.weekdays?.map((day) => weekdays.find((item) => item.day === day)?.label ?? day).join(', ') || '—'}</td>
+                      <td>{shift.isActive ? 'Active' : 'Inactive'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <LazyScrollSentinel sentinelRef={sentinelRef} hasMore={hasMore} label="Loading more shift templates…" />
+          </>
         )}
       </section>
     </div>

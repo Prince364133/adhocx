@@ -105,7 +105,7 @@ export const CORPORATE_FAQS: CorporateFaqEntry[] = [
     id: 'profile-sections',
     category: 'company-profile',
     question: 'Which sections are available in Company Profile?',
-    answer: 'The page provides Organization Details, Legal & Tax Details, Offices & Sites, Departments, Transport Zones, and Users & Roles.',
+    answer: 'The page provides Organization Details, Legal & Tax Details, and Managers.',
   },
   {
     id: 'company-update',
@@ -117,7 +117,7 @@ export const CORPORATE_FAQS: CorporateFaqEntry[] = [
     id: 'profile-permissions',
     category: 'company-profile',
     question: 'Why might an edit action be unavailable?',
-    answer: 'Company Profile edit controls depend on the permissions associated with your account. The page checks separate permissions for organization details, offices, departments, transport zones, and user invitations.',
+    answer: 'Company Profile edit controls depend on the permissions associated with your account for organization details and offices.',
   },
   {
     id: 'create-ticket',

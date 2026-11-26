@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CalendarX, CheckCircle2, Info, RefreshCw } from "lucide-react";
+import { CalendarX, Info } from "lucide-react";
 import { CancellationFilters } from "./components/CancellationFilters";
 import type {
   CancellationDatePreset,
@@ -401,32 +401,6 @@ export default function CancellationRequestsPage() {
             View cancelled bookings and employees marked absent.
           </p>
         </div>
-        <span
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 7,
-            padding: "7px 11px",
-            border: "1px solid var(--color-success-border)",
-            borderRadius: "var(--radius-pill)",
-            backgroundColor: "var(--color-success-bg)",
-            color: "var(--color-success)",
-            fontSize: 12,
-            fontWeight: 700,
-          }}
-        >
-          <CheckCircle2 size={14} />
-          Cancellations & absences
-        </span>
-        <button
-          type="button"
-          onClick={() => void loadCancellations()}
-          disabled={loading}
-          aria-label="Refresh cancellation and absence records"
-        >
-          <RefreshCw size={14} />
-          Refresh
-        </button>
       </header>
 
       <section

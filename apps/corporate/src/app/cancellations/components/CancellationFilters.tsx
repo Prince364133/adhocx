@@ -132,7 +132,7 @@ export function CancellationFilters(props: CancellationFiltersProps) {
             }
             style={selectStyle}
           >
-            <option value="all">All</option>
+            <option value="all">All Statuses</option>
             <option value="absent">Absent</option>
             <option value="cancelled">Cancelled</option>
           </select>
@@ -159,14 +159,29 @@ export function CancellationFilters(props: CancellationFiltersProps) {
         </label>
 
         {datePreset === "custom" && (
-          <label>
-            <span className="sr-only">Select cancellation date</span>
+          <label
+            style={{
+              ...selectStyle,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+            }}
+          >
+            <span style={{ color: "var(--text-muted)", whiteSpace: "nowrap" }}>
+              Date
+            </span>
             <input
               type="date"
-              aria-label="Select record date"
+              aria-label="Select cancellation date"
               value={customDate}
               onChange={(event) => onCustomDateChange(event.target.value)}
-              style={selectStyle}
+              style={{
+                border: 0,
+                background: "transparent",
+                color: "var(--text-secondary)",
+                font: "inherit",
+                outline: "none",
+              }}
             />
           </label>
         )}

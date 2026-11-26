@@ -2,13 +2,15 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, CheckCircle2, ShieldAlert } from 'lucide-react';
+import { ContentLoadingSkeleton, LazyMount } from '@adhocx/ui/page-loading';
 import { safetyApi } from '../../../lib/api/corporate';
 import { OPEN_SOS_STATUSES, type SosAlert } from '../../../lib/api/types';
 import { addDays, todayIst } from '../../../lib/format';
 import { useSession } from '../../../lib/auth/SessionContext';
 import MetricCard from '../../../components/common/MetricCard';
-import { DonutChart } from '../../../components/charts/DonutChart';
-import { AreaTrendChart } from '../../../components/charts/AreaTrendChart';
+import LazyScrollSentinel from '../../../components/common/LazyScrollSentinel';
+import { LazyAreaTrendChart, LazyDonutChart } from '../../../components/charts/LazyCharts';
+import { useLazySlice } from '../../../lib/hooks/useInfiniteScroll';
 
 const colors = ['#5728B2', '#38BDF8', '#8B5CF6', '#F59E0B', '#10B981', '#EC4899'];
 
@@ -83,6 +85,7 @@ export default function SafetyReportsPage() {
     }
     return Array.from(counts.entries());
   }, [alerts]);
+  const { visibleItems: visibleOfficeCounts, hasMore, sentinelRef } = useLazySlice(officeCounts, officeCounts.length, 20);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -98,35 +101,60 @@ export default function SafetyReportsPage() {
       {error && <div role="alert" className="surface-card" style={{ padding: 14, color: '#B91C1C' }}>{error}</div>}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
-        <MetricCard label="SOS alert records" value={loading ? '...' : alerts.length.toLocaleString()} icon={<ShieldAlert size={20} />} category="primary" />
-        <MetricCard label="Resolved alerts" value={loading ? '...' : resolvedCount.toLocaleString()} icon={<CheckCircle2 size={20} />} category="success" />
-        <MetricCard label="Active alerts" value={loading ? '...' : activeCount.toLocaleString()} icon={<AlertTriangle size={20} />} category="warning" />
+        <MetricCard label="SOS alert records" value={alerts.length.toLocaleString()} loading={loading} icon={<ShieldAlert size={20} />} category="primary" />
+        <MetricCard label="Resolved alerts" value={resolvedCount.toLocaleString()} loading={loading} icon={<CheckCircle2 size={20} />} category="success" />
+        <MetricCard label="Active alerts" value={activeCount.toLocaleString()} loading={loading} icon={<AlertTriangle size={20} />} category="warning" />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 16 }}>
         <section className="surface-card" style={{ padding: 20 }}>
           <h2 style={{ fontSize: 15, fontWeight: 700, marginTop: 0 }}>Alerts by status</h2>
-          {statusCounts.length === 0 ? <p style={{ color: 'var(--text-secondary)' }}>No alert records are available.</p> : (
-            <DonutChart segments={statusCounts} totalValue={alerts.length} totalLabel="Alerts" size={180} />
+          {loading ? (
+            <ContentLoadingSkeleton kind="chart" height={190} label="Loading status chart…" />
+          ) : statusCounts.length === 0 ? (
+            <p style={{ color: 'var(--text-secondary)' }}>No alert records are available.</p>
+          ) : (
+            <LazyMount
+              minHeight={190}
+              fallback={<ContentLoadingSkeleton kind="chart" height={190} label="Preparing status chart…" />}
+            >
+              <LazyDonutChart segments={statusCounts} totalValue={alerts.length} totalLabel="Alerts" size={180} />
+            </LazyMount>
           )}
         </section>
         <section className="surface-card" style={{ padding: 20 }}>
           <h2 style={{ fontSize: 15, fontWeight: 700, marginTop: 0 }}>Alerts recorded — last 7 days</h2>
-          <AreaTrendChart data={trend} height={180} lineColor="#DC2626" />
+          {loading ? (
+            <ContentLoadingSkeleton kind="chart" height={190} label="Loading alert trend…" />
+          ) : (
+            <LazyMount
+              minHeight={190}
+              fallback={<ContentLoadingSkeleton kind="chart" height={190} label="Preparing alert trend…" />}
+            >
+              <LazyAreaTrendChart data={trend} height={180} lineColor="#DC2626" />
+            </LazyMount>
+          )}
         </section>
       </div>
 
       <section className="surface-card" style={{ padding: 20 }}>
         <h2 style={{ fontSize: 15, fontWeight: 700, marginTop: 0 }}>Alert count by office</h2>
-        {officeCounts.length === 0 ? <p style={{ color: 'var(--text-secondary)' }}>No alert records are available.</p> : (
-          <div className="table-scroll">
-            <table className="data-table">
-              <thead><tr><th>Office</th><th>Alerts</th></tr></thead>
-              <tbody>
-                {officeCounts.map(([office, count]) => <tr key={office}><td>{office}</td><td>{count}</td></tr>)}
-              </tbody>
-            </table>
-          </div>
+        {loading ? (
+          <ContentLoadingSkeleton kind="table" count={4} label="Loading office alert counts…" />
+        ) : officeCounts.length === 0 ? (
+          <p style={{ color: 'var(--text-secondary)' }}>No alert records are available.</p>
+        ) : (
+          <>
+            <div className="table-scroll">
+              <table className="data-table">
+                <thead><tr><th>Office</th><th>Alerts</th></tr></thead>
+                <tbody>
+                  {visibleOfficeCounts.map(([office, count]) => <tr key={office}><td>{office}</td><td>{count}</td></tr>)}
+                </tbody>
+              </table>
+            </div>
+            <LazyScrollSentinel sentinelRef={sentinelRef} hasMore={hasMore} label="Loading more offices…" />
+          </>
         )}
         <p style={{ color: 'var(--text-secondary)', fontSize: 12 }}>
           The current API does not expose response-time, escort-compliance, or incident-resolution SLA metrics.

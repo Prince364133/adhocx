@@ -18,10 +18,15 @@ import {
   UserRound,
   X,
 } from 'lucide-react';
-import { DonutChart, type DonutSegment } from '../../components/charts/DonutChart';
+import { ContentLoadingSkeleton, LazyMount, SkeletonBone } from '@adhocx/ui/page-loading';
+import type { DonutSegment } from '../../components/charts/DonutChart';
+import { LazyDonutChart } from '../../components/charts/LazyCharts';
+import LazyScrollSentinel from '../../components/common/LazyScrollSentinel';
+import TableSkeletonRows from '../../components/common/TableSkeletonRows';
 import { supportApi } from '../../lib/api/corporate';
 import type { CorporateTicketMessage, SupportTicket } from '../../lib/api/types';
 import { useSession } from '../../lib/auth/SessionContext';
+import { useInfiniteScroll } from '../../lib/hooks/useInfiniteScroll';
 import styles from './EmployeeSupport.module.css';
 
 type ComplaintStatusGroup = 'Open' | 'In Progress' | 'Resolved';
@@ -50,7 +55,8 @@ interface NormalizedComplaint {
 }
 
 const STATUSES: ComplaintStatusGroup[] = ['Open', 'In Progress', 'Resolved'];
-const PAGE_SIZE = 8;
+const LAZY_BATCH_SIZE = 20;
+const SERVER_BATCH_SIZE = 200;
 const DONUT_COLORS = ['#5728B2', '#8B5CF6', '#0EA5E9', '#F59E0B', '#16A34A', '#EC4899', '#64748B'];
 
 function formatCategoryLabel(raw?: string | null): string {
@@ -220,7 +226,9 @@ export default function EmployeeSupportPage() {
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const [page, setPage] = useState(1);
+  const [visibleCount, setVisibleCount] = useState(LAZY_BATCH_SIZE);
+  const [hasMoreServer, setHasMoreServer] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [trendPeriod, setTrendPeriod] = useState(6);
 
   const [selectedComplaint, setSelectedComplaint] = useState<NormalizedComplaint | null>(null);
@@ -242,20 +250,46 @@ export default function EmployeeSupportPage() {
     setRefreshing(true);
     setLoadError(null);
     try {
-      const ticketsRes = await supportApi.list(tenantId, { limit: 200 });
-      const normalized = (Array.isArray(ticketsRes) ? ticketsRes : []).map(normalizeTicket);
+      const ticketsRes = await supportApi.list(tenantId, { limit: SERVER_BATCH_SIZE, offset: 0 });
+      const rawList = Array.isArray(ticketsRes) ? ticketsRes : [];
+      const normalized = rawList.map(normalizeTicket);
       setComplaints(normalized);
+      setHasMoreServer(rawList.length >= SERVER_BATCH_SIZE);
       setSelectedComplaint((current) => {
         if (!current) return null;
         return normalized.find((item) => item.id === current.id) ?? current;
       });
     } catch (error) {
       setComplaints([]);
+      setHasMoreServer(false);
       setLoadError(error instanceof Error ? error.message : 'Unable to load employee complaints.');
     } finally {
       setRefreshing(false);
     }
   }, [sessionStatus, tenantId]);
+
+  const loadMoreServerComplaints = useCallback(async () => {
+    if (!tenantId || loadingMore || !hasMoreServer || complaints === null) return;
+    setLoadingMore(true);
+    try {
+      const ticketsRes = await supportApi.list(tenantId, {
+        limit: SERVER_BATCH_SIZE,
+        offset: complaints.length,
+      });
+      const rawList = Array.isArray(ticketsRes) ? ticketsRes : [];
+      const normalized = rawList.map(normalizeTicket);
+      setComplaints((current) => {
+        if (!current) return normalized;
+        const seen = new Set(current.map((item) => item.id));
+        return [...current, ...normalized.filter((item) => !seen.has(item.id))];
+      });
+      setHasMoreServer(rawList.length >= SERVER_BATCH_SIZE);
+    } catch {
+      setHasMoreServer(false);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [complaints, hasMoreServer, loadingMore, tenantId]);
 
   useEffect(() => {
     void loadComplaints();
@@ -390,7 +424,7 @@ export default function EmployeeSupportPage() {
       .sort((a, b) => b.raisedAt.getTime() - a.raisedAt.getTime());
   }, [dateFilteredComplaints, search, categoryFilter, statusFilter]);
 
-  useEffect(() => setPage(1), [datePreset, customFrom, customTo, search, categoryFilter, statusFilter]);
+  useEffect(() => setVisibleCount(LAZY_BATCH_SIZE), [datePreset, customFrom, customTo, search, categoryFilter, statusFilter]);
 
   const counts = useMemo(
     () => ({
@@ -422,8 +456,19 @@ export default function EmployeeSupportPage() {
     () => buildTrend(allComplaints, trendPeriod),
     [allComplaints, trendPeriod],
   );
-  const totalPages = Math.max(1, Math.ceil(filteredComplaints.length / PAGE_SIZE));
-  const visibleComplaints = filteredComplaints.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const visibleComplaints = filteredComplaints.slice(0, visibleCount);
+  const hasMoreVisible = visibleCount < filteredComplaints.length;
+  const hasMore = hasMoreVisible || hasMoreServer;
+  const sentinelRef = useInfiniteScroll({
+    enabled: complaints !== null && !loadError && !loadingMore && hasMore,
+    onLoadMore: () => {
+      if (hasMoreVisible) {
+        setVisibleCount((current) => current + LAZY_BATCH_SIZE);
+      } else if (hasMoreServer) {
+        void loadMoreServerComplaints();
+      }
+    },
+  });
   const dateRangeLabel = datePreset === '7'
     ? 'Last 7 Days'
     : datePreset === '30'
@@ -493,19 +538,31 @@ export default function EmployeeSupportPage() {
       <section className={styles.summaryGrid} aria-label="Complaint summary">
         <button type="button" className={styles.summaryCard} aria-pressed={!statusFilter} onClick={() => setCardStatus('')}>
           <span className={`${styles.summaryIcon} ${styles.iconPurple}`}><MessageCircle size={18} /></span>
-          <span className={styles.summaryText}><span>Total Tickets</span><strong>{complaints === null ? '—' : counts.total}</strong></span>
+          <span className={styles.summaryText}>
+            <span>Total Tickets</span>
+            <strong>{complaints === null ? <SkeletonBone style={{ width: 32, height: 22, borderRadius: 6 }} /> : counts.total}</strong>
+          </span>
         </button>
         <button type="button" className={styles.summaryCard} aria-pressed={statusFilter === 'Open'} onClick={() => setCardStatus('Open')}>
           <span className={`${styles.summaryIcon} ${styles.iconAmber}`}><CircleAlert size={18} /></span>
-          <span className={styles.summaryText}><span>Open</span><strong>{complaints === null ? '—' : counts.open}</strong></span>
+          <span className={styles.summaryText}>
+            <span>Open</span>
+            <strong>{complaints === null ? <SkeletonBone style={{ width: 32, height: 22, borderRadius: 6 }} /> : counts.open}</strong>
+          </span>
         </button>
         <button type="button" className={styles.summaryCard} aria-pressed={statusFilter === 'In Progress'} onClick={() => setCardStatus('In Progress')}>
           <span className={`${styles.summaryIcon} ${styles.iconBlue}`}><Clock3 size={18} /></span>
-          <span className={styles.summaryText}><span>In Progress</span><strong>{complaints === null ? '—' : counts.inProgress}</strong></span>
+          <span className={styles.summaryText}>
+            <span>In Progress</span>
+            <strong>{complaints === null ? <SkeletonBone style={{ width: 32, height: 22, borderRadius: 6 }} /> : counts.inProgress}</strong>
+          </span>
         </button>
         <button type="button" className={styles.summaryCard} aria-pressed={statusFilter === 'Resolved'} onClick={() => setCardStatus('Resolved')}>
           <span className={`${styles.summaryIcon} ${styles.iconGreen}`}><CheckCircle2 size={18} /></span>
-          <span className={styles.summaryText}><span>Resolved</span><strong>{complaints === null ? '—' : counts.resolved}</strong></span>
+          <span className={styles.summaryText}>
+            <span>Resolved</span>
+            <strong>{complaints === null ? <SkeletonBone style={{ width: 32, height: 22, borderRadius: 6 }} /> : counts.resolved}</strong>
+          </span>
         </button>
       </section>
 
@@ -563,7 +620,7 @@ export default function EmployeeSupportPage() {
             </thead>
             <tbody>
               {complaints === null ? (
-                <tr><td className={styles.stateCell} colSpan={7}>Loading employee support tickets…</td></tr>
+                <TableSkeletonRows columns={7} rows={6} />
               ) : loadError ? (
                 <tr>
                   <td className={styles.stateCell} colSpan={7}>
@@ -639,16 +696,12 @@ export default function EmployeeSupportPage() {
           </table>
         </div>
 
-        {complaints !== null && !loadError && filteredComplaints.length > 0 && (
-          <div className={styles.pagination}>
-            <span>Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filteredComplaints.length)} of {filteredComplaints.length}</span>
-            <div>
-              <button type="button" disabled={page <= 1} onClick={() => setPage((current) => Math.max(1, current - 1))}>Previous</button>
-              <span>Page {page} of {totalPages}</span>
-              <button type="button" disabled={page >= totalPages} onClick={() => setPage((current) => Math.min(totalPages, current + 1))}>Next</button>
-            </div>
-          </div>
-        )}
+        <LazyScrollSentinel
+          sentinelRef={sentinelRef}
+          hasMore={complaints !== null && !loadError && hasMore}
+          loadingMore={loadingMore}
+          label="Loading more tickets…"
+        />
       </section>
 
       <section className={styles.analyticsGrid} aria-label="Complaint analytics">
@@ -668,9 +721,18 @@ export default function EmployeeSupportPage() {
               <ChevronDown size={15} aria-hidden="true" />
             </label>
           </div>
-          {complaints === null ? <div className={styles.chartState}>Loading trend data…</div>
-            : loadError ? <div className={styles.chartState} role="alert">{loadError}</div>
-              : <ComplaintTrendChart data={trendData} />}
+          {complaints === null ? (
+            <ContentLoadingSkeleton kind="chart" height={200} label="Loading trend data…" />
+          ) : loadError ? (
+            <div className={styles.chartState} role="alert">{loadError}</div>
+          ) : (
+            <LazyMount
+              minHeight={200}
+              fallback={<ContentLoadingSkeleton kind="chart" height={200} label="Preparing trend chart…" />}
+            >
+              <ComplaintTrendChart data={trendData} />
+            </LazyMount>
+          )}
         </div>
 
         <div className={styles.panel}>
@@ -680,16 +742,26 @@ export default function EmployeeSupportPage() {
               <p>Distribution for {dateRangeLabel.toLocaleLowerCase()}</p>
             </div>
           </div>
-          {complaints === null ? <div className={styles.chartState}>Loading category data…</div>
-            : loadError ? <div className={styles.chartState} role="alert">{loadError}</div>
-              : categorySegments.length === 0 ? <div className={styles.chartState}>No tickets recorded in this date range.</div>
-                : <DonutChart
-                    totalLabel="Tickets"
-                    totalValue={dateFilteredComplaints.length}
-                    segments={categorySegments}
-                    size={174}
-                    thickness={22}
-                  />}
+          {complaints === null ? (
+            <ContentLoadingSkeleton kind="chart" height={200} label="Loading category data…" />
+          ) : loadError ? (
+            <div className={styles.chartState} role="alert">{loadError}</div>
+          ) : categorySegments.length === 0 ? (
+            <div className={styles.chartState}>No tickets recorded in this date range.</div>
+          ) : (
+            <LazyMount
+              minHeight={200}
+              fallback={<ContentLoadingSkeleton kind="chart" height={200} label="Preparing category breakdown…" />}
+            >
+              <LazyDonutChart
+                totalLabel="Tickets"
+                totalValue={dateFilteredComplaints.length}
+                segments={categorySegments}
+                size={174}
+                thickness={22}
+              />
+            </LazyMount>
+          )}
         </div>
       </section>
 
@@ -790,7 +862,7 @@ export default function EmployeeSupportPage() {
               <section className={styles.detailSection}>
                 <h3>Conversation &amp; updates</h3>
                 {drawerLoading ? (
-                  <p className={styles.noAttachments}>Loading conversation history…</p>
+                  <ContentLoadingSkeleton kind="list" count={3} label="Loading conversation history…" />
                 ) : messages.length === 0 ? (
                   <p className={styles.noAttachments}>No replies yet. Send a message below to update this ticket.</p>
                 ) : (

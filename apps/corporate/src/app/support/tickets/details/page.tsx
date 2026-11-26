@@ -3,6 +3,7 @@
 import React, { useState, useEffect, Suspense, useCallback } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useParams } from 'next/navigation';
+import { ContentLoadingSkeleton, PageLoadingSkeleton } from '@adhocx/ui/page-loading';
 import {
   MessageSquare,
   ArrowLeft,
@@ -153,11 +154,7 @@ function TicketDetailsThreadContent() {
   };
 
   if (loading) {
-    return (
-      <div className="surface-card" style={{ padding: 40, textAlign: 'center', color: 'var(--text-secondary)' }}>
-        Loading ticket thread...
-      </div>
-    );
+    return <PageLoadingSkeleton variant="detail" />;
   }
 
   if (!ticket) {
@@ -452,9 +449,7 @@ function TicketDetailsThreadContent() {
             </div>
 
             {messagesLoading ? (
-              <div style={{ textAlign: 'center', padding: 20, color: 'var(--text-muted)', fontSize: 13 }}>
-                Loading conversation...
-              </div>
+              <ContentLoadingSkeleton kind="list" count={4} label="Loading conversation…" />
             ) : messages.length === 0 ? (
               <div
                 style={{
@@ -665,7 +660,7 @@ function TicketDetailsThreadContent() {
 
 export default function TicketDetailsThreadPage() {
   return (
-    <Suspense fallback={<div className="surface-card" style={{ padding: 40, textAlign: 'center' }}>Loading...</div>}>
+    <Suspense fallback={<PageLoadingSkeleton variant="detail" />}>
       <TicketDetailsThreadContent />
     </Suspense>
   );

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
+import { SkeletonBone } from '@adhocx/ui/page-loading';
 import {
   Scale,
   Plus,
@@ -9,18 +9,21 @@ import {
   CheckCircle2,
   AlertTriangle,
   IndianRupee,
-  Eye,
   MessageSquare,
   Search,
   X,
   Layers,
 } from 'lucide-react';
+import { LazyScrollSentinel } from '../../../components/common/LazyScrollSentinel';
+import { TableSkeletonRows } from '../../../components/common/TableSkeletonRows';
 import { billingApi } from '../../../lib/api/corporate';
 import { Invoice, InvoiceDispute } from '../../../lib/api/types';
 import { useSession } from '../../../lib/auth/SessionContext';
+import { useLazySlice } from '../../../lib/hooks/useInfiniteScroll';
 
-function formatPaiseToRupees(paise: string | number): string {
-  const rupees = Number(paise) / 100;
+function formatPaiseToRupees(paise: string | number | null | undefined): string {
+  const numericPaise = Number(paise ?? 0);
+  const rupees = Number.isFinite(numericPaise) ? numericPaise / 100 : 0;
   return new Intl.NumberFormat('en-IN', {
     style: 'currency',
     currency: 'INR',
@@ -89,6 +92,11 @@ export default function BillingDisputesPage() {
   const totalApprovedPaise = disputes.reduce(
     (acc, d) => acc + (Number(d.approvedAmountPaise) || 0),
     0,
+  );
+  const { visibleItems: visibleDisputes, hasMore, sentinelRef } = useLazySlice(
+    filteredDisputes,
+    `${activeTab}|${searchQuery}`,
+    20,
   );
 
   async function handleRaiseDispute(e: React.FormEvent) {
@@ -182,7 +190,7 @@ export default function BillingDisputesPage() {
           </div>
           <div>
             <div style={{ fontSize: '18px', fontWeight: 800, color: '#D97706' }}>
-              {loading ? '...' : openDisputes.length}
+              {loading ? <SkeletonBone style={{ width: 48, height: 22, borderRadius: 6 }} /> : openDisputes.length}
             </div>
             <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>Open Disputes</div>
           </div>
@@ -194,7 +202,7 @@ export default function BillingDisputesPage() {
           </div>
           <div>
             <div style={{ fontSize: '18px', fontWeight: 800, color: 'var(--color-success)' }}>
-              {loading ? '...' : resolvedDisputes.length}
+              {loading ? <SkeletonBone style={{ width: 48, height: 22, borderRadius: 6 }} /> : resolvedDisputes.length}
             </div>
             <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>Resolved</div>
           </div>
@@ -206,7 +214,7 @@ export default function BillingDisputesPage() {
           </div>
           <div>
             <div style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)' }}>
-              {loading ? '...' : formatPaiseToRupees(totalDisputedPaise)}
+              {loading ? <SkeletonBone style={{ width: 72, height: 22, borderRadius: 6 }} /> : formatPaiseToRupees(totalDisputedPaise)}
             </div>
             <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>Disputed Claimed</div>
           </div>
@@ -218,7 +226,7 @@ export default function BillingDisputesPage() {
           </div>
           <div>
             <div style={{ fontSize: '18px', fontWeight: 800, color: 'var(--color-success)' }}>
-              {loading ? '...' : formatPaiseToRupees(totalApprovedPaise)}
+              {loading ? <SkeletonBone style={{ width: 72, height: 22, borderRadius: 6 }} /> : formatPaiseToRupees(totalApprovedPaise)}
             </div>
             <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>Approved Credit</div>
           </div>
@@ -312,11 +320,7 @@ export default function BillingDisputesPage() {
             </thead>
             <tbody>
               {loading ? (
-                <tr>
-                  <td colSpan={6} style={{ padding: '36px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                    Loading billing disputes...
-                  </td>
-                </tr>
+                <TableSkeletonRows columns={6} rows={6} cellPadding="12px 14px" />
               ) : filteredDisputes.length === 0 ? (
                 <tr>
                   <td colSpan={6} style={{ padding: '48px', textAlign: 'center', color: 'var(--text-muted)' }}>
@@ -328,18 +332,13 @@ export default function BillingDisputesPage() {
                   </td>
                 </tr>
               ) : (
-                filteredDisputes.map((d) => (
+                visibleDisputes.map((d) => (
                   <tr key={d.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
                     <td style={{ padding: '12px 14px', fontWeight: 700, color: 'var(--text-primary)' }}>
                       {d.id.slice(0, 8)}
                     </td>
-                    <td style={{ padding: '12px 14px' }}>
-                      <Link
-                        href={`/billing/details?id=${d.invoiceId}`}
-                        style={{ color: 'var(--brand-primary)', textDecoration: 'none', fontWeight: 600 }}
-                      >
-                        {d.invoiceId.slice(0, 12)}
-                      </Link>
+                    <td style={{ padding: '12px 14px', color: 'var(--text-primary)', fontWeight: 600 }}>
+                      {d.invoiceId.slice(0, 12)}
                     </td>
                     <td style={{ padding: '12px 14px', color: 'var(--text-primary)' }}>
                       <div>{d.reason}</div>
@@ -353,7 +352,7 @@ export default function BillingDisputesPage() {
                       {formatPaiseToRupees(d.claimedAmountPaise)}
                     </td>
                     <td style={{ padding: '12px 14px', fontWeight: 600, color: 'var(--color-success)' }}>
-                      {d.approvedAmountPaise ? formatPaiseToRupees(d.approvedAmountPaise) : '—'}
+                      {formatPaiseToRupees(d.approvedAmountPaise)}
                     </td>
                     <td style={{ padding: '12px 14px' }}>
                       <span
@@ -384,6 +383,11 @@ export default function BillingDisputesPage() {
               )}
             </tbody>
           </table>
+          <LazyScrollSentinel
+            sentinelRef={sentinelRef}
+            hasMore={!loading && hasMore}
+            label="Loading more disputes…"
+          />
         </div>
       </div>
 

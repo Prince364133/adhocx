@@ -8,8 +8,11 @@ import {
   Trash2,
   ArrowRight,
 } from 'lucide-react';
+import { ContentLoadingSkeleton } from '@adhocx/ui/page-loading';
 import { rosterApi } from '../../../lib/api/corporate';
 import type { RosterValidationResult } from '../../../lib/api/types';
+import LazyScrollSentinel from '../../../components/common/LazyScrollSentinel';
+import { useLazySlice } from '../../../lib/hooks/useInfiniteScroll';
 import { useSession } from '../../../lib/auth/SessionContext';
 
 export default function RosterImportPreviewPage() {
@@ -27,6 +30,11 @@ export default function RosterImportPreviewPage() {
   const [isValidating, setIsValidating] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { visibleItems: visibleErrors, hasMore, sentinelRef } = useLazySlice(
+    validation?.errors ?? [],
+    validation?.totalRows ?? 0,
+    20,
+  );
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -281,7 +289,7 @@ export default function RosterImportPreviewPage() {
 
           {error && <div role="alert" style={{ marginBottom: 12, color: '#B91C1C' }}>{error}</div>}
           {isValidating ? (
-            <div style={{ padding: 32, textAlign: 'center', color: 'var(--text-secondary)' }}>Validating roster file...</div>
+            <ContentLoadingSkeleton kind="table" count={4} label="Validating roster file…" />
           ) : !validation ? (
             <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-secondary)', fontSize: 13 }}>
               Select a roster spreadsheet to validate its rows.
@@ -298,21 +306,24 @@ export default function RosterImportPreviewPage() {
               {validation.errors.length === 0 ? (
                 <p style={{ color: 'var(--text-secondary)' }}>No validation errors returned.</p>
               ) : (
-                <div className="table-scroll">
-                  <table className="data-table">
-                    <thead><tr><th>Row</th><th>Field</th><th>Value</th><th>Issue</th></tr></thead>
-                    <tbody>
-                      {validation.errors.map((item, index) => (
-                        <tr key={`${item.rowNumber}-${item.field}-${index}`}>
-                          <td>{item.rowNumber}</td>
-                          <td>{item.field}</td>
-                          <td>{String(item.invalidValue ?? '—')}</td>
-                          <td>{item.message}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <>
+                  <div className="table-scroll">
+                    <table className="data-table">
+                      <thead><tr><th>Row</th><th>Field</th><th>Value</th><th>Issue</th></tr></thead>
+                      <tbody>
+                        {visibleErrors.map((item, index) => (
+                          <tr key={`${item.rowNumber}-${item.field}-${index}`}>
+                            <td>{item.rowNumber}</td>
+                            <td>{item.field}</td>
+                            <td>{String(item.invalidValue ?? '—')}</td>
+                            <td>{item.message}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <LazyScrollSentinel sentinelRef={sentinelRef} hasMore={hasMore} label="Loading more validation rows…" />
+                </>
               )}
             </div>
           )}

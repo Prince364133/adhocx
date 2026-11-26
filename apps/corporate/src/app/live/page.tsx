@@ -2,6 +2,7 @@
 
 import React, { useCallback, useState, useEffect } from 'react';
 import Link from 'next/link';
+import { ContentLoadingSkeleton, LazyMount, SkeletonBone } from '@adhocx/ui/page-loading';
 import {
   Car,
   Users,
@@ -11,11 +12,13 @@ import {
   ArrowRight,
 } from 'lucide-react';
 import { FilterBar } from '../../components/common/FilterBar';
-import { GoogleRouteMap } from '../../components/maps/GoogleRouteMap';
+import { LazyScrollSentinel } from '../../components/common/LazyScrollSentinel';
+import { LazyGoogleRouteMap } from '../../components/maps/LazyGoogleRouteMap';
 import { routesApi, analyticsApi } from '../../lib/api/corporate';
 import type { RouteListItem, Dashboard, RouteTracking } from '../../lib/api/types';
 import { useSession } from '../../lib/auth/SessionContext';
 import { todayIst } from '../../lib/format';
+import { useLazySlice } from '../../lib/hooks/useInfiniteScroll';
 
 export default function LiveOperationsMapPage() {
   const { tenantId } = useSession();
@@ -96,6 +99,12 @@ export default function LiveOperationsMapPage() {
     if (filterType === 'LOGOUT') return rt.direction === 'LOGOUT';
     return true;
   });
+  const { visibleItems: visibleRoutes, hasMore, sentinelRef } = useLazySlice(
+    filteredRoutes,
+    filterType,
+    20,
+  );
+  const showInitialSkeleton = loading && routes.length === 0 && !dashboard;
 
   const activeTripsCount = routes.length;
   const employeesServed = dashboard?.employeesServed ?? 0;
@@ -156,7 +165,9 @@ export default function LiveOperationsMapPage() {
             <Car size={16} />
           </div>
           <div>
-            <div style={{ fontSize: '16px', fontWeight: 800, color: 'var(--text-primary)' }}>{activeTripsCount}</div>
+            <div style={{ fontSize: '16px', fontWeight: 800, color: 'var(--text-primary)' }}>
+              {showInitialSkeleton ? <SkeletonBone style={{ width: 32, height: 18, borderRadius: 4 }} /> : activeTripsCount}
+            </div>
             <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>Active Trips</div>
           </div>
         </div>
@@ -166,7 +177,9 @@ export default function LiveOperationsMapPage() {
             <Users size={16} />
           </div>
           <div>
-            <div style={{ fontSize: '16px', fontWeight: 800, color: 'var(--text-primary)' }}>{employeesServed}</div>
+            <div style={{ fontSize: '16px', fontWeight: 800, color: 'var(--text-primary)' }}>
+              {showInitialSkeleton ? <SkeletonBone style={{ width: 32, height: 18, borderRadius: 4 }} /> : employeesServed}
+            </div>
             <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>Employees</div>
           </div>
         </div>
@@ -176,7 +189,9 @@ export default function LiveOperationsMapPage() {
             <Car size={16} />
           </div>
           <div>
-            <div style={{ fontSize: '16px', fontWeight: 800, color: 'var(--text-primary)' }}>{vehiclesCount}</div>
+            <div style={{ fontSize: '16px', fontWeight: 800, color: 'var(--text-primary)' }}>
+              {showInitialSkeleton ? <SkeletonBone style={{ width: 32, height: 18, borderRadius: 4 }} /> : vehiclesCount}
+            </div>
             <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>Vehicles on active trips</div>
           </div>
         </div>
@@ -186,7 +201,9 @@ export default function LiveOperationsMapPage() {
             <Navigation size={16} />
           </div>
           <div>
-            <div style={{ fontSize: '16px', fontWeight: 800, color: 'var(--text-primary)' }}>{routes.length}</div>
+            <div style={{ fontSize: '16px', fontWeight: 800, color: 'var(--text-primary)' }}>
+              {showInitialSkeleton ? <SkeletonBone style={{ width: 32, height: 18, borderRadius: 4 }} /> : routes.length}
+            </div>
             <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>Routes</div>
           </div>
         </div>
@@ -196,7 +213,9 @@ export default function LiveOperationsMapPage() {
             <Clock size={16} />
           </div>
           <div>
-            <div style={{ fontSize: '16px', fontWeight: 800, color: '#DC2626' }}>{delayedCount}</div>
+            <div style={{ fontSize: '16px', fontWeight: 800, color: '#DC2626' }}>
+              {showInitialSkeleton ? <SkeletonBone style={{ width: 32, height: 18, borderRadius: 4 }} /> : delayedCount}
+            </div>
             <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>Delayed</div>
           </div>
         </div>
@@ -206,7 +225,9 @@ export default function LiveOperationsMapPage() {
             <CheckCircle2 size={16} />
           </div>
           <div>
-            <div style={{ fontSize: '16px', fontWeight: 800, color: 'var(--text-primary)' }}>{completedToday}</div>
+            <div style={{ fontSize: '16px', fontWeight: 800, color: 'var(--text-primary)' }}>
+              {showInitialSkeleton ? <SkeletonBone style={{ width: 32, height: 18, borderRadius: 4 }} /> : completedToday}
+            </div>
             <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>Completed Today</div>
           </div>
         </div>
@@ -218,7 +239,6 @@ export default function LiveOperationsMapPage() {
           {loadError}
         </div>
       )}
-      {loading && <div className="surface-card" style={{ padding: 12, color: 'var(--text-secondary)' }}>Loading tenant routes and analytics...</div>}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: '20px' }}>
         {/* Left: Large Interactive Map Canvas */}
         <div className="surface-card" style={{ padding: '20px', flex: '1 1 65%' }}>
@@ -250,25 +270,32 @@ export default function LiveOperationsMapPage() {
             )}
           </div>
 
-          {selectedRoute ? (
-            <GoogleRouteMap
-              height={440}
-              office={selectedRoute.office?.latitude !== undefined && selectedRoute.office.longitude !== undefined
-                ? {
-                    name: selectedRoute.office.name,
-                    addressText: selectedRoute.office.addressText,
-                    lat: Number(selectedRoute.office.latitude),
-                    lng: Number(selectedRoute.office.longitude),
-                  }
-                : null}
-              stops={mapStops}
-              livePosition={tracking?.position ? {
-                lat: tracking.position.lat,
-                lng: tracking.position.lng,
-                recordedAt: tracking.position.recordedAt,
-                gpsState: tracking.gpsState,
-              } : null}
-            />
+          {showInitialSkeleton ? (
+            <ContentLoadingSkeleton kind="map" height={440} label="Loading live corridor map…" />
+          ) : selectedRoute ? (
+            <LazyMount
+              minHeight={440}
+              fallback={<ContentLoadingSkeleton kind="map" height={440} label="Preparing live corridor map…" />}
+            >
+              <LazyGoogleRouteMap
+                height={440}
+                office={selectedRoute.office?.latitude !== undefined && selectedRoute.office.longitude !== undefined
+                  ? {
+                      name: selectedRoute.office.name,
+                      addressText: selectedRoute.office.addressText,
+                      lat: Number(selectedRoute.office.latitude),
+                      lng: Number(selectedRoute.office.longitude),
+                    }
+                  : null}
+                stops={mapStops}
+                livePosition={tracking?.position ? {
+                  lat: tracking.position.lat,
+                  lng: tracking.position.lng,
+                  recordedAt: tracking.position.recordedAt,
+                  gpsState: tracking.gpsState,
+                } : null}
+              />
+            </LazyMount>
           ) : (
             <div style={{ height: 440, display: 'grid', placeItems: 'center', color: 'var(--text-secondary)' }}>
               No active routes are available for this tenant.
@@ -332,7 +359,9 @@ export default function LiveOperationsMapPage() {
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '420px', overflowY: 'auto' }}>
-            {filteredRoutes.length === 0 ? (
+            {showInitialSkeleton ? (
+              <ContentLoadingSkeleton kind="list" count={5} label="Loading active trips…" />
+            ) : filteredRoutes.length === 0 ? (
               <div style={{ padding: '36px 16px', textAlign: 'center', color: 'var(--text-secondary)' }}>
                 <Car size={32} style={{ margin: '0 auto 8px', opacity: 0.5 }} />
                 <div style={{ fontSize: '14px', fontWeight: 600 }}>No Active Trips in Corridor</div>
@@ -341,35 +370,42 @@ export default function LiveOperationsMapPage() {
                 </div>
               </div>
             ) : (
-              filteredRoutes.map((rt) => {
-                const isSelected = selectedRoute?.id === rt.id;
-                return (
-                  <div
-                    key={rt.id}
-                    onClick={() => setSelectedRoute(rt)}
-                    style={{
-                      padding: '12px 14px',
-                      borderRadius: 'var(--radius-md)',
-                      border: `1px solid ${isSelected ? 'var(--brand-primary)' : 'var(--border-subtle)'}`,
-                      backgroundColor: isSelected ? 'var(--brand-primary-subtle)' : 'var(--bg-surface)',
-                      cursor: 'pointer',
-                      transition: 'all 0.15s ease',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
-                      <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
-                        {rt.vehicle?.registrationNumber ?? rt.vehiclePlate ?? '—'}
-                      </span>
-                      <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-success)', backgroundColor: 'var(--color-success-bg)', padding: '2px 6px', borderRadius: '4px' }}>
-                        {rt.status}
-                      </span>
+              <>
+                {visibleRoutes.map((rt) => {
+                  const isSelected = selectedRoute?.id === rt.id;
+                  return (
+                    <div
+                      key={rt.id}
+                      onClick={() => setSelectedRoute(rt)}
+                      style={{
+                        padding: '12px 14px',
+                        borderRadius: 'var(--radius-md)',
+                        border: `1px solid ${isSelected ? 'var(--brand-primary)' : 'var(--border-subtle)'}`,
+                        backgroundColor: isSelected ? 'var(--brand-primary-subtle)' : 'var(--bg-surface)',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                        <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                          {rt.vehicle?.registrationNumber ?? rt.vehiclePlate ?? '—'}
+                        </span>
+                        <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-success)', backgroundColor: 'var(--color-success-bg)', padding: '2px 6px', borderRadius: '4px' }}>
+                          {rt.status}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                        {rt.direction} · {rt.driver?.fullName ?? rt.driverName ?? '—'} · {rt._count?.stops ?? rt.stopsCount ?? 0} stops
+                      </div>
                     </div>
-                    <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                      {rt.direction} · {rt.driver?.fullName ?? rt.driverName ?? '—'} · {rt._count?.stops ?? rt.stopsCount ?? 0} stops
-                    </div>
-                  </div>
-                );
-              })
+                  );
+                })}
+                <LazyScrollSentinel
+                  sentinelRef={sentinelRef}
+                  hasMore={hasMore}
+                  label="Loading more active trips…"
+                />
+              </>
             )}
           </div>
         </div>

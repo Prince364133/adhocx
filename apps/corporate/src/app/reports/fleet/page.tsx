@@ -2,9 +2,12 @@
 
 import React, { useEffect, useState } from 'react';
 import { Car, Download, Route, Users } from 'lucide-react';
+import { ContentLoadingSkeleton } from '@adhocx/ui/page-loading';
 import { analyticsApi, routesApi } from '../../../lib/api/corporate';
 import type { Dashboard, RouteListItem } from '../../../lib/api/types';
 import MetricCard from '../../../components/common/MetricCard';
+import LazyScrollSentinel from '../../../components/common/LazyScrollSentinel';
+import { useLazySlice } from '../../../lib/hooks/useInfiniteScroll';
 import { useSession } from '../../../lib/auth/SessionContext';
 
 function formatShiftDate(value?: string | null): string {
@@ -68,6 +71,7 @@ export default function VehicleRouteAnalyticsPage() {
   const vehicleCount = new Set(routes.map((route) => route.vehicleId).filter(Boolean)).size;
   const seatUtilisation = dashboard?.seatUtilisation.pct;
   const delayedPickups = dashboard?.punctuality.latePickups;
+  const { visibleItems: visibleRoutes, hasMore, sentinelRef } = useLazySlice(routes, routes.length, 20);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -93,10 +97,10 @@ export default function VehicleRouteAnalyticsPage() {
       {error && <div role="alert" className="surface-card" style={{ padding: 14, color: '#B91C1C' }}>{error}</div>}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
-        <MetricCard label="Active Trips" value={loading ? '...' : activeTrips.toLocaleString()} icon={<Route size={20} />} category="primary" />
-        <MetricCard label="Vehicles on listed routes" value={loading ? '...' : vehicleCount.toLocaleString()} icon={<Car size={20} />} category="info" />
-        <MetricCard label="Seat Utilization" value={loading ? '...' : seatUtilisation == null ? '—' : `${seatUtilisation}%`} icon={<Users size={20} />} category="success" />
-        <MetricCard label="Late Pickups" value={loading ? '...' : delayedPickups == null ? '—' : delayedPickups.toLocaleString()} icon={<Route size={20} />} category="warning" />
+        <MetricCard label="Active Trips" value={activeTrips.toLocaleString()} loading={loading} icon={<Route size={20} />} category="primary" />
+        <MetricCard label="Vehicles on listed routes" value={vehicleCount.toLocaleString()} loading={loading} icon={<Car size={20} />} category="info" />
+        <MetricCard label="Seat Utilization" value={seatUtilisation == null ? '—' : `${seatUtilisation}%`} loading={loading} icon={<Users size={20} />} category="success" />
+        <MetricCard label="Late Pickups" value={delayedPickups == null ? '—' : delayedPickups.toLocaleString()} loading={loading} icon={<Route size={20} />} category="warning" />
       </div>
 
       <section className="surface-card" style={{ padding: 16, color: 'var(--text-secondary)', fontSize: 13 }}>
@@ -106,36 +110,39 @@ export default function VehicleRouteAnalyticsPage() {
       <section className="surface-card" style={{ padding: 20 }}>
         <h2 style={{ fontSize: 15, fontWeight: 700, marginTop: 0 }}>Tenant routes</h2>
         {loading ? (
-          <p>Loading route records...</p>
+          <ContentLoadingSkeleton kind="table" count={6} label="Loading route records…" />
         ) : routes.length === 0 ? (
           <p style={{ color: 'var(--text-secondary)' }}>No route records are available.</p>
         ) : (
-          <div className="table-scroll">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Route</th>
-                  <th>Date</th>
-                  <th>Direction</th>
-                  <th>Status</th>
-                  <th>Vehicle</th>
-                  <th>Assigned passengers</th>
-                </tr>
-              </thead>
-              <tbody>
-                {routes.map((route) => (
-                  <tr key={route.id}>
-                    <td>{route.routeNumber ?? route.routeCode ?? route.id}</td>
-                    <td>{formatShiftDate(route.shiftDate)}</td>
-                    <td>{route.direction}</td>
-                    <td>{route.status}</td>
-                    <td>{route.vehicle?.registrationNumber ?? route.vehiclePlate ?? '—'}</td>
-                    <td>{route.assignedPassengerCount}</td>
+          <>
+            <div className="table-scroll">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Route</th>
+                    <th>Date</th>
+                    <th>Direction</th>
+                    <th>Status</th>
+                    <th>Vehicle</th>
+                    <th>Assigned passengers</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {visibleRoutes.map((route) => (
+                    <tr key={route.id}>
+                      <td>{route.routeNumber ?? route.routeCode ?? route.id}</td>
+                      <td>{formatShiftDate(route.shiftDate)}</td>
+                      <td>{route.direction}</td>
+                      <td>{route.status}</td>
+                      <td>{route.vehicle?.registrationNumber ?? route.vehiclePlate ?? '—'}</td>
+                      <td>{route.assignedPassengerCount}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <LazyScrollSentinel sentinelRef={sentinelRef} hasMore={hasMore} label="Loading more routes…" />
+          </>
         )}
       </section>
     </div>

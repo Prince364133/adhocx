@@ -1,55 +1,26 @@
 'use client';
 
 import React, { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
-import { Building2, CircleAlert, FileText, MapPin, Network, Search, Shield, Users, X } from 'lucide-react';
+import { ContentLoadingSkeleton } from '@adhocx/ui/page-loading';
+import { Building2, CircleAlert, Eye, EyeOff, FileText, KeyRound, Plus, Search, Shield, Users, X } from 'lucide-react';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { ApiError } from '../../lib/api/client';
-import { tenantApi, usersApi } from '../../lib/api/corporate';
-import {
-  CORPORATE_PERMISSIONS,
-  CORPORATE_ROLES,
-  roleHas,
-  type CorporatePermission,
-  type CorporateRole,
-} from '../../lib/auth/permissions';
+import { authApi, tenantApi, usersApi } from '../../lib/api/corporate';
+import { setSession } from '../../lib/auth/session';
 import { useSession } from '../../lib/auth/SessionContext';
-import type { CorporateUser, Department, Office, TransportZone } from '../../lib/api/types';
+import type { CorporateUser } from '../../lib/api/types';
 import styles from './CompanyProfile.module.css';
 
-type SectionId = 'organization' | 'legal' | 'offices' | 'departments' | 'zones' | 'users';
+type SectionId = 'organization' | 'legal' | 'managers';
 type Feedback = { kind: 'success' | 'error'; text: string } | null;
-type OfficeDraft = {
-  code: string;
-  name: string;
-  city: string;
-  state: string;
-  pinCode: string;
-  country: string;
-  addressText: string;
-  latitude: string;
-  longitude: string;
-  contactName: string;
-  contactEmail: string;
-  contactPhone: string;
-  isActive: boolean;
+type ManagerDraft = {
+  fullName: string;
+  phone: string;
+  password: string;
 };
-type DepartmentDraft = {
-  code: string;
-  name: string;
-  departmentHead: string;
-  officeId: string;
-  description: string;
-  isActive: boolean;
-};
-type ZoneDraft = {
-  officeId: string;
-  code: string;
-  name: string;
-  serviceArea: string;
-  description: string;
-  pickupLocationsText: string;
-  dropLocationsText: string;
-  isActive: boolean;
+type PasswordDraft = {
+  password: string;
+  confirmPassword: string;
 };
 type OrganizationDraft = {
   name: string;
@@ -65,33 +36,7 @@ type OrganizationDraft = {
   primaryContactEmail: string;
   primaryContactPhone: string;
 };
-type LegalDraft = {
-  legalEntityName: string;
-  gstin: string;
-  cin: string;
-  registeredBusinessAddress: string;
-  billingAddress: string;
-  billingSameAsRegistered: boolean;
-};
-type UserDraft = {
-  fullName: string;
-  email: string;
-  phone: string;
-  corporateRole: CorporateRole;
-  officeIds: string[];
-};
-type ProfileDialog =
-  | 'office'
-  | 'edit-office'
-  | 'department'
-  | 'edit-department'
-  | 'zone'
-  | 'edit-zone'
-  | 'view-zone'
-  | 'invite'
-  | 'edit-user'
-  | 'view-user'
-  | null;
+type ProfileDialog = 'manager' | 'change-password' | null;
 
 const SECTIONS: Array<{ id: SectionId; label: string; icon: React.ReactNode }> = [
   {
@@ -100,44 +45,17 @@ const SECTIONS: Array<{ id: SectionId; label: string; icon: React.ReactNode }> =
     icon: <Building2 size={16} />,
   },
   { id: 'legal', label: 'Legal & tax', icon: <FileText size={16} /> },
-  { id: 'offices', label: 'Offices & sites', icon: <MapPin size={16} /> },
-  { id: 'departments', label: 'Departments', icon: <Network size={16} /> },
-  { id: 'zones', label: 'Transport zones', icon: <MapPin size={16} /> },
-  { id: 'users', label: 'Users & roles', icon: <Users size={16} /> },
+  { id: 'managers', label: 'Managers', icon: <Users size={16} /> },
 ];
 
-const initialOfficeDraft: OfficeDraft = {
-  code: '',
-  name: '',
-  city: '',
-  state: '',
-  pinCode: '',
-  country: 'India',
-  addressText: '',
-  latitude: '',
-  longitude: '',
-  contactName: '',
-  contactEmail: '',
-  contactPhone: '',
-  isActive: true,
+const initialManagerDraft: ManagerDraft = {
+  fullName: '',
+  phone: '',
+  password: '',
 };
-const initialDepartmentDraft: DepartmentDraft = {
-  code: '',
-  name: '',
-  departmentHead: '',
-  officeId: '',
-  description: '',
-  isActive: true,
-};
-const initialZoneDraft: ZoneDraft = {
-  officeId: '',
-  code: '',
-  name: '',
-  serviceArea: '',
-  description: '',
-  pickupLocationsText: '',
-  dropLocationsText: '',
-  isActive: true,
+const initialPasswordDraft: PasswordDraft = {
+  password: '',
+  confirmPassword: '',
 };
 const emptyOrganizationDraft: OrganizationDraft = {
   name: '',
@@ -153,66 +71,11 @@ const emptyOrganizationDraft: OrganizationDraft = {
   primaryContactEmail: '',
   primaryContactPhone: '',
 };
-const emptyLegalDraft: LegalDraft = {
-  legalEntityName: '',
-  gstin: '',
-  cin: '',
-  registeredBusinessAddress: '',
-  billingAddress: '',
-  billingSameAsRegistered: true,
-};
-const CORPORATE_ROLE_DISPLAY_LABELS: Record<string, string> = {
-  CORP_SUPER_ADMIN: 'Corporate Super Admin',
-  HR: 'HR Manager',
-  TRANSPORT: 'Transport Manager',
-  FINANCE: 'Finance Manager',
-  SAFETY: 'Safety Officer',
-  READ_ONLY: 'Read-only Management',
-};
-const PERMISSION_DISPLAY_LABELS: Partial<Record<CorporatePermission, string>> = {
-  'tenant:read': 'View organization',
-  'tenant:write': 'Manage organization profile',
-  'offices:read': 'View offices',
-  'offices:write': 'Manage offices',
-  'employees:read': 'View employees',
-  'employees:write': 'Employee management',
-  'users:read': 'View users',
-  'users:invite': 'Manage users',
-  'departments:read': 'View departments',
-  'departments:write': 'Manage departments',
-  'zones:read': 'View transport zones',
-  'zones:write': 'Manage transport zones',
-  'costcenters:read': 'View cost centers',
-  'costcenters:write': 'Manage cost centers',
-  'policy:read': 'View safety policies',
-  'policy:write': 'Manage safety policies',
-  'invoices:read': 'View invoices',
-  'bookings:read': 'View bookings',
-  'billing:write': 'Financial access',
-  'reports:read': 'View reports',
-};
 
 function errorText(error: unknown): string {
   if (error instanceof ApiError) return error.message;
   if (error instanceof Error) return error.message;
   return 'The request could not be completed. Please try again.';
-}
-
-function corporateRoleLabel(role?: string | null) {
-  if (!role) return 'Unassigned';
-  return CORPORATE_ROLE_DISPLAY_LABELS[role] ?? role;
-}
-
-function isCorporateRole(role: string | null): role is CorporateRole {
-  return CORPORATE_ROLES.some((candidate) => candidate === role);
-}
-
-function userPermissionLabels(corporateUser: CorporateUser) {
-  const role = corporateUser.corporateRole;
-  if (!isCorporateRole(role)) return [];
-  return CORPORATE_PERMISSIONS.filter((permission) => roleHas(role, permission)).map(
-    (permission) => PERMISSION_DISPLAY_LABELS[permission] ?? permission,
-  );
 }
 
 function Card({ children }: { children: React.ReactNode }) {
@@ -223,13 +86,15 @@ function SectionHeading({
   title,
   description,
   action,
+  borderless = false,
 }: {
   title: string;
   description: string;
   action?: React.ReactNode;
+  borderless?: boolean;
 }) {
   return (
-    <div className={styles.sectionHeading}>
+    <div className={`${styles.sectionHeading}${borderless ? ` ${styles.sectionHeadingBorderless}` : ''}`}>
       <div>
         <h2 className={styles.sectionTitle}>{title}</h2>
         <p className={styles.sectionDescription}>{description}</p>
@@ -401,44 +266,55 @@ function valueOrDash(value?: string | null) {
   return value?.trim() || 'Not provided';
 }
 
+function normalizeMobileNumber(raw: string): string | null {
+  const trimmed = raw.trim().replace(/[\s-]/g, '');
+  if (!trimmed) return null;
+  const digits = trimmed.replace(/\D/g, '');
+  if (digits.length === 10) return `+91${digits}`;
+  if (digits.length === 12 && digits.startsWith('91')) return `+${digits}`;
+  if (digits.length === 11 && digits.startsWith('0')) return `+91${digits.slice(1)}`;
+  if (trimmed.startsWith('+') && digits.length >= 10) return `+${digits}`;
+  return null;
+}
+
+function isPhoneLike(value?: string | null): boolean {
+  const trimmed = (value || '').trim();
+  return Boolean(trimmed) && /^[+\d\s().-]{6,}$/.test(trimmed);
+}
+
+function managerDisplayName(manager: CorporateUser, fallbackAdminName?: string | null): string {
+  const name = manager.fullName?.trim();
+  if (name && !isPhoneLike(name)) return name;
+  if (manager.corporateRole === 'CORP_SUPER_ADMIN' || manager.role === 'CORPORATE_ADMIN') {
+    const fallback = fallbackAdminName?.trim();
+    if (fallback && !isPhoneLike(fallback)) return fallback;
+  }
+  return 'Not provided';
+}
+
 export default function CompanyProfilePage() {
-  const { status, tenant, tenantId, tenantError, offices, officeScope, reloadTenant, can, user } = useSession();
+  const { status, user, tenant, tenantId, tenantError, offices, officeScope, can, acceptSession, reloadTenant } =
+    useSession();
   const [activeSection, setActiveSection] = useState<SectionId>('organization');
   const [feedback, setFeedback] = useState<Feedback>(null);
   const [dialog, setDialog] = useState<ProfileDialog>(null);
-  const [selectedOffice, setSelectedOffice] = useState<Office | null>(null);
-  const [selectedDepartment, setSelectedDepartment] = useState<Department | null>(null);
-  const [selectedZone, setSelectedZone] = useState<TransportZone | null>(null);
-  const [selectedUser, setSelectedUser] = useState<CorporateUser | null>(null);
-  const [officeDraft, setOfficeDraft] = useState<OfficeDraft>(initialOfficeDraft);
-  const [departmentDraft, setDepartmentDraft] = useState<DepartmentDraft>(initialDepartmentDraft);
-  const [zoneDraft, setZoneDraft] = useState<ZoneDraft>(initialZoneDraft);
-  const [userDraft, setUserDraft] = useState<UserDraft>({
-    fullName: '',
-    email: '',
-    phone: '',
-    corporateRole: 'READ_ONLY',
-    officeIds: [],
-  });
+  const [managers, setManagers] = useState<CorporateUser[]>([]);
+  const [managersLoading, setManagersLoading] = useState(false);
+  const [managersError, setManagersError] = useState<string | null>(null);
+  const [managerDraft, setManagerDraft] = useState<ManagerDraft>(initialManagerDraft);
+  const [showManagerPassword, setShowManagerPassword] = useState(false);
+  const [passwordTarget, setPasswordTarget] = useState<CorporateUser | null>(null);
+  const [passwordDraft, setPasswordDraft] = useState<PasswordDraft>(initialPasswordDraft);
+  const [showNewPassword, setShowNewPassword] = useState(false);
   const [organizationDraft, setOrganizationDraft] = useState<OrganizationDraft>(emptyOrganizationDraft);
-  const [legalDraft, setLegalDraft] = useState<LegalDraft>(emptyLegalDraft);
   const [editingOrganization, setEditingOrganization] = useState(false);
-  const [editingLegal, setEditingLegal] = useState(false);
-  const [departments, setDepartments] = useState<Department[]>([]);
-  const [transportZones, setTransportZones] = useState<TransportZone[]>([]);
-  const [corporateUsers, setCorporateUsers] = useState<CorporateUser[]>([]);
-  const [sectionLoading, setSectionLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const submissionInProgress = React.useRef(false);
   const [search, setSearch] = useState('');
-  const [loadError, setLoadError] = useState<string | null>(null);
   const profileTenant = tenant;
   const profileOffices = offices;
-  const profileDepartments = departments;
-  const profileZones = transportZones;
-  const profileUsers = corporateUsers;
-  const canReadZones = can('zones:read');
-  const canReadUsers = can('users:read') && !officeScope;
+  const canReadManagers = can('users:read');
+  const canInviteManagers = can('users:invite');
   const profileCompletionFields = profileTenant
     ? [
         profileTenant.name,
@@ -462,85 +338,69 @@ export default function CompanyProfilePage() {
     ? Math.round((completedProfileFields / profileCompletionFields.length) * 100)
     : 0;
 
-  const loadSectionData = useCallback(async () => {
-    if (!tenantId || (activeSection !== 'departments' && activeSection !== 'zones' && activeSection !== 'users')) return;
-    setSectionLoading(true);
-    setLoadError(null);
-    try {
-      if (activeSection === 'departments') {
-        setDepartments(await tenantApi.departments(tenantId, true));
-      } else if (activeSection === 'zones') {
-        if (canReadZones) {
-          setTransportZones(await tenantApi.transportZones(tenantId, true));
-        } else {
-          setTransportZones([]);
-        }
-      } else if (canReadUsers) {
-        setCorporateUsers(await usersApi.list(tenantId));
-      } else {
-        setCorporateUsers([]);
-      }
-    } catch (error) {
-      setLoadError(errorText(error));
-    } finally {
-      setSectionLoading(false);
+  const loadManagers = useCallback(async () => {
+    if (!tenantId || !canReadManagers) {
+      setManagers([]);
+      setManagersLoading(false);
+      setManagersError(null);
+      return;
     }
-  }, [activeSection, canReadUsers, canReadZones, tenantId]);
+    setManagersLoading(true);
+    setManagersError(null);
+    try {
+      const data = await usersApi.list(tenantId);
+      setManagers(data);
+    } catch (error) {
+      setManagersError(errorText(error));
+    } finally {
+      setManagersLoading(false);
+    }
+  }, [canReadManagers, tenantId]);
 
   useEffect(() => {
-    void loadSectionData();
-  }, [loadSectionData]);
+    void loadManagers();
+  }, [loadManagers]);
 
-  const visibleOffices = useMemo(
-    () =>
-      profileOffices.filter((office) =>
-        `${office.name} ${office.code} ${office.addressText} ${office.city ?? ''} ${office.state ?? ''} ${office.pinCode ?? office.pincode ?? ''}`
-          .toLowerCase()
-          .includes(search.toLowerCase()),
-      ),
-    [profileOffices, search],
-  );
-  const visibleDepartments = useMemo(
-    () =>
-      profileDepartments.filter((department) =>
-        `${department.name} ${department.code} ${department.departmentHead ?? ''} ${department.office?.name ?? ''}`
-          .toLowerCase()
-          .includes(search.toLowerCase()),
-      ),
-    [profileDepartments, search],
-  );
-  const visibleZones = useMemo(
-    () =>
-      profileZones.filter((zone) =>
-        `${zone.name} ${zone.code} ${zone.serviceArea} ${zone.office?.name ?? ''} ${(zone.pickupLocations ?? []).join(' ')}`
-          .toLowerCase()
-          .includes(search.toLowerCase()),
-      ),
-    [profileZones, search],
-  );
-  const visibleUsers = useMemo(
-    () =>
-      profileUsers.filter((corporateUser) =>
-        `${corporateUser.fullName ?? ''} ${corporateUser.email ?? ''} ${corporateUser.phone ?? ''} ${corporateRoleLabel(corporateUser.corporateRole)} ${formatOfficeScope(corporateUser.corporateOfficeIds, profileOffices)}`
-          .toLowerCase()
-          .includes(search.toLowerCase()),
-      ),
-    [profileOffices, profileUsers, search],
-  );
+  const visibleManagers = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) return managers;
+    return managers.filter((manager) =>
+      `${managerDisplayName(manager, profileTenant?.primaryContactName)} ${manager.phone ?? ''} ${manager.email ?? ''}`
+        .toLowerCase()
+        .includes(query),
+    );
+  }, [managers, profileTenant?.primaryContactName, search]);
+
   function showSection(section: SectionId) {
     setActiveSection(section);
     setSearch('');
     setFeedback(null);
-    setLoadError(null);
+  }
+
+  function openAddManager() {
+    setManagerDraft(initialManagerDraft);
+    setShowManagerPassword(false);
+    setPasswordTarget(null);
+    setFeedback(null);
+    setDialog('manager');
+  }
+
+  function openChangePassword(manager: CorporateUser) {
+    setPasswordTarget(manager);
+    setPasswordDraft(initialPasswordDraft);
+    setShowNewPassword(false);
+    setFeedback(null);
+    setDialog('change-password');
   }
 
   function closeDialog() {
     if (submitting) return;
     setDialog(null);
-    setSelectedOffice(null);
-    setSelectedDepartment(null);
-    setSelectedZone(null);
-    setSelectedUser(null);
+    setManagerDraft(initialManagerDraft);
+    setShowManagerPassword(false);
+    setPasswordTarget(null);
+    setPasswordDraft(initialPasswordDraft);
+    setShowNewPassword(false);
     setFeedback(null);
   }
 
@@ -618,342 +478,58 @@ export default function CompanyProfilePage() {
     }
   }
 
-  async function submitLegal(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!tenantId || !profileTenant || submissionInProgress.current) return;
-    const legalEntityName = legalDraft.legalEntityName.trim();
-    const gstin = legalDraft.gstin.trim().toUpperCase();
-    const cin = legalDraft.cin.trim().toUpperCase();
-    if (!legalEntityName) {
-      setFeedback({ kind: 'error', text: 'Legal business name is required.' });
-      return;
-    }
-    if (gstin && !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][A-Z0-9]Z[A-Z0-9]$/.test(gstin)) {
-      setFeedback({
-        kind: 'error',
-        text: 'Enter a valid 15-character GSTIN or leave it blank.',
-      });
-      return;
-    }
-    if (cin && !/^[LU][0-9]{5}[A-Z]{2}[0-9]{4}[A-Z]{3}[0-9]{6}$/.test(cin)) {
-      setFeedback({
-        kind: 'error',
-        text: 'Enter a valid 21-character CIN or leave it blank.',
-      });
-      return;
-    }
-    if (!legalDraft.billingSameAsRegistered && !legalDraft.billingAddress.trim()) {
-      setFeedback({
-        kind: 'error',
-        text: 'Enter a billing address or select same as registered.',
-      });
-      return;
-    }
-    submissionInProgress.current = true;
-    setSubmitting(true);
-    setFeedback(null);
-    try {
-      await tenantApi.updateProfile(tenantId, {
-        name: profileTenant.name,
-        legalEntityName,
-        gstin,
-        industry: profileTenant.industry ?? null,
-        website: profileTenant.website ?? null,
-        logoUrl: profileTenant.logoUrl ?? null,
-        registeredAddress: profileTenant.registeredAddress ?? null,
-        city: profileTenant.city ?? null,
-        state: profileTenant.state ?? null,
-        pinCode: profileTenant.pinCode ?? null,
-        country: profileTenant.country ?? null,
-        primaryContactName: profileTenant.primaryContactName ?? null,
-        primaryContactEmail: profileTenant.primaryContactEmail ?? null,
-        primaryContactPhone: profileTenant.primaryContactPhone ?? null,
-        cin,
-        registeredBusinessAddress: legalDraft.registeredBusinessAddress,
-        billingAddress: legalDraft.billingSameAsRegistered ? null : legalDraft.billingAddress,
-        billingSameAsRegistered: legalDraft.billingSameAsRegistered,
-      });
-      await reloadTenant();
-      setEditingLegal(false);
-      setFeedback({ kind: 'success', text: 'Legal and tax details saved.' });
-    } catch (error) {
-      setFeedback({ kind: 'error', text: errorText(error) });
-    } finally {
-      submissionInProgress.current = false;
-      setSubmitting(false);
-    }
-  }
-
-  async function submitOffice(event: FormEvent<HTMLFormElement>) {
+  async function submitManager(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!tenantId || submissionInProgress.current) return;
-    const isEditing = dialog === 'edit-office' && !!selectedOffice;
-    const code = officeDraft.code.trim().toUpperCase();
-    if (code.length < 2 || officeDraft.name.trim().length < 2 || officeDraft.addressText.trim().length < 5) {
-      setFeedback({
-        kind: 'error',
-        text: 'Enter an office name, code and complete address.',
-      });
-      return;
-    }
-    const latitude = Number(officeDraft.latitude);
-    const longitude = Number(officeDraft.longitude);
-    if (
-      profileOffices.some(
-        (office) => office.code.toUpperCase() === code && (!isEditing || office.id !== selectedOffice.id),
-      )
-    ) {
-      setFeedback({
-        kind: 'error',
-        text: 'An office with this code already exists in your organization.',
-      });
-      return;
-    }
-    if (
-      !officeDraft.latitude.trim() ||
-      !officeDraft.longitude.trim() ||
-      !Number.isFinite(latitude) ||
-      latitude < -90 ||
-      latitude > 90 ||
-      !Number.isFinite(longitude) ||
-      longitude < -180 ||
-      longitude > 180
-    ) {
-      setFeedback({
-        kind: 'error',
-        text: 'Enter valid latitude and longitude coordinates.',
-      });
-      return;
-    }
-    submissionInProgress.current = true;
-    setSubmitting(true);
-    setFeedback(null);
-    const payload = {
-      code,
-      name: officeDraft.name.trim(),
-      city: officeDraft.city.trim() || undefined,
-      state: officeDraft.state.trim() || undefined,
-      pinCode: officeDraft.pinCode.trim() || undefined,
-      country: officeDraft.country.trim() || undefined,
-      addressText: officeDraft.addressText.trim(),
-      latitude,
-      longitude,
-      contactName: officeDraft.contactName.trim() || undefined,
-      contactEmail: officeDraft.contactEmail.trim() || undefined,
-      contactPhone: officeDraft.contactPhone.trim() || undefined,
-      ...(isEditing ? { isActive: officeDraft.isActive } : {}),
-    };
-    try {
-      if (isEditing) {
-        await tenantApi.updateOffice(tenantId, selectedOffice.id, payload);
-      } else {
-        await tenantApi.createOffice(tenantId, payload);
-      }
-      await reloadTenant();
-      setDialog(null);
-      setSelectedOffice(null);
-      setOfficeDraft(initialOfficeDraft);
-      setFeedback({ kind: 'success', text: isEditing ? 'Office updated.' : 'Office added.' });
-    } catch (error) {
-      setFeedback({ kind: 'error', text: errorText(error) });
-    } finally {
-      submissionInProgress.current = false;
-      setSubmitting(false);
-    }
-  }
+    const fullName = managerDraft.fullName.trim();
+    const normalizedPhone = normalizeMobileNumber(managerDraft.phone);
+    const password = managerDraft.password;
 
-  async function submitDepartment(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!tenantId || submissionInProgress.current) return;
-    const isEditing = dialog === 'edit-department' && !!selectedDepartment;
-    const code = departmentDraft.code.trim().toUpperCase();
-    if (
-      profileDepartments.some(
-        (department) =>
-          department.code.toUpperCase() === code && (!isEditing || department.id !== selectedDepartment.id),
-      )
-    ) {
-      setFeedback({
-        kind: 'error',
-        text: 'A department with this code already exists in your organization.',
-      });
-      return;
-    }
-    if (!/^[A-Z0-9][A-Z0-9_-]{0,31}$/.test(code)) {
-      setFeedback({
-        kind: 'error',
-        text: 'Department code must be 1–32 characters using letters, numbers, underscores or hyphens.',
-      });
-      return;
-    }
-    if (departmentDraft.name.trim().length < 2) {
-      setFeedback({
-        kind: 'error',
-        text: 'Department name must be at least 2 characters.',
-      });
-      return;
-    }
-    submissionInProgress.current = true;
-    setSubmitting(true);
-    setFeedback(null);
-    const payload = {
-      code,
-      name: departmentDraft.name.trim(),
-      departmentHead: departmentDraft.departmentHead.trim() || undefined,
-      officeId: departmentDraft.officeId || undefined,
-      description: departmentDraft.description.trim() || undefined,
-      ...(isEditing ? { isActive: departmentDraft.isActive } : {}),
-    };
-    try {
-      if (isEditing) {
-        await tenantApi.updateDepartment(tenantId, selectedDepartment.id, payload);
-      } else {
-        await tenantApi.createDepartment(tenantId, payload);
-      }
-      setDepartmentDraft(initialDepartmentDraft);
-      setSelectedDepartment(null);
-      setDialog(null);
-      setFeedback({ kind: 'success', text: isEditing ? 'Department updated.' : 'Department added.' });
-      await loadSectionData();
-    } catch (error) {
-      setFeedback({ kind: 'error', text: errorText(error) });
-    } finally {
-      submissionInProgress.current = false;
-      setSubmitting(false);
-    }
-  }
-
-  async function submitZone(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!tenantId || submissionInProgress.current) return;
-    const isEditing = dialog === 'edit-zone' && !!selectedZone;
-    const code = zoneDraft.code.trim().toUpperCase();
-    if (!zoneDraft.officeId) {
-      setFeedback({ kind: 'error', text: 'Select an office for this transport zone.' });
-      return;
-    }
-    if (
-      profileZones.some(
-        (zone) => zone.code.toUpperCase() === code && (!isEditing || zone.id !== selectedZone.id),
-      )
-    ) {
-      setFeedback({
-        kind: 'error',
-        text: 'A transport zone with this code already exists in your organization.',
-      });
-      return;
-    }
-    if (!/^[A-Z0-9][A-Z0-9_-]{0,31}$/.test(code)) {
-      setFeedback({
-        kind: 'error',
-        text: 'Zone code must be 1–32 characters using letters, numbers, underscores or hyphens.',
-      });
-      return;
-    }
-    if (zoneDraft.name.trim().length < 2) {
-      setFeedback({ kind: 'error', text: 'Zone name must be at least 2 characters.' });
-      return;
-    }
-    if (!zoneDraft.serviceArea.trim()) {
-      setFeedback({ kind: 'error', text: 'Service area is required.' });
-      return;
-    }
-    const splitLocations = (raw: string) =>
-      raw
-        .split(/[\n,]+/)
-        .map((item) => item.trim())
-        .filter(Boolean);
-
-    submissionInProgress.current = true;
-    setSubmitting(true);
-    setFeedback(null);
-    const payload = {
-      officeId: zoneDraft.officeId,
-      code,
-      name: zoneDraft.name.trim(),
-      serviceArea: zoneDraft.serviceArea.trim(),
-      description: zoneDraft.description.trim() || undefined,
-      pickupLocations: splitLocations(zoneDraft.pickupLocationsText),
-      dropLocations: splitLocations(zoneDraft.dropLocationsText),
-      ...(isEditing ? { isActive: zoneDraft.isActive } : {}),
-    };
-    try {
-      if (isEditing) {
-        await tenantApi.updateTransportZone(tenantId, selectedZone.id, payload);
-      } else {
-        await tenantApi.createTransportZone(tenantId, payload);
-      }
-      setZoneDraft(initialZoneDraft);
-      setSelectedZone(null);
-      setDialog(null);
-      setFeedback({ kind: 'success', text: isEditing ? 'Transport zone updated.' : 'Transport zone added.' });
-      await loadSectionData();
-    } catch (error) {
-      setFeedback({ kind: 'error', text: errorText(error) });
-    } finally {
-      submissionInProgress.current = false;
-      setSubmitting(false);
-    }
-  }
-
-  async function submitUser(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!tenantId || submissionInProgress.current) return;
-    const fullName = userDraft.fullName.trim();
-    const email = userDraft.email.trim();
-    const phone = userDraft.phone.trim();
     if (fullName.length < 2) {
       setFeedback({
         kind: 'error',
-        text: 'Full name must be at least 2 characters.',
+        text: 'Enter a manager name (at least 2 characters).',
       });
       return;
     }
-    if (!email && !phone) {
+    if (isPhoneLike(fullName)) {
       setFeedback({
         kind: 'error',
-        text: 'Provide at least an email address or phone number.',
+        text: 'Enter the manager’s name, not a mobile number.',
       });
       return;
     }
-    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    if (!normalizedPhone) {
       setFeedback({
         kind: 'error',
-        text: 'Enter a valid email address.',
+        text: 'Enter a valid 10-digit mobile number.',
       });
       return;
     }
-    if (phone && phone.replace(/\D/g, '').length < 10) {
+    if (password.length < 8) {
       setFeedback({
         kind: 'error',
-        text: 'Phone number must contain at least 10 digits.',
+        text: 'Password must be at least 8 characters.',
       });
       return;
     }
+
     submissionInProgress.current = true;
     setSubmitting(true);
     setFeedback(null);
     try {
       await usersApi.invite(tenantId, {
         fullName,
-        email: email || undefined,
-        phone: phone || undefined,
-        corporateRole: userDraft.corporateRole,
-        officeIds: userDraft.officeIds,
+        phone: normalizedPhone,
+        password,
+        corporateRole: 'TRANSPORT',
+        officeIds: officeScope ?? [],
       });
+      await loadManagers();
       setDialog(null);
-      setUserDraft({
-        fullName: '',
-        email: '',
-        phone: '',
-        corporateRole: 'READ_ONLY',
-        officeIds: [],
-      });
-      setFeedback({
-        kind: 'success',
-        text: 'Corporate user invited. They can sign in using the existing AdhocX identity flow.',
-      });
-      await loadSectionData();
+      setManagerDraft(initialManagerDraft);
+      setShowManagerPassword(false);
+      setFeedback({ kind: 'success', text: 'Manager added.' });
     } catch (error) {
       setFeedback({ kind: 'error', text: errorText(error) });
     } finally {
@@ -962,36 +538,49 @@ export default function CompanyProfilePage() {
     }
   }
 
-  async function submitUserUpdate(event: FormEvent<HTMLFormElement>) {
+  async function submitChangePassword(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!tenantId || !selectedUser || selectedUser.id === user?.id || submissionInProgress.current) return;
+    if (!tenantId || !passwordTarget || submissionInProgress.current) return;
+    const { password, confirmPassword } = passwordDraft;
+    if (password.length < 8) {
+      setFeedback({
+        kind: 'error',
+        text: 'Password must be at least 8 characters.',
+      });
+      return;
+    }
+    if (password !== confirmPassword) {
+      setFeedback({
+        kind: 'error',
+        text: 'Passwords do not match.',
+      });
+      return;
+    }
+
     submissionInProgress.current = true;
     setSubmitting(true);
     setFeedback(null);
     try {
-      await usersApi.update(tenantId, selectedUser.id, {
-        corporateRole: userDraft.corporateRole,
-        officeIds: userDraft.officeIds,
-      });
+      if (user?.id && passwordTarget.id === user.id) {
+        const res = await authApi.setPassword(password);
+        if (res?.accessToken) {
+          setSession(res.accessToken, res.refreshToken, res.user);
+          acceptSession(res.accessToken, res.user);
+        }
+      } else {
+        await usersApi.update(tenantId, passwordTarget.id, { password });
+      }
       setDialog(null);
-      setSelectedUser(null);
-      setFeedback({ kind: 'success', text: 'User access updated.' });
-      await loadSectionData();
+      setPasswordTarget(null);
+      setPasswordDraft(initialPasswordDraft);
+      setShowNewPassword(false);
+      setFeedback({ kind: 'success', text: 'Password updated.' });
     } catch (error) {
       setFeedback({ kind: 'error', text: errorText(error) });
     } finally {
       submissionInProgress.current = false;
       setSubmitting(false);
     }
-  }
-
-  function toggleOffice(officeId: string) {
-    setUserDraft((current) => ({
-      ...current,
-      officeIds: current.officeIds.includes(officeId)
-        ? current.officeIds.filter((id) => id !== officeId)
-        : [...current.officeIds, officeId],
-    }));
   }
 
   return (
@@ -1007,7 +596,7 @@ export default function CompanyProfilePage() {
           <p className={styles.pageSubtitle}>
             {profileTenant
               ? `${profileTenant.primaryContactName || 'Company account'} · ${profileTenant.code}`
-              : 'Manage your organization details, offices, departments, transport zones and user access.'}
+              : 'Manage your organization details, legal & tax details, and managers.'}
           </p>
         </div>
       </header>
@@ -1078,11 +667,15 @@ export default function CompanyProfilePage() {
             </Notice>
           ) : !profileTenant ? (
             <Card>
-              <EmptyState>
-                {status === 'loading' || tenantId
-                  ? 'Loading organization profile…'
-                  : 'Company profile is unavailable for this account.'}
-              </EmptyState>
+              {status === 'loading' || tenantId ? (
+                <ContentLoadingSkeleton
+                  kind="profile"
+                  count={6}
+                  label="Loading organization profile…"
+                />
+              ) : (
+                <EmptyState>Company profile is unavailable for this account.</EmptyState>
+              )}
             </Card>
           ) : (
             <>
@@ -1090,7 +683,7 @@ export default function CompanyProfilePage() {
                 <span>{SECTIONS.find((section) => section.id === activeSection)?.icon}</span>
                 {SECTIONS.find((section) => section.id === activeSection)?.label}
               </div>
-              {feedback && (
+              {!dialog && feedback && (
                 <div role={feedback.kind === 'error' ? 'alert' : 'status'}>
                   <Notice error={feedback.kind === 'error'}>{feedback.text}</Notice>
                 </div>
@@ -1282,386 +875,115 @@ export default function CompanyProfilePage() {
               {activeSection === 'legal' && (
                 <Card>
                   <SectionHeading
-                    title="Legal & tax details"
-                    description="Legal entity, registration and billing information."
+                    title="Legal & tax"
+                    description="Registered entity identifiers and the company billing address."
+                    borderless
                   />
-                  {editingLegal ? (
-                    <form onSubmit={submitLegal} className={styles.profileForm}>
-                      <div className={styles.formGrid}>
-                        <Field
-                          label="Legal business name"
-                          required
-                          value={legalDraft.legalEntityName}
-                          onChange={(legalEntityName) =>
-                            setLegalDraft((draft) => ({
-                              ...draft,
-                              legalEntityName,
-                            }))
-                          }
-                        />
-                        <Field
-                          label="GSTIN"
-                          value={legalDraft.gstin}
-                          placeholder="15-character GSTIN"
-                          onChange={(gstin) => setLegalDraft((draft) => ({ ...draft, gstin }))}
-                        />
-                        <Field
-                          label="CIN / Company registration number"
-                          value={legalDraft.cin}
-                          placeholder="21-character CIN (if applicable)"
-                          onChange={(cin) => setLegalDraft((draft) => ({ ...draft, cin }))}
-                        />
-                      </div>
-                      <TextArea
-                        label="Registered business address"
-                        value={legalDraft.registeredBusinessAddress}
-                        onChange={(registeredBusinessAddress) =>
-                          setLegalDraft((draft) => ({
-                            ...draft,
-                            registeredBusinessAddress,
-                          }))
-                        }
-                      />
-                      <label className={styles.checkboxField}>
-                        <input
-                          type="checkbox"
-                          checked={legalDraft.billingSameAsRegistered}
-                          onChange={(event) =>
-                            setLegalDraft((draft) => ({
-                              ...draft,
-                              billingSameAsRegistered: event.target.checked,
-                            }))
-                          }
-                        />
-                        Billing address same as registered
-                      </label>
-                      {!legalDraft.billingSameAsRegistered && (
-                        <TextArea
-                          label="Billing address"
-                          value={legalDraft.billingAddress}
-                          required
-                          onChange={(billingAddress) =>
-                            setLegalDraft((draft) => ({
-                              ...draft,
-                              billingAddress,
-                            }))
-                          }
-                        />
-                      )}
-                      <p className={styles.fieldHelp}>
-                        GSTIN and CIN are optional and should be provided only when applicable to your legal structure.
-                      </p>
-                      <div className={styles.formActions}>
-                        <ActionButton secondary onClick={() => setEditingLegal(false)} disabled={submitting}>
-                          Cancel
+                  <div className={`${styles.detailsGrid} ${styles.organizationDetails} ${styles.legalDetails}`}>
+                    <Detail label="Legal entity name" value={profileTenant.legalEntityName} />
+                    <Detail label="GSTIN" value={profileTenant.gstin} />
+                    <Detail label="CIN" value={profileTenant.cin} />
+                    <Detail
+                      label="Billing address"
+                      value={
+                        (profileTenant.billingSameAsRegistered ?? true)
+                          ? 'Same as registered address'
+                          : profileTenant.billingAddress
+                      }
+                    />
+                  </div>
+                  <div className={styles.legalNotice} role="note">
+                    <span className={styles.legalNoticeIcon}>
+                      <Shield size={15} aria-hidden="true" />
+                    </span>
+                    <span>Tax and registration identifiers are stored in the company profile.</span>
+                  </div>
+                </Card>
+              )}
+
+              {activeSection === 'managers' && (
+                <Card>
+                  <SectionHeading
+                    title="Managers"
+                    description={`Manager accounts and contact details for ${profileTenant.name}.`}
+                    action={
+                      canInviteManagers ? (
+                        <ActionButton onClick={openAddManager}>
+                          <Plus size={15} aria-hidden="true" />
+                          <span>Add manager</span>
                         </ActionButton>
-                        <ActionButton type="submit" disabled={submitting}>
-                          {submitting ? 'Saving…' : 'Save changes'}
-                        </ActionButton>
-                      </div>
-                    </form>
-                  ) : (
-                    <div className={styles.detailsGrid}>
-                      <Detail label="Legal business name" value={profileTenant.legalEntityName} />
-                      <Detail
-                        label="GSTIN"
-                        value={valueOrDash(profileTenant.gstin)}
-                      />
-                      <Detail
-                        label="CIN / Registration number"
-                        value={valueOrDash(profileTenant.cin)}
-                      />
-                      <Detail
-                        label="Registered business address"
-                        value={valueOrDash(profileTenant.registeredBusinessAddress)}
-                      />
-                      <Detail
-                        label="Billing address"
-                        value={
-                          (profileTenant.billingSameAsRegistered ?? true)
-                            ? 'Same as registered address'
-                            : profileTenant.billingAddress
-                        }
-                      />
+                      ) : undefined
+                    }
+                  />
+                  {!canReadManagers ? (
+                    <EmptyState>Manager directory access requires Corporate Admin or HR permissions.</EmptyState>
+                  ) : managersLoading ? (
+                    <div className={styles.managerLoading}>
+                      <ContentLoadingSkeleton kind="table" count={4} label="Loading managers…" />
                     </div>
-                  )}
-                </Card>
-              )}
-
-              {activeSection === 'offices' && (
-                <Card>
-                  <SectionHeading
-                    title="Offices & sites"
-                    description={`Office locations and contact details for ${profileTenant.name}.`}
-                  />
-                  <SearchBox
-                    value={search}
-                    onChange={setSearch}
-                    placeholder="Search offices by name, code or address"
-                  />
-                  {!profileOffices.length ? (
-                    <EmptyState>No offices are configured for this organization.</EmptyState>
-                  ) : visibleOffices.length ? (
-                    <Table>
-                      <thead>
-                        <tr>
-                          <Th>Office name</Th>
-                          <Th>Office code</Th>
-                          <Th>City</Th>
-                          <Th>Address</Th>
-                          <Th>Employees</Th>
-                          <Th>Status</Th>
-                          <Th>Details</Th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {visibleOffices.map((office) => (
-                          <tr key={office.id}>
-                            <Td strong>{office.name}</Td>
-                            <Td>
-                              <code>{office.code}</code>
-                            </Td>
-                            <Td>{office.city || '—'}</Td>
-                            <Td>{office.addressText || office.address || '—'}</Td>
-                            <Td>{office._count?.employees ?? office.employeeCount ?? '—'}</Td>
-                            <Td>
-                              {office.isActive === undefined ? (
-                                '—'
-                              ) : (
-                                <StatusBadge status={office.isActive ? 'ACTIVE' : 'INACTIVE'} size="sm" />
-                              )}
-                            </Td>
-                            <Td>
-                              <TextAction onClick={() => setSelectedOffice(office)}>View</TextAction>
-                            </Td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </Table>
-                  ) : (
-                    <EmptyState>No offices match “{search}”.</EmptyState>
-                  )}
-                </Card>
-              )}
-
-              {activeSection === 'departments' && (
-                <Card>
-                  <SectionHeading
-                    title="Departments"
-                    description={`Departments and office assignments for ${profileTenant.name}.`}
-                  />
-                  <SearchBox value={search} onChange={setSearch} placeholder="Search departments by name, code, head or office" />
-                  {sectionLoading ? (
-                    <EmptyState>Loading departments…</EmptyState>
-                  ) : loadError && activeSection === 'departments' ? (
-                    <div style={{ padding: 20 }}>
-                      <Notice error>{loadError}</Notice>
+                  ) : managersError ? (
+                    <div className={styles.managerNoticeWrap}>
+                      <Notice error>
+                        Could not load managers. {managersError}{' '}
+                        <button type="button" onClick={() => void loadManagers()} className={styles.textAction}>
+                          Try again
+                        </button>
+                      </Notice>
                     </div>
-                  ) : !profileDepartments.length ? (
-                    <EmptyState>No departments are configured for this organization.</EmptyState>
-                  ) : visibleDepartments.length ? (
-                    <Table>
-                      <thead>
-                        <tr>
-                          <Th>Department name</Th>
-                          <Th>Department code</Th>
-                          <Th>Head</Th>
-                          <Th>Office</Th>
-                          <Th>Employees</Th>
-                          <Th>Status</Th>
-                          <Th>Details</Th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {visibleDepartments.map((department) => (
-                          <tr key={department.id}>
-                            <Td strong>{department.name}</Td>
-                            <Td>
-                              <code>{department.code}</code>
-                            </Td>
-                            <Td>{department.departmentHead || '—'}</Td>
-                            <Td>{department.office?.name || 'All offices'}</Td>
-                            <Td>{department._count?.employees ?? '—'}</Td>
-                            <Td>
-                              <StatusBadge status={department.isActive ? 'ACTIVE' : 'INACTIVE'} size="sm" />
-                            </Td>
-                            <Td>
-                              <TextAction onClick={() => setSelectedDepartment(department)}>View</TextAction>
-                            </Td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </Table>
-                  ) : (
-                    <EmptyState>No departments match “{search}”.</EmptyState>
-                  )}
-                </Card>
-              )}
-
-              {activeSection === 'zones' && (
-                <Card>
-                  <SectionHeading
-                    title="Transport zones"
-                    description={`Service areas, pickup corridors, and office assignments for ${profileTenant.name}.`}
-                  />
-                  {!canReadZones ? (
-                    <EmptyState>Your role does not have permission to view transport zones.</EmptyState>
                   ) : (
                     <>
                       <SearchBox
                         value={search}
                         onChange={setSearch}
-                        placeholder="Search transport zones by name, code, office or service area"
+                        placeholder="Search managers by name or mobile number"
                       />
-                      {sectionLoading ? (
-                        <EmptyState>Loading transport zones…</EmptyState>
-                      ) : loadError && activeSection === 'zones' ? (
-                        <div style={{ padding: 20 }}>
-                          <Notice error>{loadError}</Notice>
-                        </div>
-                      ) : !profileZones.length ? (
-                        <EmptyState>No transport zones are configured for this organization yet.</EmptyState>
-                      ) : visibleZones.length ? (
+                      {!managers.length ? (
+                        <EmptyState>No managers are configured for this organization.</EmptyState>
+                      ) : visibleManagers.length ? (
                         <Table>
                           <thead>
                             <tr>
-                              <Th>Zone name</Th>
-                              <Th>Zone code</Th>
-                              <Th>Office</Th>
-                              <Th>Service area</Th>
-                              <Th>Pickup / Drop points</Th>
+                              <Th>Name</Th>
+                              <Th>Mobile number</Th>
                               <Th>Status</Th>
-                              <Th>Details</Th>
+                              <Th>Actions</Th>
                             </tr>
                           </thead>
                           <tbody>
-                            {visibleZones.map((zone) => (
-                              <tr key={zone.id}>
-                                <Td strong>{zone.name}</Td>
-                                <Td>
-                                  <code>{zone.code}</code>
-                                </Td>
-                                <Td>{zone.office?.name ?? '—'}</Td>
-                                <Td>{zone.serviceArea}</Td>
-                                <Td>
-                                  {(zone.pickupLocations?.length ?? 0)} pickup · {(zone.dropLocations?.length ?? 0)} drop
-                                </Td>
-                                <Td>
-                                  <StatusBadge status={zone.isActive ? 'ACTIVE' : 'INACTIVE'} size="sm" />
-                                </Td>
-                                <Td>
-                                  <TextAction
-                                    onClick={() => {
-                                      setSelectedZone(zone);
-                                      setDialog('view-zone');
-                                    }}
-                                  >
-                                    View
-                                  </TextAction>
-                                </Td>
-                              </tr>
-                            ))}
+                            {visibleManagers.map((manager) => {
+                              const canChangePassword =
+                                canInviteManagers || (Boolean(user?.id) && manager.id === user?.id);
+                              return (
+                                <tr key={manager.id}>
+                                  <Td strong>
+                                    {managerDisplayName(manager, profileTenant?.primaryContactName)}
+                                  </Td>
+                                  <Td>{manager.phone || '—'}</Td>
+                                  <Td>
+                                    <StatusBadge status={manager.status} size="sm" />
+                                  </Td>
+                                  <Td>
+                                    {canChangePassword ? (
+                                      <button
+                                        type="button"
+                                        onClick={() => openChangePassword(manager)}
+                                        className={styles.textAction}
+                                      >
+                                        <KeyRound size={13} aria-hidden="true" style={{ marginRight: 5, verticalAlign: '-2px' }} />
+                                        Change password
+                                      </button>
+                                    ) : (
+                                      '—'
+                                    )}
+                                  </Td>
+                                </tr>
+                              );
+                            })}
                           </tbody>
                         </Table>
                       ) : (
-                        <EmptyState>No transport zones match “{search}”.</EmptyState>
+                        <EmptyState>No managers match “{search}”.</EmptyState>
                       )}
-                    </>
-                  )}
-                </Card>
-              )}
-
-              {activeSection === 'users' && (
-                <Card>
-                  <SectionHeading
-                    title="Users & roles"
-                    description="Corporate portal accounts, assigned roles and office access."
-                  />
-                  {!canReadUsers ? (
-                    <EmptyState>
-                      {officeScope
-                        ? 'Corporate user listings are unavailable to office-scoped accounts because the current API does not filter users by office.'
-                        : 'Your role does not have permission to view corporate users.'}
-                    </EmptyState>
-                  ) : (
-                    <>
-                      <SearchBox
-                        value={search}
-                        onChange={setSearch}
-                        placeholder="Search users by name, email or role"
-                      />
-                      {sectionLoading ? (
-                        <EmptyState>Loading users…</EmptyState>
-                      ) : loadError && activeSection === 'users' ? (
-                        <div style={{ padding: 20 }}>
-                          <Notice error>{loadError}</Notice>
-                        </div>
-                      ) : !profileUsers.length ? (
-                        <EmptyState>No corporate portal users are available.</EmptyState>
-                      ) : visibleUsers.length ? (
-                        <Table>
-                          <thead>
-                            <tr>
-                              <Th>User</Th>
-                              <Th>Phone</Th>
-                              <Th>Role</Th>
-                              <Th>Assigned offices</Th>
-                              <Th>Permissions</Th>
-                              <Th>Account status</Th>
-                              <Th>Details</Th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {visibleUsers.map((corporateUser) => (
-                              <tr key={corporateUser.id}>
-                                <Td strong>
-                                  {corporateUser.fullName || 'Name not provided'}
-                                  <div className={styles.tableSecondary}>
-                                    {corporateUser.email || 'Email not provided'}
-                                  </div>
-                                </Td>
-                                <Td>{corporateUser.phone || '—'}</Td>
-                                <Td>{corporateRoleLabel(corporateUser.corporateRole)}</Td>
-                                <Td>{formatOfficeScope(corporateUser.corporateOfficeIds, profileOffices)}</Td>
-                                <Td>
-                                  {userPermissionLabels(corporateUser).length ? (
-                                    <div className={styles.permissionList}>
-                                      {userPermissionLabels(corporateUser).map((permission) => (
-                                        <span key={permission} className={styles.permissionChip}>
-                                          {permission}
-                                        </span>
-                                      ))}
-                                    </div>
-                                  ) : (
-                                    '—'
-                                  )}
-                                </Td>
-                                <Td>
-                                  <StatusBadge status={corporateUser.status} size="sm" />
-                                </Td>
-                                <Td>
-                                  <TextAction
-                                    onClick={() => {
-                                      setSelectedUser(corporateUser);
-                                      setDialog('view-user');
-                                    }}
-                                  >
-                                    View
-                                  </TextAction>
-                                </Td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </Table>
-                      ) : (
-                        <EmptyState>No users match “{search}”.</EmptyState>
-                      )}
-                      <div className={styles.cardFooter}>
-                        <Notice>
-                          User invitations and role/office-scope updates use the existing identity service APIs.
-                          Deactivation is not supported by the current API.
-                        </Notice>
-                      </div>
                     </>
                   )}
                 </Card>
@@ -1672,467 +994,122 @@ export default function CompanyProfilePage() {
       </main>
 
       <ProfileDrawer
-        isOpen={dialog === 'office' || dialog === 'edit-office'}
+        isOpen={dialog === 'manager'}
         onClose={closeDialog}
-        title={dialog === 'edit-office' ? 'Edit office' : 'Add office'}
-        subtitle="Office code must be unique within your organization."
+        title="Add manager"
+        subtitle="Create a manager account with a name, mobile number, and password."
       >
-        <form onSubmit={submitOffice} className={styles.form}>
-          <div className={styles.formGrid}>
-            <Field
-              label="Office name"
-              value={officeDraft.name}
-              required
-              onChange={(name) => setOfficeDraft((draft) => ({ ...draft, name }))}
-            />
-            <Field
-              label="Office code"
-              value={officeDraft.code}
-              required
-              onChange={(code) => setOfficeDraft((draft) => ({ ...draft, code }))}
-            />
-          </div>
+        <form onSubmit={submitManager} className={styles.form}>
           <Field
-            label="Office address"
-            value={officeDraft.addressText}
+            label="Manager name"
+            value={managerDraft.fullName}
             required
-            onChange={(addressText) => setOfficeDraft((draft) => ({ ...draft, addressText }))}
+            placeholder="e.g. Priya Sharma"
+            onChange={(fullName) => setManagerDraft((draft) => ({ ...draft, fullName }))}
           />
-          <div className={styles.formGrid}>
-            <Field
-              label="City"
-              value={officeDraft.city}
-              onChange={(city) => setOfficeDraft((draft) => ({ ...draft, city }))}
-            />
-            <Field
-              label="State"
-              value={officeDraft.state}
-              onChange={(state) => setOfficeDraft((draft) => ({ ...draft, state }))}
-            />
-            <Field
-              label="PIN code"
-              value={officeDraft.pinCode}
-              onChange={(pinCode) => setOfficeDraft((draft) => ({ ...draft, pinCode }))}
-            />
-            <Field
-              label="Country"
-              value={officeDraft.country}
-              onChange={(country) => setOfficeDraft((draft) => ({ ...draft, country }))}
-            />
-          </div>
-          <div className={styles.formGrid}>
-            <Field
-              label="Latitude"
-              type="number"
-              min="-90"
-              max="90"
-              step="any"
-              value={officeDraft.latitude}
-              required
-              onChange={(latitude) => setOfficeDraft((draft) => ({ ...draft, latitude }))}
-            />
-            <Field
-              label="Longitude"
-              type="number"
-              min="-180"
-              max="180"
-              step="any"
-              value={officeDraft.longitude}
-              required
-              onChange={(longitude) => setOfficeDraft((draft) => ({ ...draft, longitude }))}
-            />
-          </div>
-          <div className={styles.formGrid}>
-            <Field
-              label="Site contact name"
-              value={officeDraft.contactName}
-              onChange={(contactName) => setOfficeDraft((draft) => ({ ...draft, contactName }))}
-            />
-            <Field
-              label="Site contact email"
-              type="email"
-              value={officeDraft.contactEmail}
-              onChange={(contactEmail) => setOfficeDraft((draft) => ({ ...draft, contactEmail }))}
-            />
-            <Field
-              label="Site contact phone"
-              type="tel"
-              value={officeDraft.contactPhone}
-              onChange={(contactPhone) => setOfficeDraft((draft) => ({ ...draft, contactPhone }))}
-            />
-          </div>
-          {dialog === 'edit-office' && (
-            <label className={styles.checkboxField}>
-              <input
-                type="checkbox"
-                checked={officeDraft.isActive}
-                onChange={(event) =>
-                  setOfficeDraft((draft) => ({ ...draft, isActive: event.target.checked }))
-                }
-              />
-              Office is active
-            </label>
-          )}
-          {feedback?.kind === 'error' && <Notice error>{feedback.text}</Notice>}
-          <div className={styles.formActions}>
-            <ActionButton secondary onClick={closeDialog} disabled={submitting}>
-              Cancel
-            </ActionButton>
-            <ActionButton type="submit" disabled={submitting}>
-              {submitting ? 'Saving…' : dialog === 'edit-office' ? 'Save changes' : 'Save office'}
-            </ActionButton>
-          </div>
-        </form>
-      </ProfileDrawer>
-
-      <ProfileDrawer
-        isOpen={dialog === 'department' || dialog === 'edit-department'}
-        onClose={closeDialog}
-        title={dialog === 'edit-department' ? 'Edit department' : 'Add department'}
-        subtitle="Department code must be unique within your organization."
-      >
-        <form onSubmit={submitDepartment} className={styles.form}>
-          <div className={styles.formGrid}>
-            <Field
-              label="Department name"
-              value={departmentDraft.name}
-              required
-              onChange={(name) => setDepartmentDraft((draft) => ({ ...draft, name }))}
-            />
-            <Field
-              label="Department code"
-              value={departmentDraft.code}
-              required
-              onChange={(code) => setDepartmentDraft((draft) => ({ ...draft, code }))}
-            />
-          </div>
-          <div className={styles.formGrid}>
-            <Field
-              label="Department head"
-              value={departmentDraft.departmentHead}
-              onChange={(departmentHead) => setDepartmentDraft((draft) => ({ ...draft, departmentHead }))}
-            />
-            <label className={styles.field}>
-              Assigned office
-              <select
-                value={departmentDraft.officeId}
-                onChange={(event) =>
-                  setDepartmentDraft((draft) => ({ ...draft, officeId: event.target.value }))
-                }
-                className={styles.fieldSelect}
-              >
-                <option value="">All offices</option>
-                {profileOffices.map((office) => (
-                  <option key={office.id} value={office.id}>
-                    {office.name} ({office.code})
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-          <TextArea
-            label="Description"
-            value={departmentDraft.description}
-            onChange={(description) => setDepartmentDraft((draft) => ({ ...draft, description }))}
+          <Field
+            label="Mobile number"
+            type="tel"
+            value={managerDraft.phone}
+            required
+            placeholder="10-digit mobile number"
+            onChange={(phone) => setManagerDraft((draft) => ({ ...draft, phone }))}
           />
-          {dialog === 'edit-department' && (
-            <label className={styles.checkboxField}>
-              <input
-                type="checkbox"
-                checked={departmentDraft.isActive}
-                onChange={(event) =>
-                  setDepartmentDraft((draft) => ({ ...draft, isActive: event.target.checked }))
-                }
-              />
-              Department is active
-            </label>
-          )}
-          {feedback?.kind === 'error' && <Notice error>{feedback.text}</Notice>}
-          <div className={styles.formActions}>
-            <ActionButton secondary onClick={closeDialog} disabled={submitting}>
-              Cancel
-            </ActionButton>
-            <ActionButton type="submit" disabled={submitting}>
-              {submitting ? 'Saving…' : dialog === 'edit-department' ? 'Save changes' : 'Save department'}
-            </ActionButton>
-          </div>
-        </form>
-      </ProfileDrawer>
-
-      <ProfileDrawer
-        isOpen={dialog === 'zone' || dialog === 'edit-zone'}
-        onClose={closeDialog}
-        title={dialog === 'edit-zone' ? 'Edit transport zone' : 'Add transport zone'}
-        subtitle="Define service area corridors and pickup/drop clusters for an office."
-      >
-        <form onSubmit={submitZone} className={styles.form}>
           <label className={styles.field}>
-            Office *
-            <select
-              required
-              value={zoneDraft.officeId}
-              onChange={(event) =>
-                setZoneDraft((draft) => ({ ...draft, officeId: event.target.value }))
-              }
-              className={styles.fieldSelect}
-            >
-              <option value="">Select an office</option>
-              {profileOffices.map((office) => (
-                <option key={office.id} value={office.id}>
-                  {office.name} ({office.code})
-                </option>
-              ))}
-            </select>
-          </label>
-          <div className={styles.formGrid}>
-            <Field
-              label="Zone name"
-              value={zoneDraft.name}
-              required
-              onChange={(name) => setZoneDraft((draft) => ({ ...draft, name }))}
-            />
-            <Field
-              label="Zone code"
-              value={zoneDraft.code}
-              required
-              onChange={(code) => setZoneDraft((draft) => ({ ...draft, code }))}
-            />
-          </div>
-          <Field
-            label="Service area"
-            value={zoneDraft.serviceArea}
-            required
-            placeholder="e.g. Gachibowli - Kondapur - HITEC City"
-            onChange={(serviceArea) => setZoneDraft((draft) => ({ ...draft, serviceArea }))}
-          />
-          <TextArea
-            label="Description"
-            value={zoneDraft.description}
-            onChange={(description) => setZoneDraft((draft) => ({ ...draft, description }))}
-          />
-          <TextArea
-            label="Pickup locations (one per line or comma-separated)"
-            value={zoneDraft.pickupLocationsText}
-            onChange={(pickupLocationsText) =>
-              setZoneDraft((draft) => ({ ...draft, pickupLocationsText }))
-            }
-          />
-          <TextArea
-            label="Drop locations (one per line or comma-separated)"
-            value={zoneDraft.dropLocationsText}
-            onChange={(dropLocationsText) =>
-              setZoneDraft((draft) => ({ ...draft, dropLocationsText }))
-            }
-          />
-          {dialog === 'edit-zone' && (
-            <label className={styles.checkboxField}>
+            Password *
+            <div className={styles.passwordInputWrap}>
               <input
-                type="checkbox"
-                checked={zoneDraft.isActive}
-                onChange={(event) =>
-                  setZoneDraft((draft) => ({ ...draft, isActive: event.target.checked }))
-                }
-              />
-              Transport zone is active
-            </label>
-          )}
-          {feedback?.kind === 'error' && <Notice error>{feedback.text}</Notice>}
-          <div className={styles.formActions}>
-            <ActionButton secondary onClick={closeDialog} disabled={submitting}>
-              Cancel
-            </ActionButton>
-            <ActionButton type="submit" disabled={submitting}>
-              {submitting ? 'Saving…' : dialog === 'edit-zone' ? 'Save changes' : 'Save transport zone'}
-            </ActionButton>
-          </div>
-        </form>
-      </ProfileDrawer>
-
-      <ProfileDrawer
-        isOpen={dialog === 'invite' || dialog === 'edit-user'}
-        onClose={closeDialog}
-        title={dialog === 'invite' ? 'Invite corporate user' : 'Edit user access'}
-        subtitle="Role and office access are enforced by the AdhocX API."
-      >
-        <form onSubmit={dialog === 'invite' ? submitUser : submitUserUpdate} className={styles.form}>
-          {dialog === 'invite' && (
-            <>
-              <Field
-                label="Full name"
-                value={userDraft.fullName}
                 required
-                onChange={(fullName) => setUserDraft((draft) => ({ ...draft, fullName }))}
+                type={showManagerPassword ? 'text' : 'password'}
+                value={managerDraft.password}
+                minLength={8}
+                placeholder="Minimum 8 characters"
+                onChange={(event) =>
+                  setManagerDraft((draft) => ({ ...draft, password: event.target.value }))
+                }
+                className={styles.fieldInput}
               />
-              <div className={styles.formGrid}>
-                <Field
-                  label="Email address"
-                  type="email"
-                  value={userDraft.email}
-                  onChange={(email) => setUserDraft((draft) => ({ ...draft, email }))}
-                />
-                <Field
-                  label="Phone number"
-                  type="tel"
-                  value={userDraft.phone}
-                  onChange={(phone) => setUserDraft((draft) => ({ ...draft, phone }))}
-                />
-              </div>
-              <p className={styles.fieldHelp}>Provide at least an email address or phone number.</p>
-            </>
-          )}
-          {dialog === 'edit-user' && (
-            <div className={styles.detailValue}>{selectedUser?.fullName || selectedUser?.email}</div>
-          )}
-          <label className={styles.field}>
-            Corporate role
-            <select
-              value={userDraft.corporateRole}
-              onChange={(event) =>
-                setUserDraft((draft) => ({
-                  ...draft,
-                  corporateRole: event.target.value as CorporateRole,
-                }))
-              }
-              className={styles.fieldSelect}
-            >
-              {CORPORATE_ROLES.map((role) => (
-                <option key={role} value={role}>
-                  {corporateRoleLabel(role)}
-                </option>
-              ))}
-            </select>
+              <button
+                type="button"
+                className={styles.passwordToggle}
+                onClick={() => setShowManagerPassword((shown) => !shown)}
+                aria-label={showManagerPassword ? 'Hide password' : 'Show password'}
+              >
+                {showManagerPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
           </label>
-          <fieldset className={styles.officeAccess}>
-            <legend className={styles.officeAccessLegend}>Office access</legend>
-            <p className={styles.officeAccessHelp}>
-              Select one or more offices. No selection grants access to all offices, subject to API authorization.
-            </p>
-            {profileOffices.length ? (
-              profileOffices.map((office) => (
-                <label key={office.id} className={styles.officeOption}>
-                  <input
-                    type="checkbox"
-                    checked={userDraft.officeIds.includes(office.id)}
-                    onChange={() => toggleOffice(office.id)}
-                  />
-                  {office.name} <span style={{ color: 'var(--text-muted)' }}>({office.code})</span>
-                </label>
-              ))
-            ) : (
-              <p className={styles.fieldHelp}>No offices are available.</p>
-            )}
-          </fieldset>
+          <p className={styles.fieldHelp}>
+            Minimum 8 characters. The manager can sign in with this mobile number and password.
+          </p>
           {feedback?.kind === 'error' && <Notice error>{feedback.text}</Notice>}
           <div className={styles.formActions}>
             <ActionButton secondary onClick={closeDialog} disabled={submitting}>
               Cancel
             </ActionButton>
             <ActionButton type="submit" disabled={submitting}>
-              {submitting ? 'Saving…' : dialog === 'invite' ? 'Send invitation' : 'Save access'}
+              {submitting ? 'Creating…' : 'Create manager'}
             </ActionButton>
           </div>
         </form>
       </ProfileDrawer>
 
       <ProfileDrawer
-        isOpen={!!selectedOffice && dialog !== 'edit-office'}
-        onClose={() => setSelectedOffice(null)}
-        title="Office details"
-      >
-        {selectedOffice && (
-          <DetailsList
-            entries={[
-              ['Office name', selectedOffice.name],
-              ['Office code', selectedOffice.code],
-              ['Address', selectedOffice.addressText || selectedOffice.address],
-              ['City', selectedOffice.city],
-              ['State', selectedOffice.state],
-              ['PIN code', selectedOffice.pinCode ?? selectedOffice.pincode ?? undefined],
-              ['Country', selectedOffice.country ?? undefined],
-              ['Site contact', selectedOffice.contactName ?? undefined],
-              ['Contact email', selectedOffice.contactEmail ?? undefined],
-              ['Contact phone', selectedOffice.contactPhone ?? undefined],
-              [
-                'Status',
-                selectedOffice.isActive === undefined ? undefined : selectedOffice.isActive ? 'Active' : 'Inactive',
-              ],
-              ['Employees', String(selectedOffice._count?.employees ?? selectedOffice.employeeCount ?? '—')],
-              ['Coordinates', `${selectedOffice.latitude}, ${selectedOffice.longitude}`],
-            ]}
-          />
-        )}
-      </ProfileDrawer>
-      <ProfileDrawer
-        isOpen={!!selectedDepartment && dialog !== 'edit-department'}
-        onClose={() => setSelectedDepartment(null)}
-        title="Department details"
-      >
-        {selectedDepartment && (
-          <DetailsList
-            entries={[
-              ['Department name', selectedDepartment.name],
-              ['Department code', selectedDepartment.code],
-              ['Department head', selectedDepartment.departmentHead ?? undefined],
-              ['Assigned office', selectedDepartment.office?.name ?? 'All offices'],
-              ['Description', selectedDepartment.description ?? undefined],
-              ['Status', selectedDepartment.isActive ? 'Active' : 'Inactive'],
-              ['Employees', String(selectedDepartment._count?.employees ?? '—')],
-            ]}
-          />
-        )}
-      </ProfileDrawer>
-      <ProfileDrawer
-        isOpen={dialog === 'view-zone' && !!selectedZone}
+        isOpen={dialog === 'change-password'}
         onClose={closeDialog}
-        title="Transport zone details"
-        subtitle="Service corridor and pickup/drop clusters."
+        title="Change password"
+        subtitle={
+          passwordTarget
+            ? `Set a new sign-in password for ${managerDisplayName(passwordTarget, profileTenant?.primaryContactName)}${passwordTarget.phone ? ` (${passwordTarget.phone})` : ''}.`
+            : undefined
+        }
       >
-        {selectedZone && (
-          <DetailsList
-            entries={[
-              ['Zone name', selectedZone.name],
-              ['Zone code', selectedZone.code],
-              ['Office', selectedZone.office?.name ?? undefined],
-              ['Service area', selectedZone.serviceArea],
-              ['Description', selectedZone.description ?? undefined],
-              [
-                'Pickup locations',
-                selectedZone.pickupLocations?.length ? selectedZone.pickupLocations.join(', ') : undefined,
-              ],
-              [
-                'Drop locations',
-                selectedZone.dropLocations?.length ? selectedZone.dropLocations.join(', ') : undefined,
-              ],
-              ['Status', selectedZone.isActive ? 'Active' : 'Inactive'],
-            ]}
+        <form onSubmit={submitChangePassword} className={styles.form}>
+          <label className={styles.field}>
+            New password *
+            <div className={styles.passwordInputWrap}>
+              <input
+                required
+                type={showNewPassword ? 'text' : 'password'}
+                value={passwordDraft.password}
+                minLength={8}
+                placeholder="Minimum 8 characters"
+                onChange={(event) =>
+                  setPasswordDraft((draft) => ({ ...draft, password: event.target.value }))
+                }
+                className={styles.fieldInput}
+              />
+              <button
+                type="button"
+                className={styles.passwordToggle}
+                onClick={() => setShowNewPassword((shown) => !shown)}
+                aria-label={showNewPassword ? 'Hide password' : 'Show password'}
+              >
+                {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+          </label>
+          <Field
+            label="Confirm password"
+            type={showNewPassword ? 'text' : 'password'}
+            value={passwordDraft.confirmPassword}
+            required
+            placeholder="Re-enter password"
+            onChange={(confirmPassword) =>
+              setPasswordDraft((draft) => ({ ...draft, confirmPassword }))
+            }
           />
-        )}
-      </ProfileDrawer>
-      <ProfileDrawer
-        isOpen={dialog === 'view-user' && !!selectedUser}
-        onClose={closeDialog}
-        title="Corporate user details"
-        subtitle="Account, assigned access and permissions."
-      >
-        {selectedUser && (
-          <DetailsList
-            entries={[
-              ['Full name', selectedUser.fullName ?? undefined],
-              ['Email address', selectedUser.email ?? undefined],
-              ['Phone number', selectedUser.phone ?? undefined],
-              ['Corporate role', corporateRoleLabel(selectedUser.corporateRole)],
-              ['Assigned offices', formatOfficeScope(selectedUser.corporateOfficeIds, profileOffices)],
-              [
-                'Permissions',
-                userPermissionLabels(selectedUser).length
-                  ? userPermissionLabels(selectedUser).join(', ')
-                  : 'Not available for this account role',
-              ],
-              ['Account status', selectedUser.status],
-              ['Created', selectedUser.createdAt],
-            ]}
-          />
-        )}
+          <p className={styles.fieldHelp}>Minimum 8 characters.</p>
+          {feedback?.kind === 'error' && <Notice error>{feedback.text}</Notice>}
+          <div className={styles.formActions}>
+            <ActionButton secondary onClick={closeDialog} disabled={submitting}>
+              Cancel
+            </ActionButton>
+            <ActionButton type="submit" disabled={submitting}>
+              {submitting ? 'Updating…' : 'Update password'}
+            </ActionButton>
+          </div>
+        </form>
       </ProfileDrawer>
     </div>
   );
@@ -2143,16 +1120,6 @@ function Detail({ label, value }: { label: string; value?: string | null }) {
     <div className={styles.detail}>
       <div className={styles.detailLabel}>{label}</div>
       <div className={styles.detailValue}>{valueOrDash(value)}</div>
-    </div>
-  );
-}
-
-function DetailsList({ entries }: { entries: Array<[string, string | undefined]> }) {
-  return (
-    <div className={styles.detailsGrid}>
-      {entries.map(([label, value]) => (
-        <Detail key={label} label={label} value={value} />
-      ))}
     </div>
   );
 }
@@ -2195,25 +1162,4 @@ function SearchBox({
       />
     </label>
   );
-}
-
-function TextAction({
-  children,
-  onClick,
-  disabled = false,
-}: {
-  children: React.ReactNode;
-  onClick: () => void;
-  disabled?: boolean;
-}) {
-  return (
-    <button type="button" onClick={onClick} disabled={disabled} className={styles.textAction}>
-      {children}
-    </button>
-  );
-}
-
-function formatOfficeScope(officeIds: string[], offices: Office[]) {
-  if (!officeIds?.length) return 'All offices';
-  return officeIds.map((id) => offices.find((office) => office.id === id)?.name ?? 'Unknown office').join(', ');
 }

@@ -2,18 +2,13 @@
 
 import React, { useCallback, useState, useEffect } from 'react';
 import {
-  CheckCircle2,
-  Clock,
-  History,
-  Check,
-  Eye,
-  MoreVertical,
-  Plus,
   Send,
-  Calendar,
 } from 'lucide-react';
+import { ContentLoadingSkeleton } from '@adhocx/ui/page-loading';
 import { rosterApi } from '../../../lib/api/corporate';
 import type { Roster } from '../../../lib/api/types';
+import LazyScrollSentinel from '../../../components/common/LazyScrollSentinel';
+import { useLazySlice } from '../../../lib/hooks/useInfiniteScroll';
 import { useSession } from '../../../lib/auth/SessionContext';
 
 export default function RosterApprovalPublishingPage() {
@@ -94,6 +89,7 @@ export default function RosterApprovalPublishingPage() {
   const pendingRosters = rosters.filter((r) => r.status !== 'PUBLISHED');
   const publishedRosters = rosters.filter((r) => r.status === 'PUBLISHED');
   const displayRosters = activeTab === 'published' ? publishedRosters : pendingRosters;
+  const { visibleItems: visibleRosters, hasMore, sentinelRef } = useLazySlice(displayRosters, activeTab, 20);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -169,94 +165,100 @@ export default function RosterApprovalPublishingPage() {
 
         {/* Approval Table */}
         {loading ? (
-          <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-secondary)' }}>
-            Loading roster batches...
-          </div>
+          <ContentLoadingSkeleton kind="table" count={5} label="Loading roster batches…" />
         ) : displayRosters.length === 0 ? (
           <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-secondary)' }}>
             No {activeTab === 'published' ? 'published' : 'pending'} rosters found. Upload a roster spreadsheet to create a new batch.
           </div>
         ) : (
-          <div className="table-scroll">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th style={{ width: 36 }}>
-                    <input
-                      type="checkbox"
-                      checked={displayRosters.length > 0 && selectedIds.length === displayRosters.length}
-                      onChange={(e) =>
-                        setSelectedIds(e.target.checked ? displayRosters.map((v) => v.id) : [])
-                      }
-                    />
-                  </th>
-                  <th>Roster Identifier</th>
-                  <th>Period</th>
-                  <th>Status</th>
-                  <th style={{ textAlign: 'right' }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {displayRosters.map((v) => {
-                  const isSelected = selectedIds.includes(v.id);
-                  const isPublished = v.status === 'PUBLISHED';
-                  return (
-                    <tr key={v.id} style={{ backgroundColor: isSelected ? '#F8FAFC' : 'transparent' }}>
-                      <td>
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => toggleSelect(v.id)}
-                        />
-                      </td>
-                      <td style={{ fontWeight: 800, color: 'var(--text-primary)' }}>
-                        {v.id.slice(0, 8)} · {v.office?.name ?? '—'}
-                      </td>
-                      <td style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600 }}>
-                        {new Date(v.rosterDate).toLocaleDateString()}
-                      </td>
-                      <td>
-                        <span
-                          style={{
-                            fontSize: '11px',
-                            fontWeight: 700,
-                            padding: '3px 8px',
-                            borderRadius: '4px',
-                            backgroundColor: isPublished ? 'var(--color-success-bg)' : 'var(--color-warning-bg)',
-                            color: isPublished ? 'var(--color-success)' : '#D97706',
-                            border: `1px solid ${isPublished ? 'var(--color-success-border)' : 'var(--color-warning-border)'}`,
-                          }}
-                        >
-                          {v.status}
-                        </span>
-                      </td>
-                      <td style={{ textAlign: 'right' }}>
-                        <button
-                          onClick={() => void handleReview(v.id)}
-                          disabled={reviewingRosterId === v.id}
-                          style={{
-                            padding: '4px 10px',
-                            borderRadius: 4,
-                            border: '1px solid var(--border-strong)',
-                            backgroundColor: 'var(--bg-surface)',
-                            fontSize: '11px',
-                            fontWeight: 700,
-                            color: 'var(--text-secondary)',
-                            cursor: 'pointer',
-                          }}
-                        >
-                          {reviewingRosterId === v.id ? 'Loading…' : 'Review'}
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          <>
+            <div className="table-scroll">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th style={{ width: 36 }}>
+                      <input
+                        type="checkbox"
+                        checked={displayRosters.length > 0 && selectedIds.length === displayRosters.length}
+                        onChange={(e) =>
+                          setSelectedIds(e.target.checked ? displayRosters.map((v) => v.id) : [])
+                        }
+                      />
+                    </th>
+                    <th>Roster Identifier</th>
+                    <th>Period</th>
+                    <th>Status</th>
+                    <th style={{ textAlign: 'right' }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {visibleRosters.map((v) => {
+                    const isSelected = selectedIds.includes(v.id);
+                    const isPublished = v.status === 'PUBLISHED';
+                    return (
+                      <tr key={v.id} style={{ backgroundColor: isSelected ? '#F8FAFC' : 'transparent' }}>
+                        <td>
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleSelect(v.id)}
+                          />
+                        </td>
+                        <td style={{ fontWeight: 800, color: 'var(--text-primary)' }}>
+                          {v.id.slice(0, 8)} · {v.office?.name ?? '—'}
+                        </td>
+                        <td style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                          {new Date(v.rosterDate).toLocaleDateString()}
+                        </td>
+                        <td>
+                          <span
+                            style={{
+                              fontSize: '11px',
+                              fontWeight: 700,
+                              padding: '3px 8px',
+                              borderRadius: '4px',
+                              backgroundColor: isPublished ? 'var(--color-success-bg)' : 'var(--color-warning-bg)',
+                              color: isPublished ? 'var(--color-success)' : '#D97706',
+                              border: `1px solid ${isPublished ? 'var(--color-success-border)' : 'var(--color-warning-border)'}`,
+                            }}
+                          >
+                            {v.status}
+                          </span>
+                        </td>
+                        <td style={{ textAlign: 'right' }}>
+                          <button
+                            onClick={() => void handleReview(v.id)}
+                            disabled={reviewingRosterId === v.id}
+                            style={{
+                              padding: '4px 10px',
+                              borderRadius: 4,
+                              border: '1px solid var(--border-strong)',
+                              backgroundColor: 'var(--bg-surface)',
+                              fontSize: '11px',
+                              fontWeight: 700,
+                              color: 'var(--text-secondary)',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            {reviewingRosterId === v.id ? 'Opening…' : 'Review'}
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <LazyScrollSentinel sentinelRef={sentinelRef} hasMore={hasMore} label="Loading more rosters…" />
+          </>
         )}
       </div>
       {reviewError && <div role="alert" className="surface-card" style={{ padding: 16, color: '#B91C1C' }}>{reviewError}</div>}
+      {reviewingRosterId && !reviewedRoster && (
+        <section className="surface-card" style={{ padding: 20 }}>
+          <ContentLoadingSkeleton kind="table" count={4} label="Loading roster details…" />
+        </section>
+      )}
       {reviewedRoster && (
         <section className="surface-card" style={{ padding: 20 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>

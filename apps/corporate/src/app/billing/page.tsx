@@ -1,12 +1,11 @@
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
-import Link from 'next/link';
+import { ContentLoadingSkeleton, LazyMount, SkeletonBone } from '@adhocx/ui/page-loading';
 import {
   IndianRupee,
   CheckCircle2,
   AlertCircle,
-  FileText,
   Scale,
   Receipt,
 } from 'lucide-react';
@@ -15,11 +14,12 @@ import { billingApi } from '../../lib/api/corporate';
 import { Invoice, InvoiceDispute } from '../../lib/api/types';
 import { MetricCard } from '../../components/common/MetricCard';
 import { FilterBar } from '../../components/common/FilterBar';
-import { AreaTrendChart } from '../../components/charts/AreaTrendChart';
+import { LazyAreaTrendChart } from '../../components/charts/LazyCharts';
 import { useSession } from '../../lib/auth/SessionContext';
 
-function formatPaiseToRupees(paise: string | number): string {
-  const rupees = Number(paise) / 100;
+function formatPaiseToRupees(paise: string | number | null | undefined): string {
+  const numericPaise = Number(paise ?? 0);
+  const rupees = Number.isFinite(numericPaise) ? numericPaise / 100 : 0;
   return new Intl.NumberFormat('en-IN', {
     style: 'currency',
     currency: 'INR',
@@ -128,40 +128,45 @@ export default function BillingOverviewPage() {
       <div className="metric-grid">
         <MetricCard
           label="Total Billed"
-          value={loading ? '...' : invoices.length ? formatPaiseToRupees(totalBilledPaise) : '—'}
+          value={formatPaiseToRupees(totalBilledPaise)}
           icon={<IndianRupee size={18} />}
           highlightColor="var(--brand-primary)"
+          loading={loading}
         />
         <MetricCard
           label="Paid Amount"
-          value={loading ? '...' : invoices.length ? formatPaiseToRupees(paidAmountPaise) : '—'}
+          value={formatPaiseToRupees(paidAmountPaise)}
           subtext={paidPct === null ? 'No invoice totals' : `${paidPct}% Settled`}
           icon={<CheckCircle2 size={18} />}
           trend={paidPct === null ? undefined : { value: `${paidPct}%`, isPositive: paidPct >= 80 }}
           highlightColor="var(--color-success)"
+          loading={loading}
         />
         <MetricCard
           label="Outstanding"
-          value={loading ? '...' : formatPaiseToRupees(outstandingPaise)}
+          value={formatPaiseToRupees(outstandingPaise)}
           subtext={outstandingPaise > 0 ? 'Balance Due' : invoices.length ? 'No outstanding balance' : 'No invoices'}
           icon={<AlertCircle size={18} />}
           trend={invoices.length ? { value: outstandingPaise > 0 ? 'Pending' : 'Cleared', isAlert: outstandingPaise > 0 } : undefined}
           highlightColor="#D97706"
+          loading={loading}
         />
         <MetricCard
           label="Total Invoices"
-          value={loading ? '...' : String(invoices.length)}
+          value={String(invoices.length)}
           subtext="From saved invoices"
           icon={<Receipt size={18} />}
           highlightColor="var(--color-chart-purple)"
+          loading={loading}
         />
         <MetricCard
           label="Disputes"
-          value={loading ? '...' : String(disputes.length)}
+          value={String(disputes.length)}
           subtext={disputes.filter((d) => d.status === 'OPEN').length + ' Open'}
           icon={<Scale size={18} />}
           trend={{ value: `${disputes.filter((dispute) => dispute.status === 'OPEN').length} open`, isAlert: disputes.some((dispute) => dispute.status === 'OPEN') }}
           highlightColor="#DC2626"
+          loading={loading}
         />
       </div>
 
@@ -178,28 +183,39 @@ export default function BillingOverviewPage() {
                 Monthly gross transportation spend trajectory in ₹ thousands
               </p>
             </div>
-            <span
-              style={{
-                fontSize: '11px',
-                fontWeight: 700,
-                color: 'var(--brand-primary)',
-                backgroundColor: 'rgba(var(--brand-primary-rgb), 0.08)',
-                padding: '4px 10px',
-                borderRadius: 'var(--radius-pill)',
-                border: '1px solid rgba(var(--brand-primary-rgb), 0.2)',
-              }}
-            >
-              {invoices.length} Invoices Tracked
-            </span>
+            {loading ? (
+              <SkeletonBone style={{ width: 112, height: 22, borderRadius: 999 }} />
+            ) : (
+              <span
+                style={{
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  color: 'var(--brand-primary)',
+                  backgroundColor: 'rgba(var(--brand-primary-rgb), 0.08)',
+                  padding: '4px 10px',
+                  borderRadius: 'var(--radius-pill)',
+                  border: '1px solid rgba(var(--brand-primary-rgb), 0.2)',
+                }}
+              >
+                {invoices.length} Invoices Tracked
+              </span>
+            )}
           </div>
 
-          {billingTrend.length > 0 ? (
-            <AreaTrendChart
-              data={billingTrend}
-              height={210}
-              lineColor="var(--brand-primary)"
-              metricLabel="k"
-            />
+          {loading ? (
+            <ContentLoadingSkeleton kind="chart" height={210} label="Loading billing trajectory…" />
+          ) : billingTrend.length > 0 ? (
+            <LazyMount
+              minHeight={210}
+              fallback={<ContentLoadingSkeleton kind="chart" height={210} label="Preparing billing trajectory…" />}
+            >
+              <LazyAreaTrendChart
+                data={billingTrend}
+                height={210}
+                lineColor="var(--brand-primary)"
+                metricLabel="k"
+              />
+            </LazyMount>
           ) : (
             <p style={{ padding: '56px 0', textAlign: 'center', color: 'var(--text-secondary)', fontSize: 13 }}>
               No invoice history is available for this tenant.
@@ -222,54 +238,6 @@ export default function BillingOverviewPage() {
           <div style={{ minHeight: 185, display: 'grid', placeItems: 'center', color: 'var(--text-secondary)', fontSize: 13, textAlign: 'center' }}>
             Category breakdown is unavailable from the current billing summary API.
           </div>
-        </div>
-      </div>
-
-      {/* Quick Actions Bar */}
-      <div className="surface-card" style={{ padding: '16px 20px', backgroundColor: 'var(--bg-surface)' }}>
-        <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '12px' }}>
-          Quick Actions
-        </div>
-        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-          <Link
-            href="/billing/invoices"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              backgroundColor: 'rgba(var(--brand-primary-rgb), 0.08)',
-              color: 'var(--brand-primary)',
-              border: '1px solid rgba(var(--brand-primary-rgb), 0.25)',
-              borderRadius: '6px',
-              padding: '8px 14px',
-              fontSize: '12px',
-              fontWeight: 700,
-              textDecoration: 'none',
-            }}
-          >
-            <FileText size={14} />
-            <span>View All Invoices</span>
-          </Link>
-
-          <Link
-            href="/billing/disputes"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              backgroundColor: 'var(--bg-surface-muted)',
-              color: 'var(--text-secondary)',
-              border: '1px solid var(--border-color)',
-              borderRadius: '6px',
-              padding: '8px 14px',
-              fontSize: '12px',
-              fontWeight: 700,
-              textDecoration: 'none',
-            }}
-          >
-            <Scale size={14} />
-            <span>Manage Disputes</span>
-          </Link>
         </div>
       </div>
     </div>

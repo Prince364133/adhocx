@@ -4,6 +4,7 @@ import React, { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, CheckCircle2 } from 'lucide-react';
+import { ContentLoadingSkeleton, PageLoadingSkeleton } from '@adhocx/ui/page-loading';
 import { safetyApi } from '../../../../lib/api/corporate';
 import type { SafetyIncident } from '../../../../lib/api/types';
 
@@ -92,7 +93,9 @@ function IncidentResolutionContent() {
 
       {error && <div role="alert" className="surface-card" style={{ padding: 14, color: '#B91C1C' }}>{error}</div>}
       {loading ? (
-        <div className="surface-card" style={{ padding: 32, textAlign: 'center' }}>Loading incident...</div>
+        <section className="surface-card" style={{ padding: 24 }}>
+          <ContentLoadingSkeleton kind="form" count={4} label="Loading incident details…" />
+        </section>
       ) : incident ? (
         <section className="surface-card" style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 18 }}>
           <div>
@@ -131,7 +134,7 @@ function IncidentResolutionContent() {
 
 export default function IncidentResolutionTimelinePage() {
   return (
-    <Suspense fallback={<div className="surface-card" style={{ padding: 40, textAlign: 'center' }}>Loading incident...</div>}>
+    <Suspense fallback={<PageLoadingSkeleton variant="detail" />}>
       <IncidentResolutionContent />
     </Suspense>
   );

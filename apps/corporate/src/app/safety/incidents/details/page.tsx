@@ -4,15 +4,10 @@ import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import {
-  ShieldAlert,
   ArrowLeft,
-  PhoneCall,
-  AlertTriangle,
-  Clock,
-  Car,
-  User,
   CheckCircle2,
 } from 'lucide-react';
+import { PageLoadingSkeleton } from '@adhocx/ui/page-loading';
 import { safetyApi } from '../../../../lib/api/corporate';
 import type { SafetyIncident } from '../../../../lib/api/types';
 import { useSession } from '../../../../lib/auth/SessionContext';
@@ -62,11 +57,7 @@ function IncidentDetailsDossierContent() {
   }, [activeTenantId, incId]);
 
   if (loading) {
-    return (
-      <div className="surface-card" style={{ padding: 40, textAlign: 'center', color: 'var(--text-secondary)' }}>
-        Loading incident dossier...
-      </div>
-    );
+    return <PageLoadingSkeleton variant="detail" />;
   }
 
   if (!incident) {
@@ -201,7 +192,7 @@ function IncidentDetailsDossierContent() {
 
 export default function IncidentDetailsDossierPage() {
   return (
-    <Suspense fallback={<div className="surface-card" style={{ padding: 40, textAlign: 'center' }}>Loading dossier...</div>}>
+    <Suspense fallback={<PageLoadingSkeleton variant="detail" />}>
       <IncidentDetailsDossierContent />
     </Suspense>
   );

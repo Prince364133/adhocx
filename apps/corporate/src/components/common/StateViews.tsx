@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { AlertTriangle, Inbox, Lock, RefreshCw, WifiOff } from 'lucide-react';
+import { ContentLoadingSkeleton, type ContentSkeletonKind } from '@adhocx/ui/page-loading';
 import { ApiError } from '../../lib/api/client';
 import { Button } from './Button';
 
@@ -17,13 +18,18 @@ const boxStyle: React.CSSProperties = {
   gap: 'var(--space-2)',
 };
 
-export function LoadingState({ label = 'Loading…' }: { label?: string }) {
-  return (
-    <div style={boxStyle} role="status" aria-live="polite">
-      <RefreshCw size={22} className="spin" color="var(--brand-blue-400)" />
-      <span className="small-text muted">{label}</span>
-    </div>
-  );
+export function LoadingState({
+  label = 'Loading…',
+  kind = 'table',
+  count,
+  height,
+}: {
+  label?: string;
+  kind?: ContentSkeletonKind;
+  count?: number;
+  height?: number | string;
+}) {
+  return <ContentLoadingSkeleton kind={kind} label={label} count={count} height={height} />;
 }
 
 export function EmptyState({ title, message, action }: { title: string; message?: string; action?: React.ReactNode }) {

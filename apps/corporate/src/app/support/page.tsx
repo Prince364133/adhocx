@@ -1,10 +1,9 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ContentLoadingSkeleton } from '@adhocx/ui/page-loading';
 import {
   AlertCircle,
-  CheckCircle2,
-  Clock3,
   Eye,
   LifeBuoy,
   Paperclip,
@@ -14,10 +13,14 @@ import {
   Send,
   X,
 } from 'lucide-react';
+import { LazyScrollSentinel } from '../../components/common/LazyScrollSentinel';
 import { employeeApi, supportApi } from '../../lib/api/corporate';
 import type { Employee, SupportTicket } from '../../lib/api/types';
 import { useSession } from '../../lib/auth/SessionContext';
+import { useInfiniteScroll } from '../../lib/hooks/useInfiniteScroll';
 import styles from './SupportTicketModal.module.css';
+
+const BATCH_SIZE = 20;
 
 const CATEGORIES = [
   ['TECHNICAL_ISSUE', 'Technical Issue'],
@@ -40,7 +43,6 @@ const PRIORITIES = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] as const;
 const STATUSES = ['OPEN', 'ASSIGNED', 'IN_PROGRESS', 'WAITING_FOR_CORPORATE', 'RESOLVED', 'CLOSED', 'REOPENED'];
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const MAX_FILE_BYTES = 5 * 1024 * 1024;
-const PAGE_SIZE = 10;
 
 const controlStyle: React.CSSProperties = {
   width: '100%',
@@ -96,11 +98,13 @@ export default function SupportOverviewPage() {
   const { tenantId, claims } = useSession();
   const isEmployee = claims?.role?.toUpperCase() === 'EMPLOYEE';
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
-  const [summary, setSummary] = useState<{ total: number; open: number; inProgress: number; resolved: number; closed: number } | null>(null);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [employeeLoadError, setEmployeeLoadError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
   const [loadError, setLoadError] = useState('');
+  const [loadMoreError, setLoadMoreError] = useState('');
   const [notice, setNotice] = useState<{ kind: 'success' | 'error'; message: string } | null>(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -108,7 +112,8 @@ export default function SupportOverviewPage() {
   const [categoryFilter, setCategoryFilter] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
-  const [page, setPage] = useState(1);
+  const requestSequence = useRef(0);
+  const loadedCountRef = useRef(0);
   const [selected, setSelected] = useState<SupportTicket | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [createClosing, setCreateClosing] = useState(false);
@@ -141,26 +146,82 @@ export default function SupportOverviewPage() {
     return () => window.removeEventListener('adhocx:open-support-ticket', openTicketFromHelp);
   }, []);
 
-  const loadTickets = useCallback(async () => {
-    setLoading(true);
+  const buildListFilters = useCallback(() => ({
+    status: statusFilter || undefined,
+    priority: priorityFilter || undefined,
+    category: categoryFilter || undefined,
+    search: search.trim() || undefined,
+    from: dateFrom ? new Date(`${dateFrom}T00:00:00`).toISOString() : undefined,
+    to: dateTo ? new Date(`${dateTo}T23:59:59`).toISOString() : undefined,
+  }), [categoryFilter, dateFrom, dateTo, priorityFilter, search, statusFilter]);
+
+  const loadTickets = useCallback(async (preserveLoaded = false) => {
+    const requestId = ++requestSequence.current;
+    const limit = preserveLoaded ? Math.max(BATCH_SIZE, loadedCountRef.current) : BATCH_SIZE;
+    if (!preserveLoaded) setLoading(true);
     setLoadError('');
+    setLoadMoreError('');
     try {
-      const [data, ticketSummary] = await Promise.all([
-        supportApi.list(undefined, { limit: 200 }),
-        supportApi.summary(),
-      ]);
-      setTickets(Array.isArray(data) ? data : []);
-      setSummary(ticketSummary);
+      const data = await supportApi.list(undefined, {
+        ...buildListFilters(),
+        limit,
+        offset: 0,
+      });
+      if (requestId !== requestSequence.current) return;
+      const items = Array.isArray(data) ? data : [];
+      setTickets(items);
+      loadedCountRef.current = items.length;
+      setHasMore(items.length >= limit);
     } catch (error) {
-      setLoadError(error instanceof Error ? error.message : 'Unable to load your support tickets.');
+      if (requestId === requestSequence.current && !preserveLoaded) {
+        setHasMore(false);
+        setLoadError(error instanceof Error ? error.message : 'Unable to load your support tickets.');
+      }
     } finally {
-      setLoading(false);
+      if (requestId === requestSequence.current && !preserveLoaded) setLoading(false);
     }
-  }, []);
+  }, [buildListFilters]);
+
+  const loadMoreTickets = useCallback(async () => {
+    if (loading || loadingMore || !hasMore) return;
+    const requestId = requestSequence.current;
+    const offset = loadedCountRef.current;
+    setLoadingMore(true);
+    setLoadMoreError('');
+    try {
+      const data = await supportApi.list(undefined, {
+        ...buildListFilters(),
+        limit: BATCH_SIZE,
+        offset,
+      });
+      if (requestId !== requestSequence.current) return;
+      const items = Array.isArray(data) ? data : [];
+      setTickets((current) => {
+        const seen = new Set(current.map((ticket) => ticket.id));
+        const next = [...current, ...items.filter((ticket) => !seen.has(ticket.id))];
+        loadedCountRef.current = next.length;
+        return next;
+      });
+      setHasMore(items.length >= BATCH_SIZE);
+    } catch (error) {
+      if (requestId === requestSequence.current) {
+        setLoadMoreError(error instanceof Error ? error.message : 'Unable to load more support tickets.');
+      }
+    } finally {
+      if (requestId === requestSequence.current) setLoadingMore(false);
+    }
+  }, [buildListFilters, hasMore, loading, loadingMore]);
+
+  const sentinelRef = useInfiniteScroll({
+    enabled: !loading && !loadingMore && hasMore && !loadError && !loadMoreError,
+    onLoadMore: () => {
+      void loadMoreTickets();
+    },
+  });
 
   useEffect(() => {
     void loadTickets();
-    const timer = window.setInterval(() => void loadTickets(), 30000);
+    const timer = window.setInterval(() => void loadTickets(true), 30000);
     if (tenantId && !isEmployee) {
       setEmployeeLoadError('');
       employeeApi.list(tenantId, { isActive: 'true', limit: 100 }).then((result) => {
@@ -193,14 +254,6 @@ export default function SupportOverviewPage() {
     };
   }, [showCreate, saving]);
 
-  const counts = useMemo(() => ({
-    total: summary?.total ?? tickets.length,
-    open: summary?.open ?? tickets.filter((ticket) => ['OPEN', 'ASSIGNED', 'REOPENED'].includes(ticket.status)).length,
-    progress: summary?.inProgress ?? tickets.filter((ticket) => ticket.status === 'IN_PROGRESS').length,
-    resolved: summary?.resolved ?? tickets.filter((ticket) => ticket.status === 'RESOLVED').length,
-    closed: summary?.closed ?? tickets.filter((ticket) => ticket.status === 'CLOSED').length,
-  }), [tickets, summary]);
-
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
     return tickets.filter((ticket) => {
@@ -216,10 +269,6 @@ export default function SupportOverviewPage() {
         && matchesTo;
     });
   }, [tickets, search, statusFilter, priorityFilter, categoryFilter, dateFrom, dateTo]);
-  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const pageTickets = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-
-  useEffect(() => setPage(1), [search, statusFilter, priorityFilter, categoryFilter, dateFrom, dateTo]);
 
   const clearFilters = () => {
     setSearch('');
@@ -354,34 +403,37 @@ export default function SupportOverviewPage() {
         </div>
       )}
 
-      <section aria-label="Ticket summary" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
-        {[
-          { label: 'Total Tickets', value: counts.total, icon: <LifeBuoy size={17} />, color: 'var(--support-accent-variant-4)' },
-          { label: 'Open Tickets', value: counts.open, icon: <AlertCircle size={17} />, color: '#a76a0b' },
-          { label: 'In Progress', value: counts.progress, icon: <Clock3 size={17} />, color: 'var(--support-accent-variant-5)' },
-          { label: 'Resolved', value: counts.resolved, icon: <CheckCircle2 size={17} />, color: '#278054' },
-          { label: 'Closed', value: counts.closed, icon: <CheckCircle2 size={17} />, color: '#64748b' },
-        ].map((item) => (
-          <article key={item.label} style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderRadius: 9, padding: '14px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div><div style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 550 }}>{item.label}</div><div style={{ marginTop: 7, fontSize: 23, lineHeight: 1, color: 'var(--text-primary)', fontWeight: 700 }}>{item.value}</div></div>
-            <span style={{ color: item.color, display: 'flex' }}>{item.icon}</span>
-          </article>
-        ))}
-      </section>
-
       <section style={{ border: '1px solid var(--border-color)', borderRadius: 10, background: 'var(--bg-surface)', overflow: 'hidden' }}>
         <div style={{ padding: 16, borderBottom: '1px solid var(--border-color)' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 13 }}>
             <div><h2 style={{ margin: 0, color: 'var(--text-primary)', fontSize: 15, fontWeight: 700 }}>Your tickets</h2><p style={{ margin: '4px 0 0', color: 'var(--text-muted)', fontSize: 12 }}>Responses and operational updates are synchronized automatically.</p></div>
             {activeFilters > 0 && <button type="button" onClick={clearFilters} style={{ border: 0, background: 'none', color: 'var(--support-accent-variant-3)', fontSize: 12, fontWeight: 650, cursor: 'pointer' }}>Clear filters ({activeFilters})</button>}
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 9 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(175px, 1fr))', gap: 9 }}>
             <div style={{ position: 'relative' }}><Search size={15} style={{ position: 'absolute', top: 12, left: 10, color: 'var(--text-muted)' }} /><input aria-label="Search tickets" placeholder="Search ticket number or title" value={search} onChange={(event) => setSearch(event.target.value)} style={{ ...controlStyle, paddingLeft: 32 }} /></div>
             <select aria-label="Filter by status" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} style={controlStyle}><option value="">All statuses</option>{STATUSES.map((status) => <option key={status} value={status}>{pretty(status)}</option>)}</select>
             <select aria-label="Filter by priority" value={priorityFilter} onChange={(event) => setPriorityFilter(event.target.value)} style={controlStyle}><option value="">All priorities</option>{PRIORITIES.map((value) => <option key={value} value={value}>{pretty(value)}</option>)}</select>
             <select aria-label="Filter by category" value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)} style={controlStyle}><option value="">All categories</option>{CATEGORIES.map(([value, name]) => <option key={value} value={value}>{name}</option>)}</select>
-            <input aria-label="Created from" type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} style={controlStyle} />
-            <input aria-label="Created to" type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} style={controlStyle} />
+            <label style={{ ...controlStyle, display: 'flex', alignItems: 'center', gap: 8, padding: '0 10px' }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>From</span>
+              <input
+                aria-label="Created from"
+                type="date"
+                value={dateFrom}
+                onChange={(event) => setDateFrom(event.target.value)}
+                style={{ border: 0, background: 'transparent', color: 'var(--text-primary)', fontSize: 13, outline: 'none', width: '100%', minWidth: 0 }}
+              />
+            </label>
+            <label style={{ ...controlStyle, display: 'flex', alignItems: 'center', gap: 8, padding: '0 10px' }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>To</span>
+              <input
+                aria-label="Created to"
+                type="date"
+                value={dateTo}
+                onChange={(event) => setDateTo(event.target.value)}
+                style={{ border: 0, background: 'transparent', color: 'var(--text-primary)', fontSize: 13, outline: 'none', width: '100%', minWidth: 0 }}
+              />
+            </label>
           </div>
         </div>
 
@@ -390,8 +442,10 @@ export default function SupportOverviewPage() {
             <AlertCircle size={22} style={{ color: '#b5473c' }} /><p>{loadError}</p><button type="button" onClick={() => void loadTickets()} style={{ border: 0, background: 'none', color: 'var(--support-accent-variant-3)', fontWeight: 650, cursor: 'pointer' }}>Retry</button>
           </div>
         ) : loading ? (
-          <div style={{ padding: 32 }}>{[0, 1, 2, 3].map((item) => <div key={item} style={{ height: 42, borderRadius: 6, marginBottom: 10, background: 'var(--bg-surface-muted)' }} />)}</div>
-        ) : pageTickets.length === 0 ? (
+          <div style={{ padding: 20 }}>
+            <ContentLoadingSkeleton kind="table" count={6} label="Loading support tickets…" />
+          </div>
+        ) : filtered.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '48px 20px', color: 'var(--text-muted)' }}>
             <LifeBuoy size={24} style={{ color: 'var(--support-accent-variant-6)' }} />
             <p style={{ color: 'var(--text-primary)', fontWeight: 650, margin: '10px 0 4px' }}>{tickets.length ? 'No tickets match your filters' : 'No tickets yet'}</p>
@@ -403,7 +457,7 @@ export default function SupportOverviewPage() {
               <thead><tr style={{ background: 'var(--bg-surface-muted)', color: 'var(--text-muted)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '.04em' }}>
                 {['Ticket ID', 'Title', 'Category', 'Priority', 'Created', 'Last Updated', 'Assigned Team', 'Status', ''].map((head) => <th key={head} style={{ padding: '11px 14px', fontWeight: 650, whiteSpace: 'nowrap' }}>{head}</th>)}
               </tr></thead>
-              <tbody>{pageTickets.map((ticket) => <tr key={ticket.id} style={{ borderTop: '1px solid var(--border-color)' }}>
+              <tbody>{filtered.map((ticket) => <tr key={ticket.id} style={{ borderTop: '1px solid var(--border-color)' }}>
                 <td style={{ padding: '13px 14px', color: 'var(--support-accent-variant-3)', fontWeight: 700, fontSize: 12, whiteSpace: 'nowrap' }}>{ticket.ticketNumber}</td>
                 <td style={{ padding: '13px 14px', minWidth: 190 }}><div style={{ fontSize: 13, fontWeight: 650, color: 'var(--text-primary)' }}>{ticket.subject}</div><div style={{ marginTop: 3, maxWidth: 240, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 11, color: 'var(--text-muted)' }}>{ticket.description}</div></td>
                 <td style={{ padding: '13px 14px', color: 'var(--text-secondary)', fontSize: 12, whiteSpace: 'nowrap' }}>{pretty(ticket.category)}</td>
@@ -417,15 +471,15 @@ export default function SupportOverviewPage() {
             </table>
           </div>
         )}
-        {!loading && !loadError && filtered.length > 0 && (
-          <footer style={{ padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border-color)', color: 'var(--text-muted)', fontSize: 12 }}>
-            <span>Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length} tickets</span>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <span>Page {page} of {pageCount}</span>
-              <button type="button" disabled={page <= 1} onClick={() => setPage((value) => value - 1)} style={{ ...paginationButton, opacity: page <= 1 ? .45 : 1 }}>Previous</button>
-              <button type="button" disabled={page >= pageCount} onClick={() => setPage((value) => value + 1)} style={{ ...paginationButton, opacity: page >= pageCount ? .45 : 1 }}>Next</button>
-            </div>
-          </footer>
+        {!loading && !loadError && (
+          <LazyScrollSentinel
+            sentinelRef={sentinelRef}
+            hasMore={hasMore}
+            loadingMore={loadingMore}
+            error={loadMoreError}
+            onRetry={() => void loadMoreTickets()}
+            label="Loading more tickets…"
+          />
         )}
       </section>
 
@@ -522,7 +576,6 @@ function DetailField({ label, value }: { label: string; value: string }) {
   return <div><div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.04em', fontWeight: 650 }}>{label}</div><div style={{ marginTop: 4, color: 'var(--text-primary)', fontSize: 12 }}>{value}</div></div>;
 }
 
-const paginationButton: React.CSSProperties = { padding: '6px 9px', border: '1px solid var(--border-color)', borderRadius: 6, background: 'var(--bg-surface)', color: 'var(--text-secondary)', fontSize: 11, cursor: 'pointer' };
 const overlayStyle: React.CSSProperties = { position: 'fixed', inset: 0, zIndex: 100, display: 'flex', justifyContent: 'flex-end', background: 'rgba(15, 23, 42, .38)' };
 const drawerStyle: React.CSSProperties = { width: 'min(560px, 100vw)', height: '100%', background: 'var(--bg-surface)', boxShadow: '-12px 0 32px rgba(20, 24, 40, .12)', display: 'flex', flexDirection: 'column' };
 const drawerHeaderStyle: React.CSSProperties = { padding: '22px 22px 18px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', gap: 16, flexShrink: 0 };

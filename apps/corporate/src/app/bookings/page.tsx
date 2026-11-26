@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { ContentLoadingSkeleton } from '@adhocx/ui/page-loading';
 import {
   Search,
   Filter,
@@ -16,9 +17,11 @@ import {
   Download,
   Calendar,
 } from 'lucide-react';
+import { LazyScrollSentinel } from '../../components/common/LazyScrollSentinel';
 import { tripsApi, tenantApi } from '../../lib/api/corporate';
 import type { BookingRequestItem, Office } from '../../lib/api/types';
 import { useSession } from '../../lib/auth/SessionContext';
+import { useLazySlice } from '../../lib/hooks/useInfiniteScroll';
 
 export default function BookingsOverviewPage() {
   const { tenantId: activeTenantId } = useSession();
@@ -77,6 +80,11 @@ export default function BookingsOverviewPage() {
     const empCode = item.employee?.employeeCode || '';
     return item.id.toLowerCase().includes(q) || empName.toLowerCase().includes(q) || empCode.toLowerCase().includes(q);
   });
+  const { visibleItems: visibleQueue, hasMore, sentinelRef } = useLazySlice(
+    filteredQueue,
+    `${activeTab}|${selectedStatus}|${selectedOffice}|${searchQuery}`,
+    20,
+  );
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -237,9 +245,7 @@ export default function BookingsOverviewPage() {
       {/* Requests Table */}
       <div className="surface-card" style={{ padding: '20px', backgroundColor: 'var(--bg-surface)' }}>
         {loading ? (
-          <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-secondary)' }}>
-            Loading booking queue...
-          </div>
+          <ContentLoadingSkeleton kind="table" count={6} label="Loading booking queue…" />
         ) : filteredQueue.length === 0 ? (
           <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-secondary)' }}>
             No booking requests found. Employee commute bookings will appear here in real-time.
@@ -259,7 +265,7 @@ export default function BookingsOverviewPage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredQueue.map((item) => {
+                {visibleQueue.map((item) => {
                   const statusBadge = getStatusBadge(item.status);
                   return (
                     <tr key={item.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
@@ -332,6 +338,11 @@ export default function BookingsOverviewPage() {
                 })}
               </tbody>
             </table>
+            <LazyScrollSentinel
+              sentinelRef={sentinelRef}
+              hasMore={hasMore}
+              label="Loading more bookings…"
+            />
           </div>
         )}
       </div>

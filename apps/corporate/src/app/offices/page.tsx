@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { ContentLoadingSkeleton } from '@adhocx/ui/page-loading';
 import {
   Building2,
   Users,
@@ -13,9 +14,11 @@ import {
   ChevronRight,
   Search,
 } from 'lucide-react';
+import { LazyScrollSentinel } from '../../components/common/LazyScrollSentinel';
 import { tenantApi } from '../../lib/api/corporate';
 import type { Office } from '../../lib/api/types';
 import { useSession } from '../../lib/auth/SessionContext';
+import { useLazySlice } from '../../lib/hooks/useInfiniteScroll';
 import MetricCard from '../../components/common/MetricCard';
 
 export default function OfficesDirectoryPage() {
@@ -97,10 +100,14 @@ export default function OfficesDirectoryPage() {
   });
 
   const headcountOf = (office: Office) => office._count?.employees ?? office.employeeCount;
-  const hasHeadcountForAllOffices = offices.length > 0 && offices.every((office) => headcountOf(office) !== undefined);
   const totalHeadcount = offices.reduce((sum, office) => sum + (headcountOf(office) ?? 0), 0);
   const geofencedOfficeCount = offices.filter((office) => office.geofenceRadiusMeters !== undefined).length;
   const activeOfficesCount = offices.filter((office) => office.isActive === true).length;
+  const { visibleItems: visibleOffices, hasMore, sentinelRef } = useLazySlice(
+    filteredOffices,
+    `${search}|${statusFilter}`,
+    12,
+  );
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -148,7 +155,8 @@ export default function OfficesDirectoryPage() {
       >
         <MetricCard
           label="Registered Campuses"
-          value={loading ? '...' : `${offices.length} Sites`}
+          value={`${offices.length} Sites`}
+          loading={loading}
           delta={`${activeOfficesCount} Operational`}
           deltaType="positive"
           icon={<Building2 size={20} />}
@@ -156,7 +164,8 @@ export default function OfficesDirectoryPage() {
         />
         <MetricCard
           label="Headcount Linked"
-          value={hasHeadcountForAllOffices ? totalHeadcount.toLocaleString() : '—'}
+          value={totalHeadcount.toLocaleString()}
+          loading={loading}
           delta="API-reported headcount"
           deltaType="neutral"
           icon={<Users size={20} />}
@@ -164,7 +173,8 @@ export default function OfficesDirectoryPage() {
         />
         <MetricCard
           label="Offices with geofence radius"
-          value={loading ? '...' : geofencedOfficeCount.toLocaleString()}
+          value={geofencedOfficeCount.toLocaleString()}
+          loading={loading}
           delta="Stored office settings"
           deltaType="neutral"
           icon={<Car size={20} />}
@@ -266,16 +276,21 @@ export default function OfficesDirectoryPage() {
 
       {/* Campus Sites Grid Cards */}
       {loading ? (
-        <div className="surface-card" style={{ padding: 40, textAlign: 'center', color: 'var(--text-secondary)' }}>
-          Loading registered office campuses...
+        <div className="surface-card" style={{ padding: 20 }}>
+          <ContentLoadingSkeleton
+            kind="metrics"
+            count={3}
+            label="Loading registered office campuses…"
+          />
         </div>
       ) : filteredOffices.length === 0 ? (
         <div className="surface-card" style={{ padding: 40, textAlign: 'center', color: 'var(--text-secondary)' }}>
           No office locations found. Add your company campus sites to start configuring rosters and geofences.
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 16 }}>
-          {filteredOffices.map((office) => {
+        <>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 16 }}>
+            {visibleOffices.map((office) => {
             const statusText = office.isActive === undefined ? 'Unknown' : office.isActive ? 'Active' : 'Inactive';
             const geofenceRadius = office.geofenceRadiusMeters;
             return (
@@ -346,7 +361,7 @@ export default function OfficesDirectoryPage() {
                     <div>
                       <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Headcount</div>
                       <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>
-                        {headcountOf(office) !== undefined ? headcountOf(office)!.toLocaleString() : '—'}
+                        {(headcountOf(office) ?? 0).toLocaleString()}
                       </div>
                     </div>
                     <div>
@@ -400,7 +415,13 @@ export default function OfficesDirectoryPage() {
               </div>
             );
           })}
-        </div>
+          </div>
+          <LazyScrollSentinel
+            sentinelRef={sentinelRef}
+            hasMore={hasMore}
+            label="Loading more offices…"
+          />
+        </>
       )}
     </div>
   );

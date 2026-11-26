@@ -3,9 +3,12 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
+import { ContentLoadingSkeleton, PageLoadingSkeleton, SkeletonBone } from '@adhocx/ui/page-loading';
+import { LazyScrollSentinel } from '../../../components/common/LazyScrollSentinel';
 import { tenantApi } from '../../../lib/api/corporate';
 import type { Office, OfficeGeofenceDetails } from '../../../lib/api/types';
 import { useSession } from '../../../lib/auth/SessionContext';
+import { useLazySlice } from '../../../lib/hooks/useInfiniteScroll';
 
 function GeofencesPickupPointsContent() {
   const { tenantId, status } = useSession();
@@ -68,6 +71,11 @@ function GeofencesPickupPointsContent() {
   const displayedOffices = useMemo(
     () => (requestedOffice && !showAllOffices ? [requestedOffice] : offices),
     [offices, requestedOffice, showAllOffices],
+  );
+  const { visibleItems: visibleOffices, hasMore, sentinelRef } = useLazySlice(
+    displayedOffices,
+    `${requestedOfficeId}|${showAllOffices}`,
+    20,
   );
 
   useEffect(() => {
@@ -151,7 +159,15 @@ function GeofencesPickupPointsContent() {
         )}
       </header>
       {error && <p role="alert" style={{ color: 'var(--color-danger)' }}>{error}</p>}
-      {loading && <p role="status">Loading tenant offices and geofences…</p>}
+      {loading && (
+        <section className="surface-card" style={{ padding: 20 }}>
+          <ContentLoadingSkeleton
+            kind="table"
+            count={6}
+            label="Loading tenant offices and geofences…"
+          />
+        </section>
+      )}
       {!loading && !error && offices.length === 0 && (
         <section className="surface-card" style={{ padding: 32, textAlign: 'center' }}>
           No offices have been registered for this tenant.
@@ -172,7 +188,7 @@ function GeofencesPickupPointsContent() {
               </tr>
             </thead>
             <tbody>
-              {displayedOffices.map((office) => {
+              {visibleOffices.map((office) => {
                 const isRowLoading = loadingGeofences && !(office.id in geofenceByOffice);
                 const details = geofenceByOffice[office.id];
                 const isRequested = Boolean(requestedOfficeId && office.id === requestedOfficeId);
@@ -180,9 +196,9 @@ function GeofencesPickupPointsContent() {
                   ? `${details.geofence.radiusMeters} m radius`
                   : office.geofenceRadiusMeters
                     ? `${office.geofenceRadiusMeters} m radius`
-                    : isRowLoading
-                      ? 'Loading…'
-                      : 'Not configured';
+                    : 'Not configured';
+                const showRadiusSkeleton =
+                  isRowLoading && !details?.geofence && !office.geofenceRadiusMeters;
                 const gatesCount = details?.gates?.length ?? 0;
                 const pickupCount = details?.pickupPoints?.length ?? 0;
 
@@ -202,20 +218,30 @@ function GeofencesPickupPointsContent() {
                     <td style={{ padding: 12 }}>
                       {office.latitude && office.longitude ? `${office.latitude}, ${office.longitude}` : 'Not provided'}
                     </td>
-                    <td style={{ padding: 12 }}>{radiusLabel}</td>
                     <td style={{ padding: 12 }}>
-                      {isRowLoading
-                        ? 'Loading…'
-                        : gatesCount > 0
-                          ? details?.gates.map((g) => g.name).join(', ')
-                          : 'None'}
+                      {showRadiusSkeleton ? (
+                        <SkeletonBone style={{ width: 96, height: 14, borderRadius: 6 }} />
+                      ) : (
+                        radiusLabel
+                      )}
                     </td>
                     <td style={{ padding: 12 }}>
-                      {isRowLoading
-                        ? 'Loading…'
-                        : pickupCount > 0
-                          ? details?.pickupPoints.map((p) => p.name).join(', ')
-                          : 'None'}
+                      {isRowLoading ? (
+                        <SkeletonBone style={{ width: 90, height: 14, borderRadius: 6 }} />
+                      ) : gatesCount > 0 ? (
+                        details?.gates.map((g) => g.name).join(', ')
+                      ) : (
+                        'None'
+                      )}
+                    </td>
+                    <td style={{ padding: 12 }}>
+                      {isRowLoading ? (
+                        <SkeletonBone style={{ width: 90, height: 14, borderRadius: 6 }} />
+                      ) : pickupCount > 0 ? (
+                        details?.pickupPoints.map((p) => p.name).join(', ')
+                      ) : (
+                        'None'
+                      )}
                     </td>
                     <td style={{ padding: 12, textAlign: 'right' }}>
                       <Link
@@ -230,6 +256,11 @@ function GeofencesPickupPointsContent() {
               })}
             </tbody>
           </table>
+          <LazyScrollSentinel
+            sentinelRef={sentinelRef}
+            hasMore={hasMore}
+            label="Loading more offices…"
+          />
         </section>
       )}
     </div>
@@ -238,7 +269,7 @@ function GeofencesPickupPointsContent() {
 
 export default function GeofencesPickupPointsPage() {
   return (
-    <Suspense fallback={<p role="status">Loading tenant offices and geofences…</p>}>
+    <Suspense fallback={<PageLoadingSkeleton variant="table" />}>
       <GeofencesPickupPointsContent />
     </Suspense>
   );

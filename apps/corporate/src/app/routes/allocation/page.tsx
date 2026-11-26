@@ -1,11 +1,14 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { ContentLoadingSkeleton } from '@adhocx/ui/page-loading';
 import { Car, RefreshCw, Route, Search, UserCheck } from 'lucide-react';
+import { LazyScrollSentinel } from '../../../components/common/LazyScrollSentinel';
 import { routesApi } from '../../../lib/api/corporate';
 import type { CorporateRoute } from '../../../lib/api/types';
 import MetricCard from '../../../components/common/MetricCard';
 import { useSession } from '../../../lib/auth/SessionContext';
+import { useLazySlice } from '../../../lib/hooks/useInfiniteScroll';
 
 function formatShiftDate(value?: string | null): string {
   if (!value) return '—';
@@ -71,6 +74,11 @@ export default function FleetDriverAllocationPage() {
     const matchesStatus = statusFilter === 'All' || route.status === statusFilter;
     return matchesSearch && matchesStatus;
   }), [routes, search, statusFilter]);
+  const { visibleItems: visibleRoutes, hasMore, sentinelRef } = useLazySlice(
+    filteredRoutes,
+    `${search}|${statusFilter}`,
+    20,
+  );
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -91,10 +99,10 @@ export default function FleetDriverAllocationPage() {
       {error && <div role="alert" className="surface-card" style={{ padding: 14, color: '#B91C1C' }}>{error}</div>}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
-        <MetricCard label="Routes loaded" value={loading ? '...' : routes.length.toLocaleString()} icon={<Route size={20} />} category="primary" />
-        <MetricCard label="Vehicles assigned to routes" value={loading ? '...' : vehicleCount.toLocaleString()} icon={<Car size={20} />} category="info" />
-        <MetricCard label="Routes with driver assigned" value={loading ? '...' : driverAssignedCount.toLocaleString()} icon={<UserCheck size={20} />} category="success" />
-        <MetricCard label="Routes in progress" value={loading ? '...' : inProgressCount.toLocaleString()} icon={<Route size={20} />} category="warning" />
+        <MetricCard label="Routes loaded" value={routes.length.toLocaleString()} loading={loading} icon={<Route size={20} />} category="primary" />
+        <MetricCard label="Vehicles assigned to routes" value={vehicleCount.toLocaleString()} loading={loading} icon={<Car size={20} />} category="info" />
+        <MetricCard label="Routes with driver assigned" value={driverAssignedCount.toLocaleString()} loading={loading} icon={<UserCheck size={20} />} category="success" />
+        <MetricCard label="Routes in progress" value={inProgressCount.toLocaleString()} loading={loading} icon={<Route size={20} />} category="warning" />
       </div>
 
       <div className="surface-card" style={{ padding: 14, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
@@ -116,7 +124,9 @@ export default function FleetDriverAllocationPage() {
       </div>
 
       <section className="surface-card" style={{ padding: 20 }}>
-        {loading ? <p>Loading route assignments...</p> : filteredRoutes.length === 0 ? (
+        {loading ? (
+          <ContentLoadingSkeleton kind="table" count={6} label="Loading route assignments…" />
+        ) : filteredRoutes.length === 0 ? (
           <p style={{ color: 'var(--text-secondary)' }}>No route assignments match these filters.</p>
         ) : (
           <div className="table-scroll">
@@ -125,7 +135,7 @@ export default function FleetDriverAllocationPage() {
                 <tr><th>Route</th><th>Vehicle</th><th>Model</th><th>Driver</th><th>Passengers / capacity</th><th>Date / shift</th><th>Status</th></tr>
               </thead>
               <tbody>
-                {filteredRoutes.map((route) => (
+                {visibleRoutes.map((route) => (
                   <tr key={route.id}>
                     <td>{route.routeNumber ?? route.routeCode ?? route.id}</td>
                     <td>{route.vehicle?.registrationNumber ?? route.vehiclePlate ?? '—'}</td>
@@ -138,6 +148,11 @@ export default function FleetDriverAllocationPage() {
                 ))}
               </tbody>
             </table>
+            <LazyScrollSentinel
+              sentinelRef={sentinelRef}
+              hasMore={hasMore}
+              label="Loading more route assignments…"
+            />
           </div>
         )}
         <p style={{ color: 'var(--text-secondary)', fontSize: 12 }}>

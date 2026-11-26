@@ -1,9 +1,12 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { ContentLoadingSkeleton } from '@adhocx/ui/page-loading';
 import { Network } from 'lucide-react';
+import { LazyScrollSentinel } from '../../../components/common/LazyScrollSentinel';
 import { tenantApi } from '../../../lib/api/corporate';
 import { useSession } from '../../../lib/auth/SessionContext';
+import { useLazySlice } from '../../../lib/hooks/useInfiniteScroll';
 import MetricCard from '../../../components/common/MetricCard';
 
 interface TenantCostCenter {
@@ -18,6 +21,11 @@ export default function CostCentersOrgPage() {
   const [costCenters, setCostCenters] = useState<TenantCostCenter[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { visibleItems: visibleCostCenters, hasMore, sentinelRef } = useLazySlice(
+    costCenters,
+    costCenters.length,
+    20,
+  );
 
   useEffect(() => {
     if (!tenantId) {
@@ -59,17 +67,19 @@ export default function CostCentersOrgPage() {
 
       {error && <div role="alert" className="surface-card" style={{ padding: 14, color: '#B91C1C' }}>{error}</div>}
 
-      <MetricCard label="Configured cost centers" value={loading ? '...' : costCenters.length.toLocaleString()} icon={<Network size={20} />} category="primary" />
+      <MetricCard label="Configured cost centers" value={costCenters.length.toLocaleString()} loading={loading} icon={<Network size={20} />} category="primary" />
 
       <section className="surface-card" style={{ padding: 20 }}>
-        {loading ? <p>Loading cost centers...</p> : costCenters.length === 0 ? (
+        {loading ? (
+          <ContentLoadingSkeleton kind="table" count={5} label="Loading cost centers…" />
+        ) : costCenters.length === 0 ? (
           <p style={{ color: 'var(--text-secondary)' }}>No cost centers are configured for this tenant.</p>
         ) : (
           <div className="table-scroll">
             <table className="data-table">
               <thead><tr><th>Code</th><th>Name</th><th>Department</th></tr></thead>
               <tbody>
-                {costCenters.map((center) => (
+                {visibleCostCenters.map((center) => (
                   <tr key={center.id}>
                     <td>{center.code}</td>
                     <td>{center.name}</td>
@@ -78,6 +88,11 @@ export default function CostCentersOrgPage() {
                 ))}
               </tbody>
             </table>
+            <LazyScrollSentinel
+              sentinelRef={sentinelRef}
+              hasMore={hasMore}
+              label="Loading more cost centers…"
+            />
           </div>
         )}
         <p style={{ color: 'var(--text-secondary)', fontSize: 12 }}>

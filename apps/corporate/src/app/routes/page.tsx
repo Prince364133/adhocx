@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { ContentLoadingSkeleton, PageLoadingSkeleton, SkeletonBone } from '@adhocx/ui/page-loading';
 import {
   AlertTriangle,
   ArrowRight,
@@ -19,9 +20,11 @@ import {
   Search,
   Users,
 } from 'lucide-react';
+import { LazyScrollSentinel } from '../../components/common/LazyScrollSentinel';
 import { routesApi } from '../../lib/api/corporate';
 import type { RouteListItem } from '../../lib/api/types';
 import { useSession } from '../../lib/auth/SessionContext';
+import { useLazySlice } from '../../lib/hooks/useInfiniteScroll';
 import { Button } from '../../components/common/Button';
 import { StatusBadge } from '../../components/common/StatusBadge';
 
@@ -119,12 +122,14 @@ export default function CorporateRoutesPage() {
     return { total, assigned, noDrivers, searching, totalPassengers };
   }, [routes]);
 
+  const { visibleItems: visibleRoutes, hasMore, sentinelRef } = useLazySlice(
+    routes,
+    `${searchQuery}|${shiftDate}|${direction}|${statusFilter}|${dispatchFilter}`,
+    20,
+  );
+
   if (session.status === 'loading') {
-    return (
-      <div style={{ padding: 48, textAlign: 'center', color: 'var(--text-secondary)' }}>
-        Loading company session...
-      </div>
-    );
+    return <PageLoadingSkeleton variant="table" />;
   }
 
   return (
@@ -202,7 +207,7 @@ export default function CorporateRoutesPage() {
             <div>
               <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>{kpi.label}</div>
               <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--text-primary)', marginTop: 3 }}>
-                {kpi.value}
+                {loading ? <SkeletonBone style={{ width: 44, height: 26, borderRadius: 6, marginTop: 4 }} /> : kpi.value}
               </div>
               <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{kpi.sub}</div>
             </div>
@@ -441,15 +446,13 @@ export default function CorporateRoutesPage() {
       {loading ? (
         <div
           style={{
-            padding: 48,
-            textAlign: 'center',
+            padding: 20,
             backgroundColor: 'var(--bg-surface)',
             borderRadius: 12,
             border: '1px solid var(--border-subtle)',
-            color: 'var(--text-secondary)',
           }}
         >
-          Loading company routes...
+          <ContentLoadingSkeleton kind="list" count={5} label="Loading company routes…" />
         </div>
       ) : routes.length === 0 ? (
         <div
@@ -471,7 +474,7 @@ export default function CorporateRoutesPage() {
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {routes.map((route) => {
+          {visibleRoutes.map((route) => {
             const effDispatch = getEffectiveDispatchStatus(route);
             const isExhausted = effDispatch === 'NO_DRIVERS_FOUND';
             const stopCount = route.stops?.length ?? route._count?.stops ?? 0;
@@ -600,6 +603,11 @@ export default function CorporateRoutesPage() {
               </div>
             );
           })}
+          <LazyScrollSentinel
+            sentinelRef={sentinelRef}
+            hasMore={hasMore}
+            label="Loading more routes…"
+          />
         </div>
       )}
     </div>

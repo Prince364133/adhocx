@@ -103,6 +103,12 @@ export const authApi = {
       anonymous: true,
     }),
 
+  setPassword: (password: string) =>
+    apiRequest<AuthResponse & { success: boolean; message?: string }>('/auth/password', {
+      method: 'POST',
+      body: { password },
+    }),
+
   logout: () =>
     apiRequest<{ success: boolean }>('/auth/logout', {
       method: 'POST',
@@ -594,6 +600,7 @@ export const usersApi = {
       fullName: string;
       email?: string;
       phone?: string;
+      password?: string;
       corporateRole: string;
       officeIds: string[];
     },
@@ -602,7 +609,7 @@ export const usersApi = {
       method: 'POST',
       body,
     }),
-  update: (tenantId: string, userId: string, body: { corporateRole?: string; officeIds?: string[] }) =>
+  update: (tenantId: string, userId: string, body: { corporateRole?: string; officeIds?: string[]; password?: string }) =>
     apiRequest<CorporateUser>(`/corporate/tenants/${tenantId}/users/${userId}`, { method: 'PATCH', body }),
 };
 

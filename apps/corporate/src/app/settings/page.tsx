@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
+import { ContentLoadingSkeleton } from '@adhocx/ui/page-loading';
 import { tenantApi } from '../../lib/api/corporate';
 import type { TenantIntegrations } from '../../lib/api/types';
 import { useSession } from '../../lib/auth/SessionContext';
@@ -50,7 +51,11 @@ export default function HrmsIntegrationPage() {
       </header>
 
       {error && <p role="alert" style={{ color: 'var(--color-danger)' }}>{error}</p>}
-      {loading && <p role="status">Loading integration status…</p>}
+      {loading && (
+        <section className="surface-card" style={{ padding: 24 }}>
+          <ContentLoadingSkeleton kind="form" count={4} label="Loading integration status…" />
+        </section>
+      )}
       {!loading && !error && integrations && (
         <section className="surface-card" style={{ padding: 24 }}>
           <h2 style={{ marginTop: 0, fontSize: 16 }}>HRMS connector</h2>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { ContentLoadingSkeleton } from '@adhocx/ui/page-loading';
 import { tenantApi } from '../../../lib/api/corporate';
 import type { TenantIntegrations } from '../../../lib/api/types';
 import { useSession } from '../../../lib/auth/SessionContext';
@@ -48,7 +49,7 @@ export default function IntegrationHealthWebhooksPage() {
       </header>
 
       {error && <p role="alert" style={{ color: 'var(--color-danger)' }}>{error}</p>}
-      {loading && <p role="status">Loading integration health…</p>}
+      {loading && <ContentLoadingSkeleton kind="metrics" count={4} label="Loading integration health…" />}
       {!loading && !error && integrations && (
         <>
           <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 12 }}>

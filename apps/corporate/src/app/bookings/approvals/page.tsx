@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { ContentLoadingSkeleton } from '@adhocx/ui/page-loading';
 import {
   Check,
   X,
@@ -14,9 +15,11 @@ import {
   MapPin,
   Calendar,
 } from 'lucide-react';
+import { LazyScrollSentinel } from '../../../components/common/LazyScrollSentinel';
 import { tripsApi, tenantApi } from '../../../lib/api/corporate';
 import { BookingRequestItem, Office } from '../../../lib/api/types';
 import { useSession } from '../../../lib/auth/SessionContext';
+import { useLazySlice } from '../../../lib/hooks/useInfiniteScroll';
 
 export default function ApprovalsPage() {
   const { tenantId: activeTenantId } = useSession();
@@ -93,6 +96,11 @@ export default function ApprovalsPage() {
     if (selectedOffice !== 'All Offices' && officeName !== selectedOffice) return false;
     return true;
   });
+  const { visibleItems, hasMore, sentinelRef } = useLazySlice(
+    filteredItems,
+    `${activeTab}|${selectedOffice}`,
+    20,
+  );
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -176,9 +184,7 @@ export default function ApprovalsPage() {
 
         {/* Requests Table */}
         {loading ? (
-          <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-secondary)' }}>
-            Loading pending approvals...
-          </div>
+          <ContentLoadingSkeleton kind="table" count={6} label="Loading pending approvals…" />
         ) : filteredItems.length === 0 ? (
           <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-secondary)' }}>
             Inbox clean! No pending requests awaiting review or approval.
@@ -197,7 +203,7 @@ export default function ApprovalsPage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredItems.map((req) => (
+                {visibleItems.map((req) => (
                   <tr key={req.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
                     <td style={{ padding: '14px', fontWeight: 700, color: 'var(--text-primary)' }}>
                       {req.id.slice(0, 8)}
@@ -278,6 +284,11 @@ export default function ApprovalsPage() {
                 ))}
               </tbody>
             </table>
+            <LazyScrollSentinel
+              sentinelRef={sentinelRef}
+              hasMore={hasMore}
+              label="Loading more pending approvals…"
+            />
           </div>
         )}
       </div>

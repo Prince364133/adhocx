@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { ContentLoadingSkeleton, LazyMount, PageLoadingSkeleton } from '@adhocx/ui/page-loading';
 import {
   AlertTriangle,
   ArrowLeft,
@@ -19,7 +20,7 @@ import { routesApi } from '../../lib/api/corporate';
 import type { RouteDetail, RouteDirectionsResult, RouteStop } from '../../lib/api/types';
 import { Button } from '../common/Button';
 import { StatusBadge } from '../common/StatusBadge';
-import { GoogleRouteMap, GoogleRouteMapStop } from '../maps/GoogleRouteMap';
+import { LazyGoogleRouteMap, GoogleRouteMapStop } from '../maps/LazyGoogleRouteMap';
 
 function formatShiftDate(value?: string | null): string {
   if (!value) return '—';
@@ -150,20 +151,7 @@ export function CorporateRouteDetailView({ routeId }: { routeId: string }) {
   }, [directions?.legs]);
 
   if (loading) {
-    return (
-      <div
-        style={{
-          padding: 48,
-          textAlign: 'center',
-          color: 'var(--text-secondary)',
-          backgroundColor: 'var(--bg-surface)',
-          borderRadius: 12,
-          border: '1px solid var(--border-subtle)',
-        }}
-      >
-        Loading route manifest and Google Maps live traffic directions...
-      </div>
-    );
+    return <PageLoadingSkeleton variant="map" />;
   }
 
   if (errorMsg || !route) {
@@ -466,23 +454,28 @@ export function CorporateRouteDetailView({ routeId }: { routeId: string }) {
             </span>
           </div>
 
-          <GoogleRouteMap
-            office={
-              route.office && route.office.latitude != null && route.office.longitude != null
-                ? {
-                    name: route.office.name,
-                    addressText: route.office.addressText,
-                    lat: Number(route.office.latitude),
-                    lng: Number(route.office.longitude),
-                  }
-                : null
-            }
-            stops={mapStops}
-            decodedPath={directions?.decodedPath}
-            highlightedStopSequence={highlightedStop}
-            onSelectStop={(seq) => setHighlightedStop(seq)}
-            height={520}
-          />
+          <LazyMount
+            minHeight={520}
+            fallback={<ContentLoadingSkeleton kind="map" height={520} label="Preparing route map…" />}
+          >
+            <LazyGoogleRouteMap
+              office={
+                route.office && route.office.latitude != null && route.office.longitude != null
+                  ? {
+                      name: route.office.name,
+                      addressText: route.office.addressText,
+                      lat: Number(route.office.latitude),
+                      lng: Number(route.office.longitude),
+                    }
+                  : null
+              }
+              stops={mapStops}
+              decodedPath={directions?.decodedPath}
+              highlightedStopSequence={highlightedStop}
+              onSelectStop={(seq) => setHighlightedStop(seq)}
+              height={520}
+            />
+          </LazyMount>
         </div>
 
         {/* RIGHT PANE: Ordered Pickup Directions & Passenger Contacts */}

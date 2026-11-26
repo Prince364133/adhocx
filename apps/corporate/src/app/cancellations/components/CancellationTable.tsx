@@ -1,7 +1,10 @@
 "use client";
 
+import { SkeletonBone } from "@adhocx/ui/page-loading";
 import { XCircle } from "lucide-react";
+import { LazyScrollSentinel } from "../../../components/common/LazyScrollSentinel";
 import { EmptyState } from "../../../components/common/StateViews";
+import { useLazySlice } from "../../../lib/hooks/useInfiniteScroll";
 import type {
   BookingRequestItem,
   RouteListItem,
@@ -91,13 +94,12 @@ function SkeletonRows() {
           }}
         >
           {columns.map((column, index) => (
-            <span
+            <SkeletonBone
               key={`${column}-${index}`}
               style={{
                 width: index === 1 ? "82%" : "62%",
                 height: 12,
                 borderRadius: 6,
-                backgroundColor: "var(--bg-surface-muted)",
               }}
             />
           ))}
@@ -112,6 +114,18 @@ export function CancellationTable({
   loading,
   emptyMessage,
 }: CancellationTableProps) {
+  const firstEntry = records[0];
+  const firstEntryId = firstEntry
+    ? firstEntry.kind === "cancelled"
+      ? firstEntry.record.id
+      : `${firstEntry.route.id}-${firstEntry.stop.id}`
+    : "";
+  const { visibleItems: visibleRecords, hasMore, sentinelRef } = useLazySlice(
+    records,
+    `${records.length}:${firstEntryId}`,
+    20,
+  );
+
   return (
     <section
       className="surface-card"
@@ -159,9 +173,11 @@ export function CancellationTable({
             fontWeight: 600,
           }}
         >
-          {loading
-            ? "Loading…"
-            : `${records.length} ${records.length === 1 ? "record" : "records"}`}
+          {loading ? (
+            <SkeletonBone style={{ width: 68, height: 12, borderRadius: 6 }} />
+          ) : (
+            `${records.length} ${records.length === 1 ? "record" : "records"}`
+          )}
         </span>
       </div>
 
@@ -214,7 +230,7 @@ export function CancellationTable({
               </tr>
             </thead>
             <tbody>
-              {records.map((entry) => {
+              {visibleRecords.map((entry) => {
                 const isCancellation = entry.kind === "cancelled";
                 const employeeId = isCancellation
                   ? entry.record.employee?.employeeCode ?? "—"
@@ -381,6 +397,11 @@ export function CancellationTable({
               })}
             </tbody>
           </table>
+          <LazyScrollSentinel
+            sentinelRef={sentinelRef}
+            hasMore={hasMore}
+            label="Loading more records…"
+          />
         </div>
       )}
     </section>

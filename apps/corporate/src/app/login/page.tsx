@@ -19,6 +19,7 @@ import { authApi } from '../../lib/api/corporate';
 import type { AuthUser } from '../../lib/api/types';
 import { useSession } from '../../lib/auth/SessionContext';
 import { ThemeToggle } from '../../components/common/ThemeToggle';
+import { PageLoadingSkeleton } from '@adhocx/ui/page-loading';
 
 function LoginContent() {
   const router = useRouter();
@@ -925,7 +926,13 @@ function LoginContent() {
 
 export default function CorporateLoginPage() {
   return (
-    <Suspense fallback={<div style={{ minHeight: '100vh', backgroundColor: 'var(--bg-canvas)' }} />}>
+    <Suspense
+      fallback={
+        <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', backgroundColor: 'var(--bg-canvas)', padding: 16 }}>
+          <PageLoadingSkeleton variant="auth" />
+        </div>
+      }
+    >
       <LoginContent />
     </Suspense>
   );

@@ -19,8 +19,11 @@ import {
   Users,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { ContentLoadingSkeleton, SkeletonBone } from '@adhocx/ui/page-loading';
+import { LazyScrollSentinel } from '../../components/common/LazyScrollSentinel';
 import { notificationsApi } from '../../lib/api/corporate';
 import type { InAppNotificationItem } from '../../lib/api/types';
+import { useInfiniteScroll } from '../../lib/hooks/useInfiniteScroll';
 import styles from './Notifications.module.css';
 
 type NotificationCategory =
@@ -229,6 +232,13 @@ export default function NotificationsPage() {
     }
   }
 
+  const sentinelRef = useInfiniteScroll({
+    enabled: !isLoading && !error && !actionError && hasMore && !isLoadingMore,
+    onLoadMore: () => {
+      void handleLoadMore();
+    },
+  });
+
   async function handleMarkRead(notification: InAppNotificationItem) {
     if (notification.isRead || busyIds.has(notification.id)) return;
     setActionError(null);
@@ -382,11 +392,17 @@ export default function NotificationsPage() {
       <section className={styles.summaryCard} aria-label="Notification summary">
         <span className={styles.summaryIcon}><Bell size={19} /></span>
         <span className={styles.summaryText}>
-          <strong>{isLoading ? '—' : unreadCount}</strong>
+          <strong>{isLoading ? <SkeletonBone style={{ width: 28, height: 20, borderRadius: 6 }} /> : unreadCount}</strong>
           <span>Unread notifications</span>
         </span>
         <span className={styles.summaryDivider} />
-        <span className={styles.totalCount}>{isLoading ? 'Loading' : `${total} total notifications`}</span>
+        <span className={styles.totalCount}>
+          {isLoading ? (
+            <SkeletonBone style={{ width: 120, height: 14, borderRadius: 6 }} />
+          ) : (
+            `${total} total notifications`
+          )}
+        </span>
       </section>
 
       <section className={styles.listPanel} aria-label="Notifications list">
@@ -407,7 +423,11 @@ export default function NotificationsPage() {
             ))}
           </div>
           <span className={styles.resultsCount}>
-            {isLoading ? 'Loading…' : `Showing ${filteredNotifications.length} of ${notifications.length} loaded`}
+            {isLoading ? (
+              <SkeletonBone style={{ width: 150, height: 14, borderRadius: 6 }} />
+            ) : (
+              `Showing ${filteredNotifications.length} of ${notifications.length} loaded`
+            )}
           </span>
         </div>
 
@@ -444,8 +464,8 @@ export default function NotificationsPage() {
           {dateFilter === 'custom' && (
             <label className={styles.customDate}>
               <CalendarDays size={15} aria-hidden="true" />
-              <span className={styles.srOnly}>Choose notification date</span>
-              <input type="date" value={customDate} onChange={(event) => setCustomDate(event.target.value)} />
+              <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Date</span>
+              <input aria-label="Choose notification date" type="date" value={customDate} onChange={(event) => setCustomDate(event.target.value)} />
             </label>
           )}
         </div>
@@ -459,7 +479,9 @@ export default function NotificationsPage() {
         )}
 
         {isLoading ? (
-          <div className={styles.stateBlock} role="status"><span className={styles.spinner} /> Loading notifications…</div>
+          <div style={{ padding: '16px 20px' }}>
+            <ContentLoadingSkeleton kind="list" count={6} label="Loading notifications…" />
+          </div>
         ) : error ? (
           <div className={styles.stateBlock}>
             <Bell size={28} />
@@ -541,14 +563,15 @@ export default function NotificationsPage() {
           </div>
         )}
 
-        {!isLoading && !error && hasMore && (
-          <div className={styles.loadMore}>
-            <button type="button" className={styles.secondaryButton} onClick={() => void handleLoadMore()} disabled={isLoadingMore}>
-              <RefreshCw size={15} className={isLoadingMore ? styles.spin : ''} />
-              {isLoadingMore ? 'Loading more…' : 'Load More Notifications'}
-            </button>
-            <span>{notifications.length} of {total} loaded</span>
-          </div>
+        {!isLoading && !error && (
+          <LazyScrollSentinel
+            sentinelRef={sentinelRef}
+            hasMore={hasMore}
+            loadingMore={isLoadingMore}
+            error={actionError}
+            onRetry={() => void handleLoadMore()}
+            label="Loading more notifications…"
+          />
         )}
         {!isLoading && !error && !hasMore && total > 0 && notifications.length > PAGE_SIZE && (
           <p className={styles.endOfList}>All {notifications.length} notifications are loaded.</p>

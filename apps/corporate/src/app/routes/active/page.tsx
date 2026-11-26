@@ -2,13 +2,16 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { ContentLoadingSkeleton, SkeletonBone } from '@adhocx/ui/page-loading';
 import {
   Radio,
   ChevronRight,
   RefreshCw,
 } from 'lucide-react';
+import { LazyScrollSentinel } from '../../../components/common/LazyScrollSentinel';
 import { routesApi } from '../../../lib/api/corporate';
 import type { CorporateRoute } from '../../../lib/api/types';
+import { useLazySlice } from '../../../lib/hooks/useInfiniteScroll';
 
 export default function ActiveRoutesListPage() {
   const [routes, setRoutes] = useState<CorporateRoute[]>([]);
@@ -37,6 +40,12 @@ export default function ActiveRoutesListPage() {
     loadRoutes();
   }, []);
 
+  const { visibleItems: visibleRoutes, hasMore, sentinelRef } = useLazySlice(
+    routes,
+    routes.length,
+    15,
+  );
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       {/* Top Header */}
@@ -59,7 +68,7 @@ export default function ActiveRoutesListPage() {
                 fontWeight: 700,
               }}
             >
-              <Radio size={12} /> {routes.length} Routes Live Now
+              <Radio size={12} /> {loading ? <SkeletonBone style={{ width: 90, height: 14, borderRadius: 4 }} /> : `${routes.length} Routes Live Now`}
             </span>
           </div>
           <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '4px 0 0 0' }}>
@@ -97,8 +106,8 @@ export default function ActiveRoutesListPage() {
           {loadError}
         </div>
       ) : loading ? (
-        <div className="surface-card" style={{ padding: 40, textAlign: 'center', color: 'var(--text-secondary)' }}>
-          Loading live active routes...
+        <div className="surface-card" style={{ padding: 20 }}>
+          <ContentLoadingSkeleton kind="list" count={4} label="Loading live active routes…" />
         </div>
       ) : routes.length === 0 ? (
         <div className="surface-card" style={{ padding: 40, textAlign: 'center', color: 'var(--text-secondary)' }}>
@@ -106,7 +115,7 @@ export default function ActiveRoutesListPage() {
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {routes.map((route) => {
+          {visibleRoutes.map((route) => {
             const cabNumber = route.vehicle?.licensePlate || route.vehicle?.registrationNumber || '—';
             const driverName = route.driver?.fullName || route.driver?.name || '—';
             const stops = route.stops || [];
@@ -205,6 +214,11 @@ export default function ActiveRoutesListPage() {
               </div>
             );
           })}
+          <LazyScrollSentinel
+            sentinelRef={sentinelRef}
+            hasMore={hasMore}
+            label="Loading more active routes…"
+          />
         </div>
       )}
     </div>

@@ -1,8 +1,10 @@
 'use client';
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { ContentLoadingSkeleton, PageLoadingSkeleton, SkeletonBone } from '@adhocx/ui/page-loading';
 import {
   LayoutDashboard,
   Users,
@@ -10,28 +12,36 @@ import {
   LifeBuoy,
   Receipt,
   BarChart3,
-  Search,
   Bell,
   CheckCheck,
   LogOut,
   Building,
+  Building2,
   CalendarX,
   Headphones,
   ShieldAlert,
   X,
+  ChevronDown,
+  List,
+  Scale,
 } from 'lucide-react';
 import { SessionProvider, useSession } from '../../lib/auth/SessionContext';
-import { CORPORATE_ROLE_LABELS, CorporatePermission } from '../../lib/auth/permissions';
+import { CorporatePermission } from '../../lib/auth/permissions';
 import { notificationsApi } from '../../lib/api/corporate';
 import type { InAppNotificationItem } from '../../lib/api/types';
 import { ThemeToggle } from '../common/ThemeToggle';
-import { CorporateFaqDropdown } from './CorporateFaqDropdown';
+
+const CorporateFaqDropdown = dynamic(
+  () => import('./CorporateFaqDropdown').then((mod) => mod.CorporateFaqDropdown),
+  { ssr: false },
+);
 
 interface NavItem {
   href: string;
   label: string;
   icon: React.ReactNode;
   badge?: string | number;
+  children?: NavItem[];
 }
 
 const NAV_ITEMS: NavItem[] = [
@@ -39,7 +49,15 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/routes', label: 'Routes', icon: <Route size={18} /> },
   { href: '/employees', label: 'Employees', icon: <Users size={18} /> },
   { href: '/cancellations', label: 'Cancellation Requests', icon: <CalendarX size={18} /> },
-  { href: '/billing', label: 'Billing & Invoices', icon: <Receipt size={18} /> },
+  {
+    href: '/billing',
+    label: 'Billing & Invoices',
+    icon: <Receipt size={18} />,
+    children: [
+      { href: '/billing/invoices', label: 'Invoice List', icon: <List size={16} /> },
+      { href: '/billing/disputes', label: 'Billing Disputes', icon: <Scale size={16} /> },
+    ],
+  },
   { href: '/employee-support', label: 'Employee Support', icon: <Headphones size={18} /> },
   { href: '/support', label: 'Support', icon: <LifeBuoy size={18} /> },
   { href: '/dashboard/analytics', label: 'Transport Analytics', icon: <BarChart3 size={15} /> },
@@ -54,28 +72,30 @@ function isActive(pathname: string, href: string): boolean {
   return pathname.startsWith(href + '/');
 }
 
-function computeInitials(fullName?: string | null, email?: string | null, phone?: string | null): string {
-  const name = (fullName || '').trim();
-  if (name) {
-    const parts = name.split(/\s+/).filter(Boolean);
+function isPhoneLike(value?: string | null): boolean {
+  const trimmed = (value || '').trim();
+  return Boolean(trimmed) && /^[+\d\s().-]{6,}$/.test(trimmed);
+}
+
+function computeProfileInitials(companyName?: string | null, fallbackName?: string | null, email?: string | null): string {
+  const label = (companyName || '').trim() || (!isPhoneLike(fallbackName) ? (fallbackName || '').trim() : '');
+  if (label) {
+    const parts = label.split(/\s+/).filter(Boolean);
     if (parts.length >= 2) {
-      return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+      return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
     }
-    return parts[0].slice(0, 2).toUpperCase();
+    return parts[0][0].toUpperCase();
   }
   const mail = (email || '').trim();
   if (mail) {
-    return mail.split('@')[0].slice(0, 2).toUpperCase();
+    return mail[0].toUpperCase();
   }
-  const digits = (phone || '').replace(/\D/g, '');
-  if (digits.length >= 2) {
-    return digits.slice(-2);
-  }
-  return 'CO';
+  return 'C';
 }
 
 function Sidebar() {
   const pathname = usePathname() ?? '';
+  const [billingOpen, setBillingOpen] = useState(() => pathname.startsWith('/billing'));
 
   return (
     <aside
@@ -108,6 +128,97 @@ function Sidebar() {
         <nav style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
           {NAV_ITEMS.map((item) => {
             const active = isActive(pathname, item.href);
+            if (item.children) {
+              return (
+                <div key={item.href}>
+                  <div style={{ display: 'flex', alignItems: 'center' }}>
+                    <Link
+                      href={item.href}
+                      aria-current={active && pathname === item.href ? 'page' : undefined}
+                      onClick={() => setBillingOpen(true)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        flex: 1,
+                        minWidth: 0,
+                        padding: '9px 12px',
+                        borderRadius: 'var(--radius-md)',
+                        textDecoration: 'none',
+                        fontSize: 13,
+                        fontWeight: active ? 600 : 500,
+                        color: active ? 'var(--sidebar-active-text)' : 'var(--text-secondary)',
+                        backgroundColor: active ? 'var(--sidebar-active-bg)' : 'transparent',
+                        transition: 'background-color 0.15s ease, color 0.15s ease',
+                      }}
+                    >
+                      <span style={{ color: active ? 'var(--sidebar-active-text)' : 'var(--text-muted)', display: 'flex', marginRight: 10 }}>
+                        {item.icon}
+                      </span>
+                      <span>{item.label}</span>
+                    </Link>
+                    <button
+                      type="button"
+                      aria-label={`${billingOpen ? 'Collapse' : 'Expand'} ${item.label}`}
+                      aria-expanded={billingOpen}
+                      onClick={() => setBillingOpen((open) => !open)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: 34,
+                        height: 36,
+                        marginLeft: 2,
+                        border: 0,
+                        borderRadius: 'var(--radius-md)',
+                        color: active ? 'var(--sidebar-active-text)' : 'var(--text-muted)',
+                        backgroundColor: active ? 'var(--sidebar-active-bg)' : 'transparent',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <ChevronDown
+                        size={16}
+                        style={{
+                          transform: billingOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                          transition: 'transform 0.15s ease',
+                        }}
+                      />
+                    </button>
+                  </div>
+                  {billingOpen && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 3, padding: '4px 0 4px 16px' }}>
+                      {item.children.map((child) => {
+                        const childActive = isActive(pathname, child.href);
+                        return (
+                          <Link
+                            key={child.href}
+                            href={child.href}
+                            aria-current={childActive ? 'page' : undefined}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 9,
+                              padding: '8px 12px',
+                              borderRadius: 'var(--radius-md)',
+                              textDecoration: 'none',
+                              fontSize: 12,
+                              fontWeight: childActive ? 600 : 500,
+                              color: childActive ? 'var(--sidebar-active-text)' : 'var(--text-secondary)',
+                              backgroundColor: childActive ? 'var(--sidebar-active-bg)' : 'transparent',
+                              transition: 'background-color 0.15s ease, color 0.15s ease',
+                            }}
+                          >
+                            <span style={{ color: childActive ? 'var(--sidebar-active-text)' : 'var(--text-muted)', display: 'flex' }}>
+                              {child.icon}
+                            </span>
+                            <span>{child.label}</span>
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            }
             return (
               <Link
                 key={item.href}
@@ -153,29 +264,12 @@ function Sidebar() {
           })}
         </nav>
       </div>
-
-      {/* Sidebar Footer Help Box */}
-      <div
-        style={{
-          padding: '12px',
-          borderRadius: '8px',
-          backgroundColor: 'var(--bg-surface-muted)',
-          border: '1px solid var(--border-subtle)',
-          fontSize: '12px',
-          color: 'var(--text-secondary)',
-        }}
-      >
-        <div style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: 2 }}>AdhocX ETS v2.0</div>
-        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Corporate Operations</div>
-      </div>
     </aside>
   );
 }
 
 function TopBar() {
-  const router = useRouter();
-  const { user, corporateRole, logout, status } = useSession();
-  const [searchQuery, setSearchQuery] = useState('');
+  const { user, tenant, tenantError, logout, status } = useSession();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState<InAppNotificationItem[]>([]);
@@ -332,6 +426,18 @@ function TopBar() {
     }
   }
 
+  const companyName = tenant?.name?.trim() || tenant?.legalEntityName?.trim() || '';
+  const nonPhoneUserName = !isPhoneLike(user?.fullName) ? (user?.fullName?.trim() || '') : '';
+  const profileLoading = status === 'ready' && !tenant && !tenantError && !nonPhoneUserName;
+  const profileDisplayName = companyName || nonPhoneUserName || user?.email?.trim() || 'Company Profile';
+  const profileInitials = computeProfileInitials(companyName, nonPhoneUserName, user?.email);
+  const profileSubtitle =
+    [tenant?.industry?.trim(), tenant?.city?.trim()].filter(Boolean).join(' · ') ||
+    tenant?.primaryContactEmail?.trim() ||
+    user?.email?.trim() ||
+    tenant?.code?.trim() ||
+    '';
+
   return (
     <header
       style={{
@@ -351,70 +457,13 @@ function TopBar() {
     >
       {/* Left: Brand */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-        <Link href="/dashboard" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
-          <img
-            src="/adhocx_icon.svg"
-            alt="AdhocX"
-            style={{
-              width: 30,
-              height: 30,
-              borderRadius: '6px',
-              display: 'block',
-            }}
-          />
-          <span style={{ fontWeight: 900, fontSize: 17, letterSpacing: '-0.02em', color: 'var(--text-primary)' }}>
+        <Link href="/dashboard" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
+          <span style={{ fontWeight: 900, fontSize: 17, letterSpacing: '-0.02em', color: 'var(--brand-primary)' }}>
             Adhoc<span style={{ color: '#FF5F09', fontWeight: 900 }}>X</span>
           </span>
         </Link>
 
       </div>
-
-      {/* Middle: Global Omnisearch */}
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          const trimmed = searchQuery.trim();
-          router.push(trimmed ? `/employees?search=${encodeURIComponent(trimmed)}` : '/employees');
-        }}
-        style={{ flex: 1, maxWidth: 440, position: 'relative' }}
-        className="hide-narrow"
-      >
-        <Search
-          size={15}
-          color="var(--text-muted)"
-          style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}
-        />
-        <input
-          type="search"
-          aria-label="Search employees"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search employees by name, ID, email or phone..."
-          style={{
-            width: '100%',
-            height: 36,
-            paddingLeft: 36,
-            paddingRight: 12,
-            backgroundColor: 'var(--bg-surface-muted)',
-            border: '1px solid var(--border-subtle)',
-            borderRadius: '6px',
-            fontSize: 13,
-            color: 'var(--text-primary)',
-            outline: 'none',
-            transition: 'all 0.15s ease',
-          }}
-          onFocus={(e) => {
-            e.currentTarget.style.backgroundColor = 'var(--bg-surface)';
-            e.currentTarget.style.borderColor = 'var(--brand-primary)';
-            e.currentTarget.style.boxShadow = '0 0 0 3px rgba(var(--brand-primary-rgb), 0.15)';
-          }}
-          onBlur={(e) => {
-            e.currentTarget.style.backgroundColor = 'var(--bg-surface-muted)';
-            e.currentTarget.style.borderColor = 'var(--border-subtle)';
-            e.currentTarget.style.boxShadow = 'none';
-          }}
-        />
-      </form>
 
       {/* Right: Actions, Alerts, ThemeToggle, User Profile */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
@@ -603,9 +652,9 @@ function TopBar() {
 
               <div style={{ overflowY: 'auto', minHeight: 0 }}>
                 {notificationsLoading && notifications.length === 0 ? (
-                  <p role="status" style={{ margin: 0, padding: 24, color: 'var(--text-muted)', fontSize: 13, textAlign: 'center' }}>
-                    Loading notifications…
-                  </p>
+                  <div style={{ padding: 12 }}>
+                    <ContentLoadingSkeleton kind="list" count={4} label="Loading notifications…" />
+                  </div>
                 ) : notifications.length === 0 ? (
                   <div style={{ padding: '32px 16px', color: 'var(--text-muted)', textAlign: 'center' }}>
                     <Bell size={26} style={{ opacity: 0.35 }} />
@@ -727,17 +776,18 @@ function TopBar() {
 
         <div style={{ height: 20, width: 1, backgroundColor: 'var(--border-subtle)' }} />
 
-        {/* User Initials Avatar & Dropdown */}
+        {/* Company Profile Avatar & Dropdown */}
         <div style={{ position: 'relative' }} ref={userMenuRef}>
           <button
             type="button"
             aria-haspopup="menu"
             aria-expanded={showUserMenu}
+            aria-label={profileLoading ? 'Company profile' : `${profileDisplayName} profile menu`}
             onClick={() => setShowUserMenu((open) => !open)}
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: 8,
+              gap: 10,
               cursor: 'pointer',
               background: 'transparent',
               border: 'none',
@@ -745,31 +795,40 @@ function TopBar() {
               textAlign: 'left',
             }}
           >
-            <div
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: '50%',
-                backgroundColor: 'var(--brand-action)',
-                color: '#FFFFFF',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 13,
-                fontWeight: 700,
-                letterSpacing: '0.04em',
-              }}
-            >
-              {computeInitials(user?.fullName, user?.email, user?.phone)}
-            </div>
-            <div className="hide-narrow" style={{ lineHeight: 1.2 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
-                {user?.fullName || user?.email || user?.phone || 'Corporate User'}
-              </div>
-              <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                {corporateRole ? CORPORATE_ROLE_LABELS[corporateRole] : 'Corporate User'}
-              </div>
-            </div>
+            {profileLoading ? (
+              <>
+                <SkeletonBone style={{ width: 36, height: 36, borderRadius: '50%' }} />
+                <div className="hide-narrow">
+                  <SkeletonBone style={{ width: 88, height: 14, borderRadius: 6 }} />
+                </div>
+              </>
+            ) : (
+              <>
+                <div
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: '50%',
+                    backgroundColor: 'var(--brand-action)',
+                    color: '#FFFFFF',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 14,
+                    fontWeight: 700,
+                    letterSpacing: '0.02em',
+                    flexShrink: 0,
+                  }}
+                >
+                  {profileInitials}
+                </div>
+                <div className="hide-narrow" style={{ lineHeight: 1.2 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
+                    {profileDisplayName}
+                  </div>
+                </div>
+              </>
+            )}
           </button>
 
           {/* User Menu Dropdown */}
@@ -780,7 +839,7 @@ function TopBar() {
                 position: 'absolute',
                 right: 0,
                 top: 48,
-                width: 220,
+                width: 228,
                 backgroundColor: 'var(--bg-surface)',
                 borderRadius: '8px',
                 boxShadow: 'var(--shadow-elevated)',
@@ -790,15 +849,36 @@ function TopBar() {
               }}
             >
               <div style={{ padding: '8px 12px', borderBottom: '1px solid var(--border-subtle)' }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)' }}>
-                  {user?.fullName || user?.email || user?.phone || 'Corporate User'}
+                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
+                  {profileDisplayName}
                 </div>
-                {(user?.email || user?.phone) && (
-                  <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                    {user?.email || user?.phone}
+                {profileSubtitle && (
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                    {profileSubtitle}
                   </div>
                 )}
               </div>
+              <Link
+                href="/company-profile"
+                role="menuitem"
+                onClick={() => setShowUserMenu(false)}
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '8px 12px',
+                  borderRadius: '4px',
+                  color: 'var(--text-primary)',
+                  fontSize: 13,
+                  fontWeight: 500,
+                  textDecoration: 'none',
+                  marginTop: 2,
+                }}
+              >
+                <Building2 size={14} />
+                <span>Company Profile</span>
+              </Link>
               <button
                 type="button"
                 role="menuitem"
@@ -859,16 +939,11 @@ function PortalShellFrame({ children }: { children: React.ReactNode }) {
       <div
         style={{
           minHeight: '100vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
           backgroundColor: 'var(--bg-canvas)',
-          color: 'var(--text-muted)',
-          fontSize: 14,
-          fontWeight: 600,
+          padding: '24px 32px',
         }}
       >
-        {status === 'loading' ? 'Loading Corporate Portal…' : 'Redirecting to sign in…'}
+        <PageLoadingSkeleton />
       </div>
     );
   }

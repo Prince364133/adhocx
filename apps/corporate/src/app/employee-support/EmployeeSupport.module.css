@@ -294,20 +294,15 @@
 .errorState button { margin-top: 4px; border: 0; color: var(--brand-primary); background: transparent; font: inherit; font-size: 11px; font-weight: 700; cursor: pointer; }
 .errorState { color: var(--color-danger-text); }
 
-.pagination {
+.lazySentinel {
   display: flex;
+  min-height: 20px;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  border-top: 1px solid var(--border-subtle);
-  padding: 11px 16px;
+  justify-content: center;
+  padding: 8px 16px 12px;
   color: var(--text-muted);
   font-size: 11px;
 }
-
-.pagination > div { display: flex; align-items: center; gap: 10px; }
-.pagination button { min-height: 30px; border: 1px solid var(--border-subtle); border-radius: 6px; padding: 0 9px; color: var(--text-secondary); background: var(--bg-surface); font: inherit; cursor: pointer; }
-.pagination button:disabled { opacity: .45; cursor: not-allowed; }
 
 .analyticsGrid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 16px; }
 .chartScroll { width: 100%; overflow-x: auto; padding: 0 12px 12px; }
@@ -398,8 +393,6 @@
   .summaryCard { padding: 13px; }
   .customRange { align-items: stretch; flex-direction: column; }
   .customRange input { width: 100%; box-sizing: border-box; }
-  .pagination { align-items: flex-start; flex-direction: column; }
-  .pagination > div { width: 100%; justify-content: space-between; }
   .detailGrid { grid-template-columns: 1fr; }
   .drawerHeader,
   .drawerBody { padding-right: 16px; padding-left: 16px; }

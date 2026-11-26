@@ -1,24 +1,21 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { SkeletonBone } from '@adhocx/ui/page-loading';
 import {
-  Plus,
   Search,
   Filter,
-  Eye,
   Download,
-  MoreVertical,
-  CheckCircle2,
-  Clock,
-  AlertTriangle,
-  ChevronLeft,
-  ChevronRight,
   Layers,
 } from 'lucide-react';
+import { LazyScrollSentinel } from '../../../components/common/LazyScrollSentinel';
+import { TableSkeletonRows } from '../../../components/common/TableSkeletonRows';
 import { billingApi } from '../../../lib/api/corporate';
 import { Invoice } from '../../../lib/api/types';
 import { useSession } from '../../../lib/auth/SessionContext';
+import { useInfiniteScroll } from '../../../lib/hooks/useInfiniteScroll';
+
+const BATCH_SIZE = 20;
 
 function formatPaiseToRupees(paise: bigint | string | number): string {
   const rupees = Number(paise) / 100;
@@ -34,36 +31,97 @@ export default function InvoiceListPage() {
   const [selectedStatus, setSelectedStatus] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [page, setPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
-  const [totalPages, setTotalPages] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const pageRef = useRef(1);
+  const requestSequence = useRef(0);
 
   useEffect(() => {
     async function fetchInvoices() {
-      if (!activeTenantId) return;
+      if (!activeTenantId) {
+        setInvoices([]);
+        setTotalCount(0);
+        setHasMore(false);
+        setLoading(false);
+        return;
+      }
+      const requestId = ++requestSequence.current;
+      pageRef.current = 1;
       try {
         setLoading(true);
+        setLoadingMore(false);
+        setLoadMoreError(null);
         const res = await billingApi.invoices(activeTenantId, {
           status: selectedStatus === 'ALL' ? undefined : selectedStatus,
-          page,
-          limit: 20,
+          page: 1,
+          limit: BATCH_SIZE,
         });
-        setInvoices(res.items || []);
-        const total = res.pagination?.total ?? (res.items || []).length;
+        if (requestId !== requestSequence.current) return;
+        const items = res.items || [];
+        const total = res.pagination?.total ?? items.length;
+        const pages = Math.max(1, res.pagination?.totalPages ?? Math.ceil(total / BATCH_SIZE));
+        setInvoices(items);
         setTotalCount(total);
-        setTotalPages(Math.max(1, res.pagination?.totalPages ?? Math.ceil(total / 20)));
+        setHasMore(1 < pages);
       } catch (err) {
+        if (requestId !== requestSequence.current) return;
         console.error('Failed to load corporate invoices:', err);
         setInvoices([]);
         setTotalCount(0);
-        setTotalPages(1);
+        setHasMore(false);
       } finally {
-        setLoading(false);
+        if (requestId === requestSequence.current) {
+          setLoading(false);
+        }
       }
     }
-    fetchInvoices();
-  }, [activeTenantId, selectedStatus, page]);
+    void fetchInvoices();
+  }, [activeTenantId, selectedStatus]);
+
+  const loadMoreInvoices = useCallback(async () => {
+    if (!activeTenantId || loading || loadingMore || !hasMore) return;
+    const requestId = requestSequence.current;
+    const nextPage = pageRef.current + 1;
+    setLoadingMore(true);
+    setLoadMoreError(null);
+    try {
+      const res = await billingApi.invoices(activeTenantId, {
+        status: selectedStatus === 'ALL' ? undefined : selectedStatus,
+        page: nextPage,
+        limit: BATCH_SIZE,
+      });
+      if (requestId !== requestSequence.current) return;
+      const items = res.items || [];
+      const total = res.pagination?.total ?? totalCount;
+      const pages = Math.max(1, res.pagination?.totalPages ?? Math.ceil(total / BATCH_SIZE));
+      setInvoices((current) => {
+        const seen = new Set(current.map((item) => item.id));
+        return [...current, ...items.filter((item) => !seen.has(item.id))];
+      });
+      pageRef.current = nextPage;
+      setTotalCount(total);
+      setHasMore(nextPage < pages);
+    } catch (err) {
+      if (requestId === requestSequence.current) {
+        console.error('Failed to load more corporate invoices:', err);
+        setLoadMoreError('Unable to load more invoices.');
+      }
+    } finally {
+      if (requestId === requestSequence.current) {
+        setLoadingMore(false);
+      }
+    }
+  }, [activeTenantId, hasMore, loading, loadingMore, selectedStatus, totalCount]);
+
+  const sentinelRef = useInfiniteScroll({
+    enabled: !loading && !loadingMore && hasMore && !loadMoreError && !!activeTenantId,
+    onLoadMore: () => {
+      void loadMoreInvoices();
+    },
+  });
 
   const filteredInvoices = invoices.filter((inv) => {
     if (!searchQuery) return true;
@@ -146,7 +204,6 @@ export default function InvoiceListPage() {
               value={selectedStatus}
               onChange={(e) => {
                 setSelectedStatus(e.target.value);
-                setPage(1);
               }}
               style={{
                 padding: '8px 12px',
@@ -167,7 +224,11 @@ export default function InvoiceListPage() {
         </div>
 
         <div style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: 600 }}>
-          {totalCount} Total Invoices
+          {loading ? (
+            <SkeletonBone style={{ width: 96, height: 14, borderRadius: 6 }} />
+          ) : (
+            `${totalCount} Total Invoices`
+          )}
         </div>
       </div>
 
@@ -189,11 +250,7 @@ export default function InvoiceListPage() {
             </thead>
             <tbody>
               {loading ? (
-                <tr>
-                  <td colSpan={8} style={{ padding: '36px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                    Loading invoices...
-                  </td>
-                </tr>
+                <TableSkeletonRows columns={8} rows={6} />
               ) : filteredInvoices.length === 0 ? (
                 <tr>
                   <td colSpan={8} style={{ padding: '48px', textAlign: 'center', color: 'var(--text-muted)' }}>
@@ -215,18 +272,13 @@ export default function InvoiceListPage() {
                       style={{ borderBottom: '1px solid var(--border-color)', transition: 'background-color 0.15s ease' }}
                     >
                       <td style={{ padding: '14px 16px', fontWeight: 700, color: 'var(--text-primary)' }}>
-                        <Link
-                          href={`/billing/details?id=${inv.id}`}
-                          style={{ color: 'var(--brand-primary)', textDecoration: 'none', fontWeight: 700 }}
-                        >
-                          {inv.invoiceNumber}
-                        </Link>
+                        {inv.invoiceNumber}
                       </td>
                       <td style={{ padding: '14px 16px', color: 'var(--text-secondary)' }}>
                         {period}
                       </td>
                       <td style={{ padding: '14px 16px', color: 'var(--text-primary)', fontWeight: 600 }}>
-                        {inv._count?.lines ?? '—'}
+                        {inv._count?.lines ?? 0}
                       </td>
                       <td style={{ padding: '14px 16px', color: 'var(--text-secondary)' }}>
                         {formatPaiseToRupees(inv.subtotalPaise)}
@@ -254,23 +306,6 @@ export default function InvoiceListPage() {
                       </td>
                       <td style={{ padding: '14px 16px', textAlign: 'right' }}>
                         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-                          <Link
-                            href={`/billing/details?id=${inv.id}`}
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              width: 30,
-                              height: 30,
-                              borderRadius: 6,
-                              border: '1px solid var(--border-color)',
-                              backgroundColor: 'var(--bg-surface)',
-                              color: 'var(--text-secondary)',
-                            }}
-                            title="View Invoice"
-                          >
-                            <Eye size={14} />
-                          </Link>
                           <button
                             type="button"
                             onClick={() => billingApi.downloadPdf(inv)}
@@ -299,68 +334,15 @@ export default function InvoiceListPage() {
             </tbody>
           </table>
         </div>
-        {!loading && totalCount > 0 && (
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '12px 16px',
-              borderTop: '1px solid var(--border-color)',
-              fontSize: '12px',
-              color: 'var(--text-secondary)',
-              flexWrap: 'wrap',
-              gap: '10px',
-            }}
-          >
-            <span>
-              Page <strong>{page}</strong> of <strong>{totalPages}</strong> ({totalCount} total invoices)
-            </span>
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-              <button
-                type="button"
-                disabled={page <= 1}
-                onClick={() => setPage((current) => Math.max(1, current - 1))}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  padding: '6px 10px',
-                  borderRadius: '6px',
-                  border: '1px solid var(--border-color)',
-                  backgroundColor: 'var(--bg-surface)',
-                  color: 'var(--text-primary)',
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  cursor: page <= 1 ? 'not-allowed' : 'pointer',
-                  opacity: page <= 1 ? 0.5 : 1,
-                }}
-              >
-                <ChevronLeft size={14} /> Previous
-              </button>
-              <button
-                type="button"
-                disabled={page >= totalPages}
-                onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  padding: '6px 10px',
-                  borderRadius: '6px',
-                  border: '1px solid var(--border-color)',
-                  backgroundColor: 'var(--bg-surface)',
-                  color: 'var(--text-primary)',
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  cursor: page >= totalPages ? 'not-allowed' : 'pointer',
-                  opacity: page >= totalPages ? 0.5 : 1,
-                }}
-              >
-                Next <ChevronRight size={14} />
-              </button>
-            </div>
-          </div>
+        {!loading && (
+          <LazyScrollSentinel
+            sentinelRef={sentinelRef}
+            hasMore={hasMore}
+            loadingMore={loadingMore}
+            error={loadMoreError}
+            onRetry={() => void loadMoreInvoices()}
+            label="Loading more invoices…"
+          />
         )}
       </div>
     </div>

@@ -2,6 +2,7 @@
 
 import React, { FormEvent, useEffect, useState } from 'react';
 import { AlertCircle, CalendarDays, Car, CheckCircle2, Map as MapIcon, Users, XCircle } from 'lucide-react';
+import { ContentLoadingSkeleton, LazyMount } from '@adhocx/ui/page-loading';
 import { MetricCard } from '../../components/common/MetricCard';
 import { analyticsApi, tenantApi } from '../../lib/api/corporate';
 import type { Dashboard } from '../../lib/api/types';
@@ -340,16 +341,13 @@ export default function CompanyOverviewPage() {
         </div>
       )}
 
-      {loading && (
-        <p role="status" style={{ margin: 0, fontSize: '13px', color: 'var(--text-secondary)' }}>Loading dashboard statistics…</p>
-      )}
-
       <div className="metric-grid">
         {metrics.map((metric) => (
           <MetricCard
             key={metric.label}
             label={metric.label}
-            value={loading ? '—' : metric.value?.toLocaleString() ?? '—'}
+            value={(metric.value ?? 0).toLocaleString()}
+            loading={loading}
             icon={metric.icon}
             highlightColor={metric.color}
           />
@@ -366,9 +364,11 @@ export default function CompanyOverviewPage() {
           </p>
         </div>
         {loading ? (
-          <p role="status" style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '13px' }}>Loading daily trip counts…</p>
+          <ContentLoadingSkeleton kind="chart" height={240} label="Loading daily trip counts…" />
         ) : data?.dailyTrips.some((day) => day.trips > 0) ? (
-          <DailyTripsChart data={data.dailyTrips} />
+          <LazyMount fallback={<ContentLoadingSkeleton kind="chart" height={240} />} minHeight={240}>
+            <DailyTripsChart data={data.dailyTrips} />
+          </LazyMount>
         ) : !error ? (
           <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '13px' }}>No trips were recorded for the selected date range.</p>
         ) : null}

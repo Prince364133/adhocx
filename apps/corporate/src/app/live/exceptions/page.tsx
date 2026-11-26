@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { ContentLoadingSkeleton } from '@adhocx/ui/page-loading';
 import {
   Clock,
   UserX,
@@ -11,11 +12,13 @@ import {
   List,
   Map,
 } from 'lucide-react';
+import { LazyScrollSentinel } from '../../../components/common/LazyScrollSentinel';
 import { MetricCard } from '../../../components/common/MetricCard';
 import { FilterBar } from '../../../components/common/FilterBar';
 import { analyticsApi } from '../../../lib/api/corporate';
 import type { ExceptionsResponse } from '../../../lib/api/types';
 import { useSession } from '../../../lib/auth/SessionContext';
+import { useLazySlice } from '../../../lib/hooks/useInfiniteScroll';
 
 export default function TrackingExceptionsPage() {
   const { tenantId } = useSession();
@@ -63,6 +66,11 @@ export default function TrackingExceptionsPage() {
       exc.office.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesType && matchesSearch;
   });
+  const { visibleItems: visibleExceptions, hasMore, sentinelRef } = useLazySlice(
+    filteredExceptions,
+    `${selectedType}|${searchQuery}`,
+    20,
+  );
 
   const getBadgeStyle = (type: string) => {
     switch (type) {
@@ -106,21 +114,24 @@ export default function TrackingExceptionsPage() {
       <div className="metric-grid">
         <MetricCard
           label="Delayed Trips"
-          value={summary?.delayedPickups ?? '—'}
+          value={summary?.delayedPickups ?? 0}
+          loading={loading}
           icon={<Clock size={18} />}
           highlightColor="#D97706"
           onClick={() => setSelectedType(selectedType === 'DELAYED' ? 'ALL' : 'DELAYED')}
         />
         <MetricCard
           label="Unassigned Trips"
-          value={summary?.unassignedTrips ?? '—'}
+          value={summary?.unassignedTrips ?? 0}
+          loading={loading}
           icon={<UserX size={18} />}
           highlightColor="#EA580C"
           onClick={() => setSelectedType(selectedType === 'UNASSIGNED' ? 'ALL' : 'UNASSIGNED')}
         />
         <MetricCard
           label="GPS Stale"
-          value={summary?.gpsStaleCount ?? '—'}
+          value={summary?.gpsStaleCount ?? 0}
+          loading={loading}
           subtext="> 5 mins"
           icon={<Radio size={18} />}
           highlightColor="#CA8A04"
@@ -128,14 +139,16 @@ export default function TrackingExceptionsPage() {
         />
         <MetricCard
           label="Route Deviations"
-          value={summary?.routeDeviations ?? '—'}
+          value={summary?.routeDeviations ?? 0}
+          loading={loading}
           icon={<Navigation size={18} />}
           highlightColor="#7C3AED"
           onClick={() => setSelectedType(selectedType === 'DEVIATION' ? 'ALL' : 'DEVIATION')}
         />
         <MetricCard
           label="Safety Alerts"
-          value={summary?.safetyAlerts ?? '—'}
+          value={summary?.safetyAlerts ?? 0}
+          loading={loading}
           icon={<ShieldAlert size={18} />}
           highlightColor="#DC2626"
           onClick={() => setSelectedType(selectedType === 'SAFETY' ? 'ALL' : 'SAFETY')}
@@ -215,9 +228,7 @@ export default function TrackingExceptionsPage() {
         {/* Tab 1: List View */}
         {activeTab === 'list' && (
           loading ? (
-            <div style={{ padding: '30px', textAlign: 'center', color: 'var(--text-secondary)' }}>
-              Loading tracking exceptions...
-            </div>
+            <ContentLoadingSkeleton kind="table" count={6} label="Loading tracking exceptions…" />
           ) : filteredExceptions.length === 0 ? (
             <div style={{ padding: '30px', textAlign: 'center', color: 'var(--text-secondary)' }}>
               No active tracking exceptions match this filter.
@@ -237,7 +248,7 @@ export default function TrackingExceptionsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredExceptions.map((item) => {
+                  {visibleExceptions.map((item) => {
                     const badge = getBadgeStyle(item.type);
                     return (
                       <tr key={item.id}>
@@ -288,6 +299,11 @@ export default function TrackingExceptionsPage() {
                   })}
                 </tbody>
               </table>
+              <LazyScrollSentinel
+                sentinelRef={sentinelRef}
+                hasMore={hasMore}
+                label="Loading more exceptions…"
+              />
             </div>
           )
         )}

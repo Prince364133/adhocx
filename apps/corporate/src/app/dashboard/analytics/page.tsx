@@ -1,10 +1,10 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, Clock, Percent, RefreshCw, Route } from 'lucide-react';
+import { CheckCircle2, Clock, Percent, Route } from 'lucide-react';
+import { ContentLoadingSkeleton, LazyMount } from '@adhocx/ui/page-loading';
 import { MetricCard } from '../../../components/common/MetricCard';
-import { BarComparisonChart } from '../../../components/charts/BarComparisonChart';
-import { DonutChart } from '../../../components/charts/DonutChart';
+import { LazyBarComparisonChart, LazyDonutChart } from '../../../components/charts/LazyCharts';
 import { analyticsApi } from '../../../lib/api/corporate';
 import type { Dashboard } from '../../../lib/api/types';
 import type { TripsAnalyticsReport } from '../../../lib/api/corporate';
@@ -17,7 +17,6 @@ export default function TransportAnalyticsPage() {
   const [report, setReport] = useState<TripsAnalyticsReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [refreshKey, setRefreshKey] = useState(0);
 
   const loadData = useCallback(async () => {
     if (status === 'loading') return;
@@ -52,7 +51,7 @@ export default function TransportAnalyticsPage() {
 
   useEffect(() => {
     void loadData();
-  }, [loadData, refreshKey]);
+  }, [loadData]);
 
   const chartData = useMemo(() => {
     const rows = report?.rows ?? [];
@@ -90,10 +89,10 @@ export default function TransportAnalyticsPage() {
   }, [report]);
 
   const metrics = [
-    { label: 'Trips in period', value: dashboard?.trips.total.toLocaleString() ?? '—', icon: <Route size={18} />, color: '#5728B2' },
-    { label: 'On-time pickup', value: dashboard?.punctuality.onTimePct === null || !dashboard ? '—' : `${dashboard.punctuality.onTimePct}%`, icon: <Clock size={18} />, color: '#16A34A' },
-    { label: 'Average pickup delay', value: dashboard?.punctuality.avgDelayMinutes === null || !dashboard ? '—' : `${dashboard.punctuality.avgDelayMinutes} min`, icon: <CheckCircle2 size={18} />, color: '#3B82F6' },
-    { label: 'Seat utilization', value: dashboard?.seatUtilisation.pct === null || !dashboard ? '—' : `${dashboard.seatUtilisation.pct}%`, icon: <Percent size={18} />, color: '#10B981' },
+    { label: 'Trips in period', value: (dashboard?.trips.total ?? 0).toLocaleString(), icon: <Route size={18} />, color: '#5728B2' },
+    { label: 'On-time pickup', value: `${dashboard?.punctuality.onTimePct ?? 0}%`, icon: <Clock size={18} />, color: '#16A34A' },
+    { label: 'Average pickup delay', value: `${dashboard?.punctuality.avgDelayMinutes ?? 0} min`, icon: <CheckCircle2 size={18} />, color: '#3B82F6' },
+    { label: 'Seat utilization', value: `${dashboard?.seatUtilisation.pct ?? 0}%`, icon: <Percent size={18} />, color: '#10B981' },
   ];
 
   return (
@@ -103,30 +102,46 @@ export default function TransportAnalyticsPage() {
           <h1 style={{ fontSize: 24, fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>Transport Analytics</h1>
           <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '4px 0 0' }}>Tenant trip and utilization data for the last 30 days.</p>
         </div>
-        <button type="button" onClick={() => setRefreshKey((key) => key + 1)} disabled={loading}><RefreshCw size={14} /> Refresh</button>
       </header>
 
       {error && <p role="alert" style={{ color: 'var(--color-danger)' }}>{error}</p>}
       <div className="metric-grid">
         {metrics.map((metric) => (
-          <MetricCard key={metric.label} label={metric.label} value={loading ? '…' : metric.value} icon={metric.icon} highlightColor={metric.color} />
+          <MetricCard key={metric.label} label={metric.label} value={metric.value} loading={loading} icon={metric.icon} highlightColor={metric.color} />
         ))}
       </div>
 
-      {!loading && !error && (
+      {loading ? (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: 20 }}>
           <section className="surface-card" style={{ padding: 20 }}>
             <h2 style={{ marginTop: 0, fontSize: 15 }}>Trips by day</h2>
-            {report?.rows.length ? <BarComparisonChart data={chartData} height={230} /> : <p>No trip records in this period.</p>}
+            <ContentLoadingSkeleton kind="chart" height={230} label="Loading trip chart…" />
+          </section>
+          <section className="surface-card" style={{ padding: 20 }}>
+            <h2 style={{ marginTop: 0, fontSize: 15 }}>Trips by direction</h2>
+            <ContentLoadingSkeleton kind="chart" height={230} label="Loading direction chart…" />
+          </section>
+        </div>
+      ) : !error ? (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: 20 }}>
+          <section className="surface-card" style={{ padding: 20 }}>
+            <h2 style={{ marginTop: 0, fontSize: 15 }}>Trips by day</h2>
+            {report?.rows.length ? (
+              <LazyMount fallback={<ContentLoadingSkeleton kind="chart" height={230} />} minHeight={230}>
+                <LazyBarComparisonChart data={chartData} height={230} />
+              </LazyMount>
+            ) : <p>No trip records in this period.</p>}
           </section>
           <section className="surface-card" style={{ padding: 20 }}>
             <h2 style={{ marginTop: 0, fontSize: 15 }}>Trips by direction</h2>
             {directionSegments.length ? (
-              <DonutChart totalLabel="Trips" totalValue={String(report?.rowCount ?? 0)} segments={directionSegments} size={185} thickness={22} />
+              <LazyMount fallback={<ContentLoadingSkeleton kind="chart" height={210} />} minHeight={210}>
+                <LazyDonutChart totalLabel="Trips" totalValue={String(report?.rowCount ?? 0)} segments={directionSegments} size={185} thickness={22} />
+              </LazyMount>
             ) : <p>No trip-direction data in this period.</p>}
           </section>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

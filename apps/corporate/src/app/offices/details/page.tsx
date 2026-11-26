@@ -3,6 +3,7 @@
 import { Suspense, useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
+import { PageLoadingSkeleton } from '@adhocx/ui/page-loading';
 import { tenantApi } from '../../../lib/api/corporate';
 import type { Office, OfficeGeofenceDetails } from '../../../lib/api/types';
 import { useSession } from '../../../lib/auth/SessionContext';
@@ -77,7 +78,7 @@ function OfficeDetailsContent() {
       </header>
 
       {error && <p role="alert" style={{ color: 'var(--color-danger)' }}>{error}</p>}
-      {loading && <p role="status">Loading office details…</p>}
+      {loading && <PageLoadingSkeleton variant="detail" />}
       {!loading && !error && offices.length === 0 && (
         <section className="surface-card" style={{ padding: 32, textAlign: 'center' }}>
           No offices have been registered for this tenant.
@@ -121,5 +122,5 @@ function OfficeDetailsContent() {
 }
 
 export default function OfficeDetailsGatesPage() {
-  return <Suspense fallback={<div className="surface-card" style={{ padding: 40, textAlign: 'center' }}>Loading…</div>}><OfficeDetailsContent /></Suspense>;
+  return <Suspense fallback={<PageLoadingSkeleton variant="detail" />}><OfficeDetailsContent /></Suspense>;
 }

@@ -1,16 +1,23 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
+import { ContentLoadingSkeleton } from '@adhocx/ui/page-loading';
 import {
-  ListOrdered,
   Search,
   Plus,
 } from 'lucide-react';
+import { LazyScrollSentinel } from '../../../components/common/LazyScrollSentinel';
 import { supportApi } from '../../../lib/api/corporate';
 import type { SupportTicket } from '../../../lib/api/types';
 import { useSession } from '../../../lib/auth/SessionContext';
-import { RaiseTicketModal } from '../../../components/support/RaiseTicketModal';
+import { useLazySlice } from '../../../lib/hooks/useInfiniteScroll';
+
+const RaiseTicketModal = dynamic(
+  () => import('../../../components/support/RaiseTicketModal').then((mod) => mod.RaiseTicketModal),
+  { ssr: false },
+);
 
 export default function SupportTicketListPage() {
   const { tenantId, status: sessionStatus } = useSession();
@@ -57,6 +64,11 @@ export default function SupportTicketListPage() {
     const matchesTab = statusTab === 'All' || tkt.status === statusTab;
     return matchesSearch && matchesTab;
   });
+  const { visibleItems: visibleTickets, hasMore, sentinelRef } = useLazySlice(
+    filteredTickets,
+    `${statusTab}|${searchTerm}`,
+    20,
+  );
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -160,8 +172,8 @@ export default function SupportTicketListPage() {
         }}
       >
         {loading ? (
-          <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-secondary)' }}>
-            Loading tickets directory...
+          <div style={{ padding: 20 }}>
+            <ContentLoadingSkeleton kind="table" count={6} label="Loading support tickets…" />
           </div>
         ) : filteredTickets.length === 0 ? (
           <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-secondary)' }}>
@@ -181,7 +193,7 @@ export default function SupportTicketListPage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredTickets.map((tkt) => (
+                {visibleTickets.map((tkt) => (
                   <tr key={tkt.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
                     <td style={{ padding: '14px 16px', fontWeight: 800, fontFamily: 'monospace', color: 'var(--brand-primary)' }}>
                       #{tkt.ticketNumber || tkt.id.slice(0, 8).toUpperCase()}
@@ -258,6 +270,11 @@ export default function SupportTicketListPage() {
                 ))}
               </tbody>
             </table>
+            <LazyScrollSentinel
+              sentinelRef={sentinelRef}
+              hasMore={hasMore}
+              label="Loading more tickets…"
+            />
           </div>
         )}
       </div>

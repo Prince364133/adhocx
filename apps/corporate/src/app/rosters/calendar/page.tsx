@@ -2,8 +2,11 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Calendar, Search } from 'lucide-react';
+import { ContentLoadingSkeleton } from '@adhocx/ui/page-loading';
 import { rosterApi } from '../../../lib/api/corporate';
 import type { Roster } from '../../../lib/api/types';
+import LazyScrollSentinel from '../../../components/common/LazyScrollSentinel';
+import { useLazySlice } from '../../../lib/hooks/useInfiniteScroll';
 import { useSession } from '../../../lib/auth/SessionContext';
 
 export default function RosterCalendarPage() {
@@ -55,6 +58,11 @@ export default function RosterCalendarPage() {
     ].some((value) => value?.toLowerCase().includes(query));
     return matchesOffice && matchesSearch;
   });
+  const { visibleItems: visibleRosters, hasMore, sentinelRef } = useLazySlice(
+    filteredRosters,
+    `${selectedOffice}|${searchQuery}`,
+    20,
+  );
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -92,7 +100,7 @@ export default function RosterCalendarPage() {
 
       <div className="surface-card" style={{ padding: 20 }}>
         {loading ? (
-          <div style={{ padding: 32, textAlign: 'center', color: 'var(--text-secondary)' }}>Loading roster records...</div>
+          <ContentLoadingSkeleton kind="table" count={6} label="Loading roster records…" />
         ) : error ? (
           <div role="alert" style={{ padding: 32, textAlign: 'center', color: '#B91C1C' }}>{error}</div>
         ) : filteredRosters.length === 0 ? (
@@ -101,34 +109,37 @@ export default function RosterCalendarPage() {
             No saved rosters match these filters.
           </div>
         ) : (
-          <div className="table-scroll">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Roster date</th>
-                  <th>Office</th>
-                  <th>Shift</th>
-                  <th>Direction</th>
-                  <th>Requests</th>
-                  <th>Passengers</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredRosters.map((roster) => (
-                  <tr key={roster.id}>
-                    <td>{roster.rosterDate.slice(0, 10)}</td>
-                    <td>{roster.office?.name ?? '—'}</td>
-                    <td>{roster.shiftTime}</td>
-                    <td>{roster.direction}</td>
-                    <td>{roster._count?.requests ?? '—'}</td>
-                    <td>{roster.passengerCount}</td>
-                    <td>{roster.status}</td>
+          <>
+            <div className="table-scroll">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Roster date</th>
+                    <th>Office</th>
+                    <th>Shift</th>
+                    <th>Direction</th>
+                    <th>Requests</th>
+                    <th>Passengers</th>
+                    <th>Status</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {visibleRosters.map((roster) => (
+                    <tr key={roster.id}>
+                      <td>{roster.rosterDate.slice(0, 10)}</td>
+                      <td>{roster.office?.name ?? '—'}</td>
+                      <td>{roster.shiftTime}</td>
+                      <td>{roster.direction}</td>
+                      <td>{roster._count?.requests ?? '—'}</td>
+                      <td>{roster.passengerCount}</td>
+                      <td>{roster.status}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <LazyScrollSentinel sentinelRef={sentinelRef} hasMore={hasMore} label="Loading more rosters…" />
+          </>
         )}
       </div>
     </div>

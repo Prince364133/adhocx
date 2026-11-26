@@ -2,11 +2,12 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, Clock, Download, Route, Users } from 'lucide-react';
+import { ContentLoadingSkeleton, LazyMount, SkeletonBone } from '@adhocx/ui/page-loading';
 import { analyticsApi } from '../../lib/api/corporate';
 import type { Dashboard } from '../../lib/api/types';
 import type { TripsAnalyticsReport } from '../../lib/api/corporate';
 import MetricCard from '../../components/common/MetricCard';
-import BarComparisonChart from '../../components/charts/BarComparisonChart';
+import { LazyBarComparisonChart } from '../../components/charts/LazyCharts';
 import { useSession } from '../../lib/auth/SessionContext';
 import { addDays, todayIst } from '../../lib/format';
 
@@ -93,18 +94,25 @@ export default function TransportPerformanceReportPage() {
       {error && <div role="alert" className="surface-card" style={{ padding: 14, color: '#B91C1C' }}>{error}</div>}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
-        <MetricCard label="Trips" value={loading ? '...' : dashboard ? totalTrips.toLocaleString() : '—'} icon={<Route size={20} />} category="primary" />
-        <MetricCard label="Completed trips" value={loading ? '...' : dashboard ? completedTrips.toLocaleString() : '—'} icon={<CheckCircle2 size={20} />} category="success" />
-        <MetricCard label="On-time pickups" value={loading ? '...' : onTimeRate == null ? '—' : `${onTimeRate}%`} icon={<Clock size={20} />} category="info" />
-        <MetricCard label="Employees served" value={loading ? '...' : dashboard ? dashboard.employeesServed.toLocaleString() : '—'} icon={<Users size={20} />} category="warning" />
+        <MetricCard label="Trips" value={dashboard ? totalTrips.toLocaleString() : '—'} loading={loading} icon={<Route size={20} />} category="primary" />
+        <MetricCard label="Completed trips" value={dashboard ? completedTrips.toLocaleString() : '—'} loading={loading} icon={<CheckCircle2 size={20} />} category="success" />
+        <MetricCard label="On-time pickups" value={onTimeRate == null ? '—' : `${onTimeRate}%`} loading={loading} icon={<Clock size={20} />} category="info" />
+        <MetricCard label="Employees served" value={dashboard ? dashboard.employeesServed.toLocaleString() : '—'} loading={loading} icon={<Users size={20} />} category="warning" />
       </div>
 
       <section className="surface-card" style={{ padding: 20 }}>
         <h2 style={{ fontSize: 15, fontWeight: 700, marginTop: 0 }}>Scheduled vs completed routes</h2>
-        {loading ? <p>Loading trip report...</p> : chartData.length === 0 ? (
+        {loading ? (
+          <ContentLoadingSkeleton kind="chart" height={220} label="Loading trip report…" />
+        ) : chartData.length === 0 ? (
           <p style={{ color: 'var(--text-secondary)' }}>No trip records are available for this period.</p>
         ) : (
-          <BarComparisonChart data={chartData} height={220} />
+          <LazyMount
+            minHeight={220}
+            fallback={<ContentLoadingSkeleton kind="chart" height={220} label="Preparing trip report…" />}
+          >
+            <LazyBarComparisonChart data={chartData} height={220} />
+          </LazyMount>
         )}
         {report?.truncated && (
           <p style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
@@ -115,11 +123,15 @@ export default function TransportPerformanceReportPage() {
 
       <section className="surface-card" style={{ padding: 20 }}>
         <h2 style={{ fontSize: 15, fontWeight: 700, marginTop: 0 }}>Punctuality summary</h2>
-        <p style={{ marginBottom: 0, color: 'var(--text-secondary)' }}>
-          {avgDelayMinutes == null
-            ? 'Average delay is not available for this period.'
-            : `Average delay: ${avgDelayMinutes} minutes. Late pickups: ${dashboard?.punctuality.latePickups ?? 0}.`}
-        </p>
+        {loading ? (
+          <SkeletonBone style={{ width: 280, height: 14, borderRadius: 6 }} />
+        ) : (
+          <p style={{ marginBottom: 0, color: 'var(--text-secondary)' }}>
+            {avgDelayMinutes == null
+              ? 'Average delay is not available for this period.'
+              : `Average delay: ${avgDelayMinutes} minutes. Late pickups: ${dashboard?.punctuality.latePickups ?? 0}.`}
+          </p>
+        )}
       </section>
     </div>
   );

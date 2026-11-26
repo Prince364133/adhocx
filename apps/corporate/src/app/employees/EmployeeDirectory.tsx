@@ -2,11 +2,16 @@
 
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Building2, Check, ChevronLeft, ChevronRight, Download, FilterX, Mail, Pencil, Phone, Plus, Search, Trash2, Users, X } from 'lucide-react';
+import { Building2, Check, Download, FilterX, Mail, Pencil, Phone, Plus, Search, Trash2, Users, X } from 'lucide-react';
 import styles from './EmployeeDirectory.module.css';
 import { employeeApi } from '../../lib/api/corporate';
 import type { Employee, Office } from '../../lib/api/types';
 import { useSession } from '../../lib/auth/SessionContext';
+import { useInfiniteScroll } from '../../lib/hooks/useInfiniteScroll';
+import { LazyScrollSentinel } from '../../components/common/LazyScrollSentinel';
+import { TableSkeletonRows } from '../../components/common/TableSkeletonRows';
+
+const BATCH_SIZE = 20;
 
 type DrawerMode = 'view' | 'add' | 'edit' | null;
 type EmploymentStatus = 'Active' | 'Inactive';
@@ -264,14 +269,14 @@ export default function EmployeeDirectory() {
   const initialSearchParam = searchParams.get('search') ?? '';
   const [employees, setEmployees] = useState<EmployeeRecord[]>([]);
   const [total, setTotal] = useState(0);
-  const [totalPages, setTotalPages] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
   const [search, setSearch] = useState(initialSearchParam);
   const [officeId, setOfficeId] = useState('');
   const [employmentStatus, setEmploymentStatus] = useState('');
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [pageSize, setPageSize] = useState(10);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
   const [drawerMode, setDrawerMode] = useState<DrawerMode>(null);
   const [selectedEmployee, setSelectedEmployee] = useState<EmployeeRecord | null>(null);
   const [statusTarget, setStatusTarget] = useState<EmployeeRecord | null>(null);
@@ -280,49 +285,93 @@ export default function EmployeeDirectory() {
   const [toast, setToast] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
   const requestSequence = useRef(0);
+  const pageRef = useRef(1);
   const canWrite = can('employees:write');
 
   useEffect(() => {
     const paramSearch = searchParams.get('search');
     if (paramSearch !== null) {
       setSearch(paramSearch);
-      setCurrentPage(1);
     }
   }, [searchParams]);
 
   const loadEmployees = useCallback(async () => {
     const requestId = ++requestSequence.current;
+    pageRef.current = 1;
     if (sessionStatus === 'loading') return;
     if (!tenantId) {
       setEmployees([]);
       setTotal(0);
+      setHasMore(false);
       setLoadError('Sign in with a corporate account to view employees.');
       setLoading(false);
       return;
     }
 
     setLoading(true);
+    setLoadingMore(false);
     setLoadError(null);
+    setLoadMoreError(null);
     try {
       const result = await employeeApi.list(tenantId, {
         search: search.trim() || undefined,
         officeId: officeId || undefined,
         isActive: employmentStatus || undefined,
-        page: currentPage,
-        limit: pageSize,
+        page: 1,
+        limit: BATCH_SIZE,
       });
       if (requestId !== requestSequence.current) return;
       setEmployees(result.items.map(mapEmployee));
       setTotal(result.pagination.total);
-      setTotalPages(Math.max(1, result.pagination.totalPages));
+      setHasMore(1 < result.pagination.totalPages);
     } catch (requestError) {
       if (requestId === requestSequence.current) {
+        setHasMore(false);
         setLoadError(requestError instanceof Error ? requestError.message : 'Unable to load employee records.');
       }
     } finally {
       if (requestId === requestSequence.current) setLoading(false);
     }
-  }, [currentPage, employmentStatus, officeId, pageSize, search, sessionStatus, tenantId]);
+  }, [employmentStatus, officeId, search, sessionStatus, tenantId]);
+
+  const loadMoreEmployees = useCallback(async () => {
+    if (sessionStatus === 'loading' || !tenantId || loading || loadingMore || !hasMore) return;
+    const requestId = requestSequence.current;
+    const nextPage = pageRef.current + 1;
+    setLoadingMore(true);
+    setLoadMoreError(null);
+    try {
+      const result = await employeeApi.list(tenantId, {
+        search: search.trim() || undefined,
+        officeId: officeId || undefined,
+        isActive: employmentStatus || undefined,
+        page: nextPage,
+        limit: BATCH_SIZE,
+      });
+      if (requestId !== requestSequence.current) return;
+      setEmployees((current) => {
+        const seen = new Set(current.map((item) => item.id));
+        const appended = result.items.map(mapEmployee).filter((item) => !seen.has(item.id));
+        return [...current, ...appended];
+      });
+      pageRef.current = nextPage;
+      setTotal(result.pagination.total);
+      setHasMore(nextPage < result.pagination.totalPages);
+    } catch (requestError) {
+      if (requestId === requestSequence.current) {
+        setLoadMoreError(requestError instanceof Error ? requestError.message : 'Unable to load more employees.');
+      }
+    } finally {
+      if (requestId === requestSequence.current) setLoadingMore(false);
+    }
+  }, [employmentStatus, hasMore, loading, loadingMore, officeId, search, sessionStatus, tenantId]);
+
+  const sentinelRef = useInfiniteScroll({
+    enabled: !loading && !loadingMore && hasMore && !loadError && !loadMoreError && !!tenantId,
+    onLoadMore: () => {
+      void loadMoreEmployees();
+    },
+  });
 
   useEffect(() => {
     void loadEmployees();
@@ -436,20 +485,17 @@ export default function EmployeeDirectory() {
     link.download = 'employee-directory.csv';
     link.click();
     URL.revokeObjectURL(url);
-    notify(`Exported ${employees.length} employees from this page.`);
+    notify(`Exported ${employees.length} loaded employees.`);
   };
 
   const activeCount = useMemo(() => employees.filter((employee) => employee.status === 'Active').length, [employees]);
   const inactiveCount = employees.length - activeCount;
-  const first = total ? (currentPage - 1) * pageSize + 1 : 0;
-  const last = Math.min(currentPage * pageSize, total);
   const filtersActive = Boolean(search || officeId || employmentStatus);
 
   const clearFilters = () => {
     setSearch('');
     setOfficeId('');
     setEmploymentStatus('');
-    setCurrentPage(1);
   };
 
   const openEditor = (employee: EmployeeRecord | null) => {
@@ -467,7 +513,7 @@ export default function EmployeeDirectory() {
         </div>
         <div className={styles.headerActions}>
           <button type="button" className={styles.secondaryButton} onClick={exportCsv} disabled={loading || employees.length === 0}>
-            <Download size={15} /> Export current page
+            <Download size={15} /> Export CSV
           </button>
           {canWrite && (
             <button type="button" className={styles.primaryButton} onClick={() => openEditor(null)} disabled={offices.length === 0}>
@@ -483,26 +529,26 @@ export default function EmployeeDirectory() {
 
       <section className={styles.metrics} aria-label="Employee summary">
         <article className={styles.metric}><span className={styles.metricIcon}><Users size={17} /></span><div><span className={styles.metricLabel}>Matching employees</span><strong>{total}</strong></div></article>
-        <article className={styles.metric}><span className={`${styles.metricIcon} ${styles.metricGreen}`}><Check size={17} /></span><div><span className={styles.metricLabel}>Active on page</span><strong>{activeCount}</strong></div></article>
-        <article className={styles.metric}><span className={`${styles.metricIcon} ${styles.metricGray}`}><Users size={17} /></span><div><span className={styles.metricLabel}>Inactive on page</span><strong>{inactiveCount}</strong></div></article>
+        <article className={styles.metric}><span className={`${styles.metricIcon} ${styles.metricGreen}`}><Check size={17} /></span><div><span className={styles.metricLabel}>Active loaded</span><strong>{activeCount}</strong></div></article>
+        <article className={styles.metric}><span className={`${styles.metricIcon} ${styles.metricGray}`}><Users size={17} /></span><div><span className={styles.metricLabel}>Inactive loaded</span><strong>{inactiveCount}</strong></div></article>
       </section>
 
       <section className={styles.directory} aria-label="Employee records">
         <div className={styles.toolbar}>
           <label className={styles.searchBox}>
             <Search size={16} />
-            <input aria-label="Search employees" type="search" value={search} onChange={(event) => { setSearch(event.target.value); setCurrentPage(1); }} placeholder="Search name, ID, email or phone…" />
+            <input aria-label="Search employees" type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search name, ID, email or phone…" />
           </label>
           <label className={styles.filterSelect}>
             <span className={styles.srOnly}>Office</span>
-            <select value={officeId} onChange={(event) => { setOfficeId(event.target.value); setCurrentPage(1); }}>
+            <select value={officeId} onChange={(event) => setOfficeId(event.target.value)}>
               <option value="">All offices</option>
               {offices.map((office) => <option key={office.id} value={office.id}>{office.name}</option>)}
             </select>
           </label>
           <label className={styles.filterSelect}>
             <span className={styles.srOnly}>Employment status</span>
-            <select value={employmentStatus} onChange={(event) => { setEmploymentStatus(event.target.value); setCurrentPage(1); }}>
+            <select value={employmentStatus} onChange={(event) => setEmploymentStatus(event.target.value)}>
               <option value="">All statuses</option>
               <option value="true">Active</option>
               <option value="false">Inactive</option>
@@ -515,7 +561,7 @@ export default function EmployeeDirectory() {
           <table className={styles.table}>
             <thead><tr><th>Employee ID</th><th>Employee</th><th>Department</th><th>Office</th><th>Contact</th><th>Status</th><th><span className={styles.srOnly}>Actions</span></th></tr></thead>
             <tbody>
-              {loading && <tr><td className={styles.emptyState} colSpan={7}>Loading employee records…</td></tr>}
+              {loading && <TableSkeletonRows columns={7} rows={8} />}
               {!loading && loadError && (
                 <tr><td className={styles.emptyState} colSpan={7}>
                   <strong>Unable to load employees</strong><span>{loadError}</span>
@@ -549,19 +595,16 @@ export default function EmployeeDirectory() {
           </table>
         </div>
 
-        <footer className={styles.pagination}>
-          <span className={styles.showing}>Showing <strong>{first}–{last}</strong> of <strong>{total}</strong> employees</span>
-          <div className={styles.paginationControls}>
-            <label>Rows per page
-              <select value={pageSize} onChange={(event) => { setPageSize(Number(event.target.value)); setCurrentPage(1); }}>
-                {[10, 25, 50].map((size) => <option key={size} value={size}>{size}</option>)}
-              </select>
-            </label>
-            <button type="button" className={styles.pageButton} aria-label="Previous page" disabled={currentPage <= 1 || loading} onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}><ChevronLeft size={16} /></button>
-            <span className={styles.pageNumber}>Page <strong>{currentPage}</strong> of {totalPages}</span>
-            <button type="button" className={styles.pageButton} aria-label="Next page" disabled={currentPage >= totalPages || loading} onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}><ChevronRight size={16} /></button>
-          </div>
-        </footer>
+        {!loading && !loadError && (
+          <LazyScrollSentinel
+            sentinelRef={sentinelRef}
+            hasMore={hasMore}
+            loadingMore={loadingMore}
+            error={loadMoreError}
+            onRetry={() => void loadMoreEmployees()}
+            label="Loading more employees…"
+          />
+        )}
       </section>
 
       <p className={styles.dataNotice}><span /> This page reads and writes employee records through the authenticated tenant API.</p>

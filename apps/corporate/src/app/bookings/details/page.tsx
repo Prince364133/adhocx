@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, Suspense } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
+import { PageLoadingSkeleton } from '@adhocx/ui/page-loading';
 import {
   Car,
   User,
@@ -97,11 +98,7 @@ function BookingDetailsContent() {
   };
 
   if (loading) {
-    return (
-      <div className="surface-card" style={{ padding: 40, textAlign: 'center', color: 'var(--text-secondary)' }}>
-        Loading booking details...
-      </div>
-    );
+    return <PageLoadingSkeleton variant="detail" />;
   }
 
   if (!booking) {
@@ -361,7 +358,7 @@ function BookingDetailsContent() {
 
 export default function BookingDetailsPage() {
   return (
-    <Suspense fallback={<div className="surface-card" style={{ padding: 40, textAlign: 'center' }}>Loading booking details...</div>}>
+    <Suspense fallback={<PageLoadingSkeleton variant="detail" />}>
       <BookingDetailsContent />
     </Suspense>
   );

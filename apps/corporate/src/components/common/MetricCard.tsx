@@ -1,10 +1,12 @@
 'use client';
 
 import React from 'react';
+import { SkeletonBone } from '@adhocx/ui/page-loading';
 
 export interface MetricCardProps {
   label: string;
   value: string | number;
+  loading?: boolean;
   subtext?: string;
   icon?: React.ReactNode;
   trend?: {
@@ -23,6 +25,7 @@ export interface MetricCardProps {
 export const MetricCard: React.FC<MetricCardProps> = ({
   label,
   value,
+  loading = false,
   subtext,
   icon,
   trend,
@@ -166,19 +169,25 @@ export const MetricCard: React.FC<MetricCardProps> = ({
       </div>
 
       <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-        <span
-          style={{
-            fontSize: '28px',
-            fontWeight: 800,
-            color: 'var(--text-primary)',
-            letterSpacing: '-0.02em',
-          }}
-        >
-          {value}
-        </span>
+        {loading ? (
+          <SkeletonBone style={{ width: '58%', height: 28, marginTop: 4 }} />
+        ) : (
+          <span
+            style={{
+              fontSize: '28px',
+              fontWeight: 800,
+              color: 'var(--text-primary)',
+              letterSpacing: '-0.02em',
+            }}
+          >
+            {value}
+          </span>
+        )}
       </div>
 
-      {subtext && (
+      {loading ? (
+        subtext !== undefined && <SkeletonBone style={{ width: '70%', height: 12, marginTop: 8 }} />
+      ) : subtext ? (
         <div
           style={{
             fontSize: '12px',
@@ -189,7 +198,7 @@ export const MetricCard: React.FC<MetricCardProps> = ({
         >
           {subtext}
         </div>
-      )}
+      ) : null}
     </div>
   );
 };
