@@ -97,11 +97,12 @@ export const OpsShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     >
       <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', backgroundColor: 'var(--bg-canvas)' }}>
         <OpsTopBar />
-        <div style={{ display: 'flex', flex: 1 }}>
+        <div style={{ display: 'flex', flex: 1, minWidth: 0 }}>
           <OpsSidebar />
           <main
             style={{
               flex: 1,
+              minWidth: 0,
               backgroundColor: 'var(--bg-canvas)',
               overflowY: 'auto',
               padding: 'var(--space-6, 24px) var(--space-8, 32px)',

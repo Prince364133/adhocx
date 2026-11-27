@@ -78,7 +78,7 @@ export async function generateVehicleRouteCandidates(
     safetyOptions,
   );
 
-  // Candidate 2: Genuine Alternative Sequence or Expressway Corridor
+  // Candidate 2: Genuine Alternative Sequence or Corridor
   const paretoAlt = findParetoAlternativeSequence(
     clusterPassengers,
     officeLat,
@@ -94,15 +94,15 @@ export async function generateVehicleRouteCandidates(
   const detourB = calculatePassengerDetours(seqOptB, officeLat, officeLng);
 
   auditLogs.push(
-    `Best Route: ${seqOptA.totalEvaluatedSequences} sequences evaluated via ${seqOptA.sequencingMethod}. Estimated: ${seqOptA.totalDistanceKm} km, Avg IDF: ${detourA.averageIdf}x.`,
+    `Best Route: ${seqOptA.totalEvaluatedSequences} sequences evaluated via ${seqOptA.sequencingMethod}. Estimated: ${seqOptA.totalDistanceKm} km, Avg Detour: ${detourA.averageIdf}x.`,
   );
   if (paretoAlt) {
     auditLogs.push(
-      `Alternative Route: Discovered distinct Pareto alternative sequence (+${Number((paretoAlt.totalDistanceKm - seqOptA.totalDistanceKm).toFixed(1))} km detour). Avg IDF: ${detourB.averageIdf}x.`,
+      `Alternative Route: Discovered distinct Pareto alternative sequence (+${Number((paretoAlt.totalDistanceKm - seqOptA.totalDistanceKm).toFixed(1))} km detour). Avg Detour: ${detourB.averageIdf}x.`,
     );
   } else {
     auditLogs.push(
-      `Alternative Route: Optimal stop sequence is mathematically unique. Evaluated alternative expressway/arterial corridor.`,
+      `Alternative Route: Optimal stop sequence is mathematically unique. Evaluated alternative arterial corridor.`,
     );
   }
 

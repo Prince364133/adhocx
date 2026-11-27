@@ -8,6 +8,7 @@ import {
   ArrowLeft,
   Building2,
   Car,
+  ChevronRight,
   Clock,
   ListChecks,
   MapPin,
@@ -352,29 +353,61 @@ export function OpsRouteDetailView({ routeId }: { routeId: string }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       {/* TOP BAR */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+      <div
+        style={{
+          padding: '16px 20px',
+          borderRadius: '12px',
+          backgroundColor: 'var(--bg-surface)',
+          border: '1px solid var(--border-subtle)',
+          boxShadow: 'var(--shadow-card)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '12px',
+        }}
+      >
+        <nav
+          aria-label="Breadcrumb"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            fontSize: '12px',
+            fontWeight: 500,
+            color: 'var(--text-muted)',
+            flexWrap: 'wrap',
+          }}
+        >
+          <Link
+            href="/"
+            style={{
+              color: 'var(--text-secondary)',
+              textDecoration: 'none',
+              transition: 'color 0.15s ease',
+            }}
+          >
+            Company Hub
+          </Link>
+          <ChevronRight size={13} style={{ flexShrink: 0 }} />
           <Link
             href={route.tenantId ? `/routes?tenantId=${encodeURIComponent(route.tenantId)}` : '/routes'}
             style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '7px 12px',
-              borderRadius: '8px',
-              border: '1px solid var(--border-subtle)',
-              backgroundColor: 'var(--bg-surface)',
-              color: 'var(--text-primary)',
+              color: 'var(--text-secondary)',
               textDecoration: 'none',
-              fontSize: '12px',
-              fontWeight: 600,
+              transition: 'color 0.15s ease',
             }}
           >
-            <ArrowLeft size={14} /> Routes List
+            {route.tenant?.name ? `${route.tenant.name} Routes` : 'Routes List'}
           </Link>
-          <div>
+          <ChevronRight size={13} style={{ flexShrink: 0 }} />
+          <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
+            {route.shiftTime} {route.direction}
+          </span>
+        </nav>
+
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '14px' }}>
+          <div style={{ flex: '1 1 320px', minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-              <h1 style={{ margin: 0, fontSize: '20px', fontWeight: 700, color: 'var(--text-primary)' }}>
+              <h1 style={{ margin: 0, fontSize: '20px', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>
                 {route.tenant?.name || 'Corporate Route'} · {route.shiftTime} {route.direction}
               </h1>
               <StatusBadge status={route.status} />
@@ -384,14 +417,13 @@ export function OpsRouteDetailView({ routeId }: { routeId: string }) {
                 route.dispatchStatus && <StatusBadge status={route.dispatchStatus} />
               )}
             </div>
-            <p style={{ margin: '2px 0 0', fontSize: '12px', color: 'var(--text-secondary)' }}>
-              Route ID: <span style={{ fontFamily: 'monospace' }}>{route.id}</span> · Shift Date:{' '}
+            <p style={{ margin: '4px 0 0', fontSize: '12px', color: 'var(--text-secondary)' }}>
+              Route ID: <span className="code-tag" style={{ fontSize: '11px', padding: '1px 6px' }}>{route.id}</span> · Shift Date:{' '}
               {String(route.shiftDate).slice(0, 10)} · {route.vehicleCategory} ({route.assignedPassengerCount}/{route.maxCapacity} seats)
             </p>
           </div>
-        </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
           <Button
             variant="secondary"
             size="sm"
@@ -469,6 +501,7 @@ export function OpsRouteDetailView({ routeId }: { routeId: string }) {
                   : 'Start Dispatch'}
             </Button>
           )}
+          </div>
         </div>
       </div>
 

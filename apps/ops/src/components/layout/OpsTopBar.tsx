@@ -95,8 +95,14 @@ export const OpsTopBar: React.FC = () => {
     <header
       style={{
         height: '56px',
-        backgroundColor: hasCriticalSos ? 'rgba(220, 38, 38, 0.12)' : 'var(--bg-surface)',
+        minHeight: '56px',
+        flexShrink: 0,
+        backgroundColor: 'var(--bg-surface)',
+        backgroundImage: hasCriticalSos
+          ? 'linear-gradient(90deg, rgba(220, 38, 38, 0.12), rgba(220, 38, 38, 0.12))'
+          : 'none',
         borderBottom: `1px solid ${hasCriticalSos ? 'var(--color-danger)' : 'var(--border-subtle)'}`,
+        boxShadow: 'var(--shadow-sm)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
