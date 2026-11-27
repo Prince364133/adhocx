@@ -38,6 +38,11 @@ import {
   NotificationCampaignItem,
   NotificationCampaignRecipientResponse,
   NotificationCampaignRecipientCounts,
+  FleetListItem,
+  FleetDetail,
+  DriverFleetAssociationItem,
+  FleetMetrics,
+  DriverFleetMetrics,
   NotificationBroadcastProgress,
   NotificationMetrics,
   AudienceFilter,
@@ -2067,17 +2072,36 @@ export const adminApi = {
       status?: CorporateSosStatus;
       tenantId?: string;
       routeId?: string;
+      activeOnly?: boolean;
+      limit?: number;
     } = {},
   ) => {
     const q = new URLSearchParams();
     if (params.status) q.set("status", params.status);
     if (params.tenantId) q.set("tenantId", params.tenantId);
     if (params.routeId) q.set("routeId", params.routeId);
+    if (params.activeOnly) q.set("activeOnly", "true");
+    if (params.limit !== undefined) q.set("limit", String(params.limit));
     return apiClient<CorporateSosAlert[]>(
       `/corporate/safety/alerts?${q.toString()}`,
       { allowForbidden: true },
     );
   },
+
+  triggerCorporateSosAlert: (payload: {
+    routeId: string;
+    latitude: number;
+    longitude: number;
+    stopId?: string;
+    batteryPct?: number;
+    triggerReason?: string;
+    audioUrl?: string;
+  }) =>
+    apiClient<CorporateSosAlert>("/corporate/safety/sos", {
+      method: "POST",
+      body: payload,
+      allowForbidden: true,
+    }),
 
   acknowledgeCorporateSosAlert: (
     id: string,
@@ -2285,6 +2309,123 @@ export const adminApi = {
         method: "DELETE",
       },
     ),
+
+  // ── Fleet Management ──
+  listFleets: (params?: {
+    search?: string;
+    status?: string;
+    page?: number;
+    limit?: number;
+  }) => {
+    const q = new URLSearchParams();
+    if (params?.search) q.set("search", params.search);
+    if (params?.status && params.status !== "ALL") q.set("status", params.status);
+    if (params?.page) q.set("page", String(params.page));
+    if (params?.limit) q.set("limit", String(params.limit));
+    const qs = q.toString() ? `?${q.toString()}` : "";
+    return apiClient<{
+      items: FleetListItem[];
+      total: number;
+      page: number;
+      limit: number;
+      totalPages: number;
+      metrics: FleetMetrics;
+    }>(`/admin/fleets${qs}`);
+  },
+
+  getFleetDetails: (id: string) =>
+    apiClient<FleetDetail>(`/admin/fleets/${id}`),
+
+  createFleet: (payload: {
+    name: string;
+    code?: string;
+    ownerName: string;
+    phone: string;
+    email?: string;
+    city?: string;
+    address?: string;
+    gstin?: string;
+    notes?: string;
+  }) =>
+    apiClient<FleetListItem>("/admin/fleets", {
+      method: "POST",
+      body: payload,
+    }),
+
+  updateFleet: (
+    id: string,
+    payload: Partial<{
+      name: string;
+      ownerName: string;
+      phone: string;
+      email: string;
+      city: string;
+      address: string;
+      gstin: string;
+      notes: string;
+    }>,
+  ) =>
+    apiClient<FleetListItem>(`/admin/fleets/${id}`, {
+      method: "PATCH",
+      body: payload,
+    }),
+
+  updateFleetStatus: (id: string, status: "ACTIVE" | "INACTIVE", reason?: string) =>
+    apiClient<FleetListItem>(`/admin/fleets/${id}/status`, {
+      method: "PATCH",
+      body: { status, reason },
+    }),
+
+  regenerateFleetCode: (id: string) =>
+    apiClient<FleetListItem>(`/admin/fleets/${id}/regenerate-code`, {
+      method: "POST",
+    }),
+
+  listDriverFleetAssociations: (params?: {
+    search?: string;
+    fleetId?: string;
+    associationStatus?: string;
+    page?: number;
+    limit?: number;
+  }) => {
+    const q = new URLSearchParams();
+    if (params?.search) q.set("search", params.search);
+    if (params?.fleetId && params.fleetId !== "ALL") q.set("fleetId", params.fleetId);
+    if (params?.associationStatus && params.associationStatus !== "ALL")
+      q.set("associationStatus", params.associationStatus);
+    if (params?.page) q.set("page", String(params.page));
+    if (params?.limit) q.set("limit", String(params.limit));
+    const qs = q.toString() ? `?${q.toString()}` : "";
+    return apiClient<{
+      items: DriverFleetAssociationItem[];
+      total: number;
+      page: number;
+      limit: number;
+      totalPages: number;
+      metrics: DriverFleetMetrics;
+    }>(`/admin/fleets/drivers${qs}`);
+  },
+
+  assignDriverToFleet: (driverId: string, fleetId: string, notes?: string) =>
+    apiClient<any>(`/admin/fleets/drivers/${driverId}/assign`, {
+      method: "POST",
+      body: { fleetId, notes },
+    }),
+
+  transferDriverFleet: (driverId: string, targetFleetId: string, notes?: string) =>
+    apiClient<any>(`/admin/fleets/drivers/${driverId}/transfer`, {
+      method: "POST",
+      body: { targetFleetId, notes },
+    }),
+
+  removeDriverFromFleet: (driverId: string, notes?: string) =>
+    apiClient<any>(`/admin/fleets/drivers/${driverId}/remove`, {
+      method: "POST",
+      body: { notes },
+    }),
+
+  getFleetMetrics: () =>
+    apiClient<FleetMetrics>("/admin/fleets/metrics"),
 
   logoutAdmin: async () => {
     try {

@@ -4,11 +4,16 @@ const nextConfig = {
     process.env.ADMIN_NEXT_DIST_DIR ||
     (process.env.NODE_ENV === 'development' ? '.next-dev' : '.next'),
   output: 'standalone',
-  transpilePackages: ['@adhocx/contracts'],
+  transpilePackages: ['@adhocx/contracts', '@adhocx/ui'],
   reactStrictMode: true,
   poweredByHeader: false,
   async redirects() {
     return [
+      {
+        source: '/sos',
+        destination: '/safety/sos',
+        permanent: false,
+      },
       {
         source: '/undefined/:slug*',
         destination: '/:slug*',

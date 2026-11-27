@@ -7,7 +7,7 @@ loadEnvConfig(path.resolve(__dirname, '../..'));
 const nextConfig = {
   distDir: process.env.NODE_ENV === 'development' ? '.next-dev' : '.next',
   output: 'standalone',
-  transpilePackages: ['@adhocx/contracts'],
+  transpilePackages: ['@adhocx/contracts', '@adhocx/ui'],
   experimental: {
     externalDir: true,
   },

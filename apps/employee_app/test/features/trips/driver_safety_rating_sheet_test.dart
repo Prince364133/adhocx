@@ -62,7 +62,7 @@ void main() {
         }),
       ),
     );
-    final trip = DriverRatingTrip(
+    const trip = DriverRatingTrip(
       stopId: 'stop-123',
       routeId: 'route-456',
       routeStatus: 'COMPLETED',

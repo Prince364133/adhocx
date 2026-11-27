@@ -1045,4 +1045,19 @@ export const opsApi = {
       body: JSON.stringify({ notes }),
     });
   },
+
+  triggerSosAlert: async (payload: {
+    routeId: string;
+    latitude: number;
+    longitude: number;
+    stopId?: string;
+    batteryPct?: number;
+    triggerReason?: string;
+    audioUrl?: string;
+  }): Promise<any> => {
+    return request('/corporate/safety/sos', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
 };
