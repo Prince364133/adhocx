@@ -87,6 +87,7 @@ class _MyRequestsTicketsScreenState extends State<MyRequestsTicketsScreen> {
     if (!_initialized && (data?.loadingTickets ?? false)) {
       return const EmployeeLoadingScaffold(
         appBar: EmployeeAppBar(title: 'My Requests'),
+        skeletonLayout: SkeletonLayout.tickets,
       );
     }
 

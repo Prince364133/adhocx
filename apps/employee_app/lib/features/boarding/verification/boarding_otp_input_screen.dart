@@ -90,7 +90,10 @@ class _BoardingOtpInputScreenState extends State<BoardingOtpInputScreen> {
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return const EmployeeLoadingScaffold(appBar: EmployeeAppBar());
+      return const EmployeeLoadingScaffold(
+        appBar: EmployeeAppBar(),
+        skeletonLayout: SkeletonLayout.form,
+      );
     }
     final p = EmployeePalette.of(context);
     final otpLength = _otpLength;

@@ -4,6 +4,12 @@ import 'package:flutter/material.dart';
 class AppColors {
   AppColors._();
 
+  // Official AdhocX Employee feature colours.
+  static const Color deepPurple = Color(0xFF1E0758);
+  static const Color brightPurple = Color(0xFF722ED1);
+  static const Color softLavender = Color(0xFFF7F4FB);
+  static const Color lightLavender = Color(0xFFE5DCF4);
+
   // ── Primary Royal Purple Brand (Auth, Hero & Main Actions) ───────────────
   static const Color primary = Color(0xFF5728B2); // Main Brand Royal Purple
   static const Color primaryHover = Color(0xFF431E8E); // Deep Purple

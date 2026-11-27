@@ -241,7 +241,19 @@ class _ManageEmergencyContactsScreenState
       appBar: const EmployeeAppBar(title: 'Manage Contacts'),
       body: SafeArea(
         child: _isLoading
-            ? Center(child: CircularProgressIndicator(color: p.accent))
+          ? const Padding(
+              padding: EdgeInsets.all(AppSpacing.pageHorizontal),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SkeletonText(width: 180, height: 18),
+                  SizedBox(height: AppSpacing.xl),
+                  SkeletonListItem(),
+                  SizedBox(height: AppSpacing.sm),
+                  SkeletonListItem(),
+                ],
+              ),
+            )
             : _loadError != null
                 ? Center(
                     child: Padding(

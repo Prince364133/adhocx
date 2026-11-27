@@ -11,6 +11,7 @@ import 'package:adhocx_employee/theme/app_radius.dart';
 import 'package:adhocx_employee/theme/app_spacing.dart';
 import 'package:adhocx_employee/theme/app_typography.dart';
 import 'package:adhocx_employee/theme/employee_palette.dart';
+import 'package:adhocx_employee/state/employee_feature_provider.dart';
 
 /// Home dashboard for an upcoming pickup (login) or drop (logout) trip:
 /// greeting header, hero trip card, route/stops & OTP summary, assigned driver,
@@ -84,10 +85,15 @@ class _HomeUpcomingTripViewState extends State<HomeUpcomingTripView> {
     final p = EmployeePalette.of(context);
     final dataProvider = _watchDataProvider(context);
     final authProvider = _watchAuthProvider(context);
+    final features = context.watch<EmployeeFeatureProvider>();
 
     final isLoading =
         !_initialized && (dataProvider?.loadingNextTrip ?? false);
-    if (isLoading) return const EmployeeLoadingScaffold();
+    if (isLoading) {
+      return const EmployeeLoadingScaffold(
+        skeletonLayout: SkeletonLayout.home,
+      );
+    }
 
     final profile = dataProvider?.profile;
     final authUser = authProvider?.currentUser;
@@ -121,6 +127,8 @@ class _HomeUpcomingTripViewState extends State<HomeUpcomingTripView> {
                   onNotificationTap: () =>
                       context.push(AppRoutes.notificationsCenter),
                   onSosTap: () => context.push(AppRoutes.safetySos),
+                  onNoShowTap: () => context.push(AppRoutes.myNoShows),
+                  noShowCount: features.noShowCount,
                   onProfileTap: () => context.push(AppRoutes.profileDetails),
                 ),
                 const SizedBox(height: AppSpacing.xxl),
@@ -128,6 +136,43 @@ class _HomeUpcomingTripViewState extends State<HomeUpcomingTripView> {
                   _HomeErrorCard(
                     message: dataProvider!.nextTripError!,
                     onRetry: () => _loadLiveData(force: true),
+                  )
+                else if (features.transportationBlocked)
+                  AppCard(
+                    padding: AppSpacing.paddingXl,
+                    child: Column(
+                      children: [
+                        const Icon(
+                          Icons.block_rounded,
+                          size: 40,
+                          color: AppColors.error,
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                        Text(
+                          'Transportation Access Blocked',
+                          textAlign: TextAlign.center,
+                          style: AppTypography.h4(
+                            color: AppColors.error,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        Text(
+                          'Future trips are restricted. General app access remains active.',
+                          textAlign: TextAlign.center,
+                          style: AppTypography.small(
+                            color: p.textSecondary,
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.lg),
+                        EmployeePrimaryButton(
+                          label: 'View My No-Shows',
+                          icon: Icons.event_busy_rounded,
+                          onPressed: () =>
+                              context.push(AppRoutes.myNoShows),
+                        ),
+                      ],
+                    ),
                   )
                 else if (!hasActiveTrip)
                   _NoUpcomingTripContent(

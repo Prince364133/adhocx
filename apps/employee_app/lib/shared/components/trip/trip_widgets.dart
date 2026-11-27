@@ -75,7 +75,17 @@ class TripDataBuilder extends StatefulWidget {
 }
 
 class _TripDataBuilderState extends State<TripDataBuilder> {
-  late final Future<Map<String, dynamic>?> _future = widget.load();
+  late Future<Map<String, dynamic>?> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = widget.load();
+  }
+
+  void _reload() {
+    setState(() => _future = widget.load());
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -83,7 +93,40 @@ class _TripDataBuilderState extends State<TripDataBuilder> {
       future: _future,
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
-          return const EmployeeLoadingScaffold();
+          return const EmployeeLoadingScaffold(
+            skeletonLayout: SkeletonLayout.trip,
+          );
+        }
+        if (snapshot.hasError) {
+          final p = EmployeePalette.of(context);
+          return Scaffold(
+            backgroundColor: p.background,
+            appBar: const EmployeeAppBar(),
+            body: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.xl),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.cloud_off_rounded,
+                        size: 40, color: p.textMuted),
+                    const SizedBox(height: AppSpacing.md),
+                    Text(
+                      'Unable to load trip information',
+                      textAlign: TextAlign.center,
+                      style: AppTypography.h4(color: p.textPrimary),
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    EmployeePrimaryButton(
+                      label: 'Retry',
+                      icon: Icons.refresh_rounded,
+                      onPressed: _reload,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
         }
         return widget.builder(context, snapshot.data ?? const {});
       },

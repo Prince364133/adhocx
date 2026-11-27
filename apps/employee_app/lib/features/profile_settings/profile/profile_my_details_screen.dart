@@ -6,6 +6,7 @@ import 'package:adhocx_employee/shared/components/components.dart';
 import 'package:adhocx_employee/shared/components/trip/trip_widgets.dart';
 import 'package:adhocx_employee/state/employee_auth_provider.dart';
 import 'package:adhocx_employee/state/employee_data_provider.dart';
+import 'package:adhocx_employee/state/employee_feature_provider.dart';
 import 'package:adhocx_employee/theme/app_colors.dart';
 import 'package:adhocx_employee/theme/app_radius.dart';
 import 'package:adhocx_employee/theme/app_spacing.dart';
@@ -45,6 +46,7 @@ class _ProfileMyDetailsScreenState extends State<ProfileMyDetailsScreen> {
   @override
   Widget build(BuildContext context) {
     final p = EmployeePalette.of(context);
+    final features = context.watch<EmployeeFeatureProvider>();
     EmployeeDataProvider? data;
     EmployeeAuthProvider? auth;
     try {
@@ -55,7 +57,9 @@ class _ProfileMyDetailsScreenState extends State<ProfileMyDetailsScreen> {
     } catch (_) {}
 
     if (!_initialized && (data?.loadingProfile ?? false)) {
-      return const EmployeeLoadingScaffold();
+      return const EmployeeLoadingScaffold(
+        skeletonLayout: SkeletonLayout.profile,
+      );
     }
 
     final profile = data?.profile;
@@ -128,6 +132,58 @@ class _ProfileMyDetailsScreenState extends State<ProfileMyDetailsScreen> {
                             value: pickupAddr?.isNotEmpty == true
                                 ? pickupAddr!
                                 : 'Not set',
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.xl),
+                    FeatureSectionCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.home_work_rounded,
+                                color: p.accent,
+                                size: 20,
+                              ),
+                              const SizedBox(width: AppSpacing.sm),
+                              Expanded(
+                                child: Text(
+                                  'Registered Address',
+                                  style: AppTypography.bodyMedium(
+                                    color: p.textPrimary,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                              RequestStatusBadge(
+                                status: features.addressRequests.any(
+                                  (request) =>
+                                      request['status']
+                                          ?.toString()
+                                          .toUpperCase() ==
+                                      'PENDING',
+                                )
+                                    ? 'Pending Approval'
+                                    : 'Registered',
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: AppSpacing.sm),
+                          Text(
+                            features.registeredAddress.fullAddress,
+                            style: AppTypography.small(
+                              color: p.textSecondary,
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+                          EmployeeSecondaryButton(
+                            label: 'Request Address Change',
+                            icon: Icons.edit_location_alt_rounded,
+                            onPressed: () =>
+                                context.push(AppRoutes.addressRequestStatus),
                           ),
                         ],
                       ),

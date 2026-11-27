@@ -14,3 +14,5 @@ export 'account/logout_confirm_screen.dart';
 export 'account/delete_account_screen.dart';
 export 'notifications/notifications_center_screen.dart';
 export 'notifications/notification_preferences_screen.dart';
+export 'profile/address_request_status_screen.dart';
+export 'profile/address_update_request_screen.dart';

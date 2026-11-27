@@ -66,7 +66,10 @@ class _AssignmentDelayedScreenState extends State<AssignmentDelayedScreen> {
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return const EmployeeLoadingScaffold(appBar: EmployeeAppBar());
+      return const EmployeeLoadingScaffold(
+        appBar: EmployeeAppBar(),
+        skeletonLayout: SkeletonLayout.trip,
+      );
     }
     final next = (_snapshot['nextTrip'] as Map<String, dynamic>?) ?? const {};
     final direction = EmployeeDataProvider.formatDirectionLabel(

@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "docusaurus start --host 0.0.0.0 --port 7007",
+    "dev": "docusaurus build && docusaurus serve --host 0.0.0.0 --port 7007",
+    "dev:watch": "docusaurus start --host 0.0.0.0 --port 7007",
     "build": "docusaurus build",
     "check:docs": "node scripts/check-documentation.mjs",
     "clear": "docusaurus clear",

@@ -76,7 +76,9 @@ class _TripHistoryOverviewScreenState extends State<TripHistoryOverviewScreen> {
       future: _tripsFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
-          return const EmployeeLoadingScaffold();
+          return const EmployeeLoadingScaffold(
+            skeletonLayout: SkeletonLayout.list,
+          );
         }
 
         if (snapshot.hasError) {

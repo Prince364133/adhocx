@@ -5,6 +5,7 @@ import 'package:adhocx_employee/routes/app_routes.dart';
 import 'package:adhocx_employee/shared/components/components.dart';
 import 'package:adhocx_employee/state/employee_auth_provider.dart';
 import 'package:adhocx_employee/state/employee_data_provider.dart';
+import 'package:adhocx_employee/state/employee_feature_provider.dart';
 import 'package:adhocx_employee/theme/app_colors.dart';
 import 'package:adhocx_employee/theme/app_radius.dart';
 import 'package:adhocx_employee/theme/app_spacing.dart';
@@ -68,7 +69,9 @@ class _ScheduleTodayOverviewScreenState
     } catch (_) {}
 
     if (!_initialized && (dataProvider?.loadingSchedule ?? false)) {
-      return const EmployeeLoadingScaffold();
+      return const EmployeeLoadingScaffold(
+        skeletonLayout: SkeletonLayout.schedule,
+      );
     }
 
     final now = DateTime.now();
@@ -80,6 +83,7 @@ class _ScheduleTodayOverviewScreenState
         authProvider?.currentUser?.fullName ??
         'Commuter';
     final unreadCount = dataProvider?.unreadNotificationsCount ?? 0;
+    final features = context.watch<EmployeeFeatureProvider>();
 
     return Scaffold(
       backgroundColor: p.background,
@@ -100,6 +104,9 @@ class _ScheduleTodayOverviewScreenState
                   unreadNotificationsCount: unreadCount,
                   onNotificationTap: () =>
                       context.push(AppRoutes.notificationsCenter),
+                  onSosTap: () => context.push(AppRoutes.safetySos),
+                  onNoShowTap: () => context.push(AppRoutes.myNoShows),
+                  noShowCount: features.noShowCount,
                   onProfileTap: () => context.push(AppRoutes.profileDetails),
                 ),
                 const SizedBox(height: AppSpacing.xxl),
@@ -199,6 +206,22 @@ class _ScheduleTodayOverviewScreenState
                                 ? 'No scheduled commute rides for today.'
                                 : 'No rides today. You have ${items.length} upcoming ride${items.length == 1 ? '' : 's'} this week.',
                             style: AppTypography.small(color: p.textSecondary),
+                          ),
+                        )
+                      else if (features.transportationBlocked)
+                        Container(
+                          width: double.infinity,
+                          padding: AppSpacing.paddingLg,
+                          decoration: BoxDecoration(
+                            color: p.surface,
+                            borderRadius: AppRadius.borderLg,
+                          ),
+                          child: Text(
+                            'Future transportation is blocked. Your current count is 3. Request reactivation from My No-Shows.',
+                            style: AppTypography.small(
+                              color: AppColors.error,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         )
                       else

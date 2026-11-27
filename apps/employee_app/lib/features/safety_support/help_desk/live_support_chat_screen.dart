@@ -301,7 +301,22 @@ class _LiveSupportChatScreenState extends State<LiveSupportChatScreen>
         ),
       ),
       body: _isLoading
-          ? Center(child: CircularProgressIndicator(color: p.accent))
+          ? const Padding(
+              padding: EdgeInsets.all(AppSpacing.xl),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SkeletonBone(width: 220, height: 64),
+                  SizedBox(height: AppSpacing.lg),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: SkeletonBone(width: 180, height: 56),
+                  ),
+                  SizedBox(height: AppSpacing.lg),
+                  SkeletonBone(width: 260, height: 72),
+                ],
+              ),
+            )
           : SafeArea(
               child: Column(
                 children: [

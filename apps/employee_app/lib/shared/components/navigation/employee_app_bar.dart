@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_spacing.dart';
 import '../../../theme/app_typography.dart';
+import 'no_show_icon_button.dart';
 
 /// Standard screen AppBar — Driver app pattern:
 /// page-background fill (bgLight / bgDark), no elevation, `arrow_back` icon,
@@ -96,6 +97,8 @@ class EmployeeGreetingHeader extends StatelessWidget {
   final int unreadNotificationsCount;
   final VoidCallback? onNotificationTap;
   final VoidCallback? onSosTap;
+  final VoidCallback? onNoShowTap;
+  final int noShowCount;
   final VoidCallback? onProfileTap;
 
   const EmployeeGreetingHeader({
@@ -105,6 +108,8 @@ class EmployeeGreetingHeader extends StatelessWidget {
     this.unreadNotificationsCount = 1,
     this.onNotificationTap,
     this.onSosTap,
+    this.onNoShowTap,
+    this.noShowCount = 0,
     this.onProfileTap,
   });
 
@@ -136,6 +141,13 @@ class EmployeeGreetingHeader extends StatelessWidget {
         ),
         if (onSosTap != null) ...[
           EmployeeSosButton(onPressed: onSosTap!),
+          const SizedBox(width: AppSpacing.sm),
+        ],
+        if (onNoShowTap != null) ...[
+          NoShowIconButton(
+            count: noShowCount,
+            onPressed: onNoShowTap!,
+          ),
           const SizedBox(width: AppSpacing.sm),
         ],
         EmployeeNotificationBell(
