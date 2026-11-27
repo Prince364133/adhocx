@@ -5,6 +5,7 @@ import 'package:adhocx_employee/repositories/http_employee_rider_repository.dart
 import 'package:adhocx_employee/routes/app_routes.dart';
 import 'package:adhocx_employee/services/employee_api_client.dart';
 import 'package:adhocx_employee/state/employee_auth_provider.dart';
+import 'package:adhocx_employee/state/employee_feature_provider.dart';
 import 'package:adhocx_employee/theme/app_colors.dart';
 import 'package:adhocx_employee/theme/app_theme.dart';
 import 'package:adhocx_employee/theme/theme_provider.dart';
@@ -86,6 +87,9 @@ Future<void> _pump(WidgetTester tester, Widget screen,
     providers: [
       ChangeNotifierProvider(
         create: (_) => EmployeeAuthProvider(repository: _FakeAuthRepository()),
+      ),
+      ChangeNotifierProvider(
+        create: (_) => EmployeeFeatureProvider(),
       ),
       Provider<HttpEmployeeRiderRepository>.value(value: riderRepository),
       ChangeNotifierProvider.value(value: _theme),

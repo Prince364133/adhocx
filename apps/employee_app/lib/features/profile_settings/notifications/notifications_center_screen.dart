@@ -90,10 +90,13 @@ class _NotificationsCenterScreenState extends State<NotificationsCenterScreen> {
   Widget build(BuildContext context) {
     final p = EmployeePalette.of(context);
     EmployeeDataProvider? data;
+    EmployeeFeatureProvider? features;
     try {
       data = context.watch<EmployeeDataProvider>();
     } catch (_) {}
-    final features = context.watch<EmployeeFeatureProvider>();
+    try {
+      features = context.watch<EmployeeFeatureProvider>();
+    } catch (_) {}
 
     if (!_initialized && (data?.loadingNotifications ?? false)) {
       return const EmployeeLoadingScaffold(
@@ -103,7 +106,7 @@ class _NotificationsCenterScreenState extends State<NotificationsCenterScreen> {
     }
 
     final items = [
-      ...features.featureNotifications,
+      ...?features?.featureNotifications,
       ...(data?.notifications ?? const <Map<String, dynamic>>[]),
     ]
         .where(_matches)

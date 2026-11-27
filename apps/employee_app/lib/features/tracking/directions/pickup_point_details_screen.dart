@@ -33,7 +33,11 @@ class PickupPointDetailsScreen extends StatelessWidget {
       },
       builder: (context, data) {
         final p = EmployeePalette.of(context);
-        final features = context.watch<EmployeeFeatureProvider>();
+        EmployeeFeatureProvider? features;
+        try {
+          features = context.watch<EmployeeFeatureProvider>();
+        } catch (_) {}
+        final confirmed = features?.confirmedPickupPoint;
         final next = (data['nextTrip'] as Map<String, dynamic>?) ?? const {};
         final profile = (data['profile'] as Map<String, dynamic>?) ?? const {};
         final pickupLoc = next['pickupLocation'] as Map? ??
@@ -114,7 +118,7 @@ class PickupPointDetailsScreen extends StatelessWidget {
                     onPressed: () => context.push(AppRoutes.walkingDirections),
                   ),
                   const SizedBox(height: AppSpacing.xxl),
-                  if (features.confirmedPickupPoint != null) ...[
+                  if (confirmed != null) ...[
                     FeatureSectionCard(
                       borderColor: AppColors.brightPurple.withAlpha(120),
                       child: Row(
@@ -137,14 +141,14 @@ class PickupPointDetailsScreen extends StatelessWidget {
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
-                                  features.confirmedPickupPoint!.name,
+                                  confirmed.name,
                                   style: AppTypography.bodyMedium(
                                     color: p.textPrimary,
                                     fontWeight: FontWeight.w700,
                                   ),
                                 ),
                                 Text(
-                                  '${features.confirmedPickupPoint!.landmark} • ${features.confirmedPickupPoint!.distance}',
+                                  '${confirmed.landmark} • ${confirmed.distance}',
                                   style: AppTypography.small(
                                     color: p.textSecondary,
                                   ),
@@ -158,7 +162,7 @@ class PickupPointDetailsScreen extends StatelessWidget {
                     const SizedBox(height: AppSpacing.md),
                   ],
                   EmployeePrimaryButton(
-                    label: features.confirmedPickupPoint == null
+                    label: confirmed == null
                         ? 'Choose Alternative Pickup Point'
                         : 'Change Pickup Point',
                     icon: Icons.map_rounded,

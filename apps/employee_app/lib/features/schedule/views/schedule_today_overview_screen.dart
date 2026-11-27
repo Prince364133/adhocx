@@ -61,11 +61,15 @@ class _ScheduleTodayOverviewScreenState
     final p = EmployeePalette.of(context);
     EmployeeDataProvider? dataProvider;
     EmployeeAuthProvider? authProvider;
+    EmployeeFeatureProvider? features;
     try {
       dataProvider = context.watch<EmployeeDataProvider>();
     } catch (_) {}
     try {
       authProvider = context.watch<EmployeeAuthProvider>();
+    } catch (_) {}
+    try {
+      features = context.watch<EmployeeFeatureProvider>();
     } catch (_) {}
 
     if (!_initialized && (dataProvider?.loadingSchedule ?? false)) {
@@ -83,7 +87,6 @@ class _ScheduleTodayOverviewScreenState
         authProvider?.currentUser?.fullName ??
         'Commuter';
     final unreadCount = dataProvider?.unreadNotificationsCount ?? 0;
-    final features = context.watch<EmployeeFeatureProvider>();
 
     return Scaffold(
       backgroundColor: p.background,
@@ -106,7 +109,7 @@ class _ScheduleTodayOverviewScreenState
                       context.push(AppRoutes.notificationsCenter),
                   onSosTap: () => context.push(AppRoutes.safetySos),
                   onNoShowTap: () => context.push(AppRoutes.myNoShows),
-                  noShowCount: features.noShowCount,
+                  noShowCount: features?.noShowCount ?? 0,
                   onProfileTap: () => context.push(AppRoutes.profileDetails),
                 ),
                 const SizedBox(height: AppSpacing.xxl),
@@ -208,7 +211,7 @@ class _ScheduleTodayOverviewScreenState
                             style: AppTypography.small(color: p.textSecondary),
                           ),
                         )
-                      else if (features.transportationBlocked)
+                      else if (features?.transportationBlocked ?? false)
                         Container(
                           width: double.infinity,
                           padding: AppSpacing.paddingLg,

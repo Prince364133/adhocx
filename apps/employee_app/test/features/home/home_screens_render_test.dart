@@ -9,6 +9,7 @@ import 'package:adhocx_employee/services/employee_api_client.dart';
 import 'package:adhocx_employee/shared/components/components.dart';
 import 'package:adhocx_employee/state/employee_auth_provider.dart';
 import 'package:adhocx_employee/state/employee_data_provider.dart';
+import 'package:adhocx_employee/state/employee_feature_provider.dart';
 import 'package:adhocx_employee/theme/app_colors.dart';
 import 'package:adhocx_employee/theme/app_theme.dart';
 import 'package:flutter/material.dart';
@@ -116,6 +117,9 @@ Widget _app(
         ChangeNotifierProvider(
           create: (_) => EmployeeAuthProvider(repository: _FakeAuthRepository()),
         ),
+        ChangeNotifierProvider(
+          create: (_) => EmployeeFeatureProvider(),
+        ),
         if (dataProvider != null)
           ChangeNotifierProvider<EmployeeDataProvider>.value(
             value: dataProvider,
@@ -213,6 +217,9 @@ void main() {
           ChangeNotifierProvider(
             create: (_) =>
                 EmployeeAuthProvider(repository: _FakeAuthRepository()),
+          ),
+          ChangeNotifierProvider(
+            create: (_) => EmployeeFeatureProvider(),
           ),
           ChangeNotifierProvider<EmployeeDataProvider>.value(
             value: dataProvider,

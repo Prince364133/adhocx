@@ -80,12 +80,20 @@ class _HomeUpcomingTripViewState extends State<HomeUpcomingTripView> {
     }
   }
 
+  EmployeeFeatureProvider? _watchFeatureProvider(BuildContext context) {
+    try {
+      return context.watch<EmployeeFeatureProvider>();
+    } catch (_) {
+      return null;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final p = EmployeePalette.of(context);
     final dataProvider = _watchDataProvider(context);
     final authProvider = _watchAuthProvider(context);
-    final features = context.watch<EmployeeFeatureProvider>();
+    final features = _watchFeatureProvider(context);
 
     final isLoading =
         !_initialized && (dataProvider?.loadingNextTrip ?? false);
@@ -128,7 +136,7 @@ class _HomeUpcomingTripViewState extends State<HomeUpcomingTripView> {
                       context.push(AppRoutes.notificationsCenter),
                   onSosTap: () => context.push(AppRoutes.safetySos),
                   onNoShowTap: () => context.push(AppRoutes.myNoShows),
-                  noShowCount: features.noShowCount,
+                  noShowCount: features?.noShowCount ?? 0,
                   onProfileTap: () => context.push(AppRoutes.profileDetails),
                 ),
                 const SizedBox(height: AppSpacing.xxl),
@@ -137,7 +145,7 @@ class _HomeUpcomingTripViewState extends State<HomeUpcomingTripView> {
                     message: dataProvider!.nextTripError!,
                     onRetry: () => _loadLiveData(force: true),
                   )
-                else if (features.transportationBlocked)
+                else if (features?.transportationBlocked ?? false)
                   AppCard(
                     padding: AppSpacing.paddingXl,
                     child: Column(

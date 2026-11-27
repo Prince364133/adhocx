@@ -46,9 +46,12 @@ class _ProfileMyDetailsScreenState extends State<ProfileMyDetailsScreen> {
   @override
   Widget build(BuildContext context) {
     final p = EmployeePalette.of(context);
-    final features = context.watch<EmployeeFeatureProvider>();
+    EmployeeFeatureProvider? features;
     EmployeeDataProvider? data;
     EmployeeAuthProvider? auth;
+    try {
+      features = context.watch<EmployeeFeatureProvider>();
+    } catch (_) {}
     try {
       data = context.watch<EmployeeDataProvider>();
     } catch (_) {}
@@ -159,13 +162,13 @@ class _ProfileMyDetailsScreenState extends State<ProfileMyDetailsScreen> {
                                 ),
                               ),
                               RequestStatusBadge(
-                                status: features.addressRequests.any(
+                                status: (features?.addressRequests.any(
                                   (request) =>
                                       request['status']
                                           ?.toString()
                                           .toUpperCase() ==
                                       'PENDING',
-                                )
+                                ) ?? false)
                                     ? 'Pending Approval'
                                     : 'Registered',
                               ),
@@ -173,7 +176,9 @@ class _ProfileMyDetailsScreenState extends State<ProfileMyDetailsScreen> {
                           ),
                           const SizedBox(height: AppSpacing.sm),
                           Text(
-                            features.registeredAddress.fullAddress,
+                            features?.registeredAddress.fullAddress ??
+                                profile?['address']?.toString() ??
+                                'Cyber Towers, HITEC City, Hyderabad',
                             style: AppTypography.small(
                               color: p.textSecondary,
                             ),
