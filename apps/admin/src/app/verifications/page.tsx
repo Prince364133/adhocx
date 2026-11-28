@@ -1,6 +1,7 @@
 "use client";
 
-import React from "react";
+import React, { Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { Bell, Clock, ShieldCheck } from "lucide-react";
 import { Button, FeedbackBanner, PageHeader } from "../../components/common";
 import { VerificationStatsHeader } from "../../components/verifications/VerificationStatsHeader";
@@ -11,7 +12,17 @@ import { DeclineReasonModal } from "../../components/verifications/DeclineReason
 import { useVerificationCenter } from "../../hooks/useVerificationCenter";
 import { useVerificationActions } from "../../hooks/useVerificationActions";
 
-export default function VerificationCenterPage() {
+const CONTEXT_TITLES: Record<string, string> = {
+  driver: "Drivers · Verification Center",
+  fleet: "Fleet · Verification Center",
+  vendor: "Vendors · Verification Center",
+  corporate: "Corporate · Verification Center",
+};
+
+function VerificationCenterContent() {
+  const searchParams = useSearchParams();
+  const contextParam = searchParams.get("context");
+
   const {
     items,
     stats,
@@ -27,7 +38,7 @@ export default function VerificationCenterPage() {
     setSelectedItem,
     refreshQueue,
     updateItemStatus,
-  } = useVerificationCenter();
+  } = useVerificationCenter(contextParam);
 
   const {
     isProcessing,
@@ -48,8 +59,8 @@ export default function VerificationCenterPage() {
   return (
     <div className="admin-page">
       <PageHeader
-        title="Verification Center"
-        subtitle="Review, authenticate, and manage Driver KYC submissions and Vendor enterprise applications"
+        title={(contextParam && CONTEXT_TITLES[contextParam]) || "Verification Center"}
+        subtitle="Review, authenticate, and manage KYC submissions and enterprise applications"
         liveStatus="KYC Pipeline Active"
       />
 
@@ -88,6 +99,7 @@ export default function VerificationCenterPage() {
           onRefresh={refreshQueue}
           isLoading={isLoading}
           totalCount={items.length}
+          scopedContext={contextParam}
         />
 
         {/* 3. Verification Card Grid */}
@@ -184,5 +196,19 @@ export default function VerificationCenterPage() {
         isProcessing={isProcessing}
       />
     </div>
+  );
+}
+
+export default function VerificationCenterPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="admin-page">
+          <div className="text-muted text-body-lg p-6">Loading Verification Center...</div>
+        </div>
+      }
+    >
+      <VerificationCenterContent />
+    </Suspense>
   );
 }

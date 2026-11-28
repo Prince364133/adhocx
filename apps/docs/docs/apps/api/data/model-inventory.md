@@ -128,6 +128,22 @@ their declared values.
 | `CorporateSupportTicketActivity` | Ticket audit activity |
 | `CorporateTicketMessage` | Shared support message |
 
+## Fleet Management and Portal
+
+| Model | Purpose |
+|---|---|
+| `Fleet` | Fleet company identity, Fleet Code (`FLT-*`) & code lifecycle status |
+| `FleetDriverHistory` | Driver fleet association, transfer & removal audit trail |
+| `FleetAdminUser` | Fleet Owner and Fleet Manager portal credentials & permissions |
+| `FleetPayoutRequest` | Fleet Owner payout request workflow & settlement status |
+| `FleetShortfallRecord` | Minimum-trip shortfall obligation & compensation records |
+| `FleetIncentive` | Target-Based and Time-Based fleet driver incentive definitions |
+| `FleetIncentiveProgress` | Per-driver incentive completion progress & qualification status |
+| `FleetSupportTicket` | Fleet-scoped support tickets & attachments |
+| `FleetSupportMessage` | Chronological support ticket conversation thread messages |
+| `FleetNotification` | Fleet portal notification feed covering all 10 lifecycle events |
+| `FleetShift` | Feature-flagged driver shift schedule records |
+
 ## KYC
 
 | Model | Purpose |
@@ -136,9 +152,9 @@ their declared values.
 
 ## Count Reconciliation
 
-All 75 model declarations in `apps/api/prisma/schema.prisma` are represented
-in this inventory. The model-level field and relation details are now
-documented in 11 bounded-context pages. Deployment state, current row data
+All 86 model declarations in `apps/api/prisma/schema.prisma` (including the 11 Fleet models above) are represented
+in this inventory. The model-level field and relation details are documented in bounded-context pages and
+[Fleet database schema](../../fleet/database-schema.md). Deployment state, current row data
 and migrations applied to a live database were not introspected; see the
 [database data dictionary](./data-dictionary.md) and
 [migration guide](./migrations-and-indexes.md).

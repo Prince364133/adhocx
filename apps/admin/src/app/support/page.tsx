@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { Suspense, useState, useEffect, useMemo, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   Headphones,
   Clock,
@@ -36,10 +37,12 @@ import {
   Input,
   Textarea,
 } from "../../components/common";
+import { FleetSupportDesk } from "../../components/fleet/FleetSupportDesk";
 
 const DESK_TABS = [
   { id: "CORPORATE_ETS", label: "Corporate ETS Support" },
   { id: "ON_DEMAND", label: "On-Demand Helpdesk & Disputes" },
+  { id: "FLEET_PORTAL", label: "Fleet Portal Support" },
 ];
 
 const CORP_STATUS_TABS = [
@@ -57,10 +60,36 @@ const ON_DEMAND_STATUS_TABS = [
   { id: "RESOLVED", label: "Resolved" },
 ];
 
-export default function SupportPage() {
-  const [activeDesk, setActiveDesk] = useState<"CORPORATE_ETS" | "ON_DEMAND">(
-    "CORPORATE_ETS",
+const SUPPORT_CONTEXT_TITLES: Record<string, string> = {
+  driver: "Drivers · Support & Helpdesk",
+  fleet: "Fleet · Support & Helpdesk",
+  vendor: "Vendors · Support & Helpdesk",
+  corporate: "Corporate · Support & Helpdesk",
+};
+
+function SupportPageContent() {
+  const searchParams = useSearchParams();
+  const contextParam = searchParams.get("context");
+
+  const [activeDesk, setActiveDesk] = useState<
+    "CORPORATE_ETS" | "ON_DEMAND" | "FLEET_PORTAL"
+  >(
+    contextParam === "fleet"
+      ? "FLEET_PORTAL"
+      : contextParam && contextParam !== "corporate"
+        ? "ON_DEMAND"
+        : "CORPORATE_ETS",
   );
+
+  useEffect(() => {
+    if (contextParam === "corporate") {
+      setActiveDesk("CORPORATE_ETS");
+    } else if (contextParam === "fleet") {
+      setActiveDesk("FLEET_PORTAL");
+    } else if (contextParam === "driver" || contextParam === "vendor") {
+      setActiveDesk("ON_DEMAND");
+    }
+  }, [contextParam]);
   const [alert, setAlert] = useState<{
     type: "success" | "error";
     message: string;
@@ -142,7 +171,7 @@ export default function SupportPage() {
   useEffect(() => {
     if (activeDesk === "CORPORATE_ETS") {
       loadCorpTickets(corpActiveTab);
-    } else {
+    } else if (activeDesk === "ON_DEMAND") {
       loadOnDemandTickets(onDemandActiveTab);
     }
   }, [activeDesk, corpActiveTab, onDemandActiveTab, loadCorpTickets]);
@@ -283,10 +312,24 @@ export default function SupportPage() {
     }
   }
 
-  const filteredOnDemand = useMemo(() => {
-    if (!onDemandSearchQuery.trim()) return onDemandTickets;
-    const q = onDemandSearchQuery.toLowerCase().trim();
+  const contextScopedOnDemand = useMemo(() => {
+    if (contextParam !== "driver" && contextParam !== "fleet" && contextParam !== "vendor") {
+      return onDemandTickets;
+    }
+    const targetRole = contextParam.toUpperCase();
     return onDemandTickets.filter((t) => {
+      const role = (t.reporterRole || "").toUpperCase();
+      if (targetRole === "FLEET") {
+        return role === "FLEET" || role === "FLEET_OWNER";
+      }
+      return role === targetRole;
+    });
+  }, [onDemandTickets, contextParam]);
+
+  const filteredOnDemand = useMemo(() => {
+    if (!onDemandSearchQuery.trim()) return contextScopedOnDemand;
+    const q = onDemandSearchQuery.toLowerCase().trim();
+    return contextScopedOnDemand.filter((t) => {
       return (
         t.id.toLowerCase().includes(q) ||
         (t.reporterName && t.reporterName.toLowerCase().includes(q)) ||
@@ -295,20 +338,20 @@ export default function SupportPage() {
         (t.reporterPhone && t.reporterPhone.toLowerCase().includes(q))
       );
     });
-  }, [onDemandTickets, onDemandSearchQuery]);
+  }, [contextScopedOnDemand, onDemandSearchQuery]);
 
   const onDemandMetrics = useMemo(() => {
-    const pending = onDemandTickets.filter(
+    const pending = contextScopedOnDemand.filter(
       (t) => t.status === "PENDING",
     ).length;
-    const review = onDemandTickets.filter(
+    const review = contextScopedOnDemand.filter(
       (t) => t.status === "UNDER_REVIEW",
     ).length;
-    const resolved = onDemandTickets.filter(
+    const resolved = contextScopedOnDemand.filter(
       (t) => t.status === "RESOLVED",
     ).length;
-    return { total: onDemandTickets.length, pending, review, resolved };
-  }, [onDemandTickets]);
+    return { total: contextScopedOnDemand.length, pending, review, resolved };
+  }, [contextScopedOnDemand]);
 
   async function handleResolveOnDemand(
     status: "PENDING" | "UNDER_REVIEW" | "RESOLVED",
@@ -356,19 +399,25 @@ export default function SupportPage() {
 
       {/* Page Header */}
       <PageHeader
-        title="Support & Operational Helpdesk"
+        title={(contextParam && SUPPORT_CONTEXT_TITLES[contextParam]) || "Support & Operational Helpdesk"}
         subtitle="Unified resolution platform for Corporate ETS SLAs, commuter complaints, driver dispatch escalations, and ride disputes"
         liveStatus="Helpdesk Dispatch Online"
       />
 
-      {/* Primary Module Tabs */}
-      <SegmentedTabs
-        tabs={DESK_TABS}
-        activeTab={activeDesk}
-        onChange={(tab) => setActiveDesk(tab as "CORPORATE_ETS" | "ON_DEMAND")}
-      />
+      {/* Primary Module Tabs (hidden when scoped by sidebar parent context) */}
+      {!contextParam && (
+        <SegmentedTabs
+          tabs={DESK_TABS}
+          activeTab={activeDesk}
+          onChange={(tab) =>
+            setActiveDesk(tab as "CORPORATE_ETS" | "ON_DEMAND" | "FLEET_PORTAL")
+          }
+        />
+      )}
 
-      {activeDesk === "CORPORATE_ETS" ? (
+      {activeDesk === "FLEET_PORTAL" ? (
+        <FleetSupportDesk />
+      ) : activeDesk === "CORPORATE_ETS" ? (
         <>
           {/* Corporate ETS KPI Metrics */}
           <KpiStrip
@@ -1409,5 +1458,19 @@ export default function SupportPage() {
         </>
       )}
     </div>
+  );
+}
+
+export default function SupportPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="admin-page">
+          <div className="text-muted text-body-lg p-6">Loading Support & Helpdesk...</div>
+        </div>
+      }
+    >
+      <SupportPageContent />
+    </Suspense>
   );
 }

@@ -6,6 +6,8 @@ import {
   Logger,
 } from '@nestjs/common';
 import { DatabaseService } from '../../database/database.service';
+import { hashPassword } from '../../common/utils/password.util';
+import { buildFleetPhoneVariants, normalizeFleetPhone } from './fleet-phone.util';
 import {
   CreateFleetDto,
   UpdateFleetDto,
@@ -280,23 +282,102 @@ export class FleetService {
       code = await this.generateUniqueFleetCode();
     }
 
-    const fleet = await this.db.fleet.create({
-      data: {
-        name: dto.name.trim(),
-        code,
-        ownerName: dto.ownerName.trim(),
-        phone: dto.phone.trim(),
-        email: dto.email ? dto.email.trim().toLowerCase() : null,
-        city: dto.city ? dto.city.trim() : null,
-        address: dto.address ? dto.address.trim() : null,
-        gstin: dto.gstin ? dto.gstin.trim().toUpperCase() : null,
-        notes: dto.notes ? dto.notes.trim() : null,
-        status: 'ACTIVE',
-      },
+    const portalPwd = dto.portalPassword?.trim();
+    if (dto.portalPassword !== undefined && dto.portalPassword.length > 0 && (!portalPwd || portalPwd.length < 8)) {
+      throw new BadRequestException('Portal owner password must be at least 8 characters.');
+    }
+
+    const fleetData = {
+      name: dto.name.trim(),
+      code,
+      ownerName: dto.ownerName.trim(),
+      phone: dto.phone.trim(),
+      email: dto.email ? dto.email.trim().toLowerCase() : null,
+      city: dto.city ? dto.city.trim() : null,
+      address: dto.address ? dto.address.trim() : null,
+      gstin: dto.gstin ? dto.gstin.trim().toUpperCase() : null,
+      notes: dto.notes ? dto.notes.trim() : null,
+      status: 'ACTIVE' as const,
+    };
+
+    if (!portalPwd) {
+      const fleet = await this.db.fleet.create({
+        data: fleetData,
+      });
+
+      this.logger.log(`Created new Fleet "${fleet.name}" (${fleet.code}) by Admin ${adminId || 'SYSTEM'}`);
+      return fleet;
+    }
+
+    const cleanPhone = normalizeFleetPhone(dto.phone);
+    if (cleanPhone.replace(/\D/g, '').length < 10) {
+      throw new BadRequestException('A valid 10+ digit phone number is required for Portal Owner login.');
+    }
+
+    const variants = buildFleetPhoneVariants(cleanPhone);
+    const email = fleetData.email;
+    const passwordHash = await hashPassword(portalPwd);
+
+    const result = await this.db.$transaction(async (tx) => {
+      const existingPortalUser = await tx.fleetAdminUser.findFirst({
+        where: {
+          OR: [
+            { phone: { in: variants } },
+            ...(email ? [{ email }] : []),
+          ],
+        },
+        select: { id: true },
+      });
+
+      if (existingPortalUser) {
+        throw new ConflictException(
+          'A Fleet Portal user with this phone number or email already exists.',
+        );
+      }
+
+      const fleet = await tx.fleet.create({ data: fleetData });
+      const portalUser = await tx.fleetAdminUser.create({
+        data: {
+          fleetId: fleet.id,
+          fullName: fleet.ownerName,
+          phone: cleanPhone,
+          email,
+          passwordHash,
+          role: 'FLEET_OWNER',
+          status: 'ACTIVE',
+          permissions: [],
+        },
+        select: {
+          id: true,
+          fleetId: true,
+          fullName: true,
+          email: true,
+          phone: true,
+          role: true,
+          status: true,
+          createdAt: true,
+        },
+      });
+
+      return {
+        ...fleet,
+        portalUser: {
+          id: portalUser.id,
+          fleetId: portalUser.fleetId,
+          fullName: portalUser.fullName,
+          email: portalUser.email || undefined,
+          phone: portalUser.phone,
+          role: portalUser.role,
+          status: portalUser.status,
+          createdAt: portalUser.createdAt,
+        },
+      };
     });
 
-    this.logger.log(`Created new Fleet "${fleet.name}" (${fleet.code}) by Admin ${adminId || 'SYSTEM'}`);
-    return fleet;
+    this.logger.log(
+      `Created new Fleet "${result.name}" (${result.code}) with Portal Owner account by Admin ${adminId || 'SYSTEM'}`,
+    );
+    return result;
   }
 
   /**

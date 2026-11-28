@@ -1370,6 +1370,23 @@ export class AuthService implements OnModuleInit {
       isApproved = true;
     }
 
+    const driverFleetId = (user.driver as any)?.fleetId || undefined;
+    if (user.driver && driverFleetId && (this.db as any).fleetNotification?.create) {
+      await (this.db as any).fleetNotification
+        .create({
+          data: {
+            fleetId: driverFleetId,
+            eventType: 'DRIVER_FLEET_CODE_LOGIN',
+            title: 'Fleet Driver Signed In',
+            message: `${user.driver.fullName || 'Fleet driver'} signed in to the AdhocX Driver app.`,
+            entityType: 'DRIVER',
+            entityId: user.driver.id,
+            actionUrl: '/drivers',
+          },
+        })
+        .catch(() => null);
+    }
+
     return {
       accessToken,
       refreshToken,
@@ -1412,7 +1429,9 @@ export class AuthService implements OnModuleInit {
               verificationStatus: user.driver.verificationStatus,
               availabilityStatus: user.driver.availabilityStatus,
               vehicleType: user.driver.vehicleType || undefined,
-              walletBalance: Number(user.driver.walletBalance || 0),
+              ...(driverFleetId
+                ? { isFleetDriver: true, fleetId: driverFleetId }
+                : { walletBalance: Number(user.driver.walletBalance || 0) }),
               rejectionReason: (user.driver as any).rejectionReason || undefined,
               createdAt: user.driver.createdAt,
             }
@@ -1682,6 +1701,23 @@ export class AuthService implements OnModuleInit {
     }
 
     const profilePhoto = (user?.driver?.kycDocuments as any)?.profilePhotoUrl || (user?.vendor?.kycDocuments as any)?.logoUrl || undefined;
+    const driverFleetId = (user?.driver as any)?.fleetId || undefined;
+
+    if (user?.driver && driverFleetId && (this.db as any).fleetNotification?.create) {
+      await (this.db as any).fleetNotification
+        .create({
+          data: {
+            fleetId: driverFleetId,
+            eventType: 'DRIVER_FLEET_CODE_LOGIN',
+            title: 'Fleet Driver Signed In',
+            message: `${user.driver.fullName || 'Fleet driver'} signed in to the AdhocX Driver app.`,
+            entityType: 'DRIVER',
+            entityId: user.driver.id,
+            actionUrl: '/drivers',
+          },
+        })
+        .catch(() => null);
+    }
 
     return {
       accessToken: newAccessToken,
@@ -1726,7 +1762,9 @@ export class AuthService implements OnModuleInit {
               verificationStatus: user.driver.verificationStatus,
               availabilityStatus: user.driver.availabilityStatus,
               vehicleType: user.driver.vehicleType || undefined,
-              walletBalance: Number(user.driver.walletBalance || 0),
+              ...(driverFleetId
+                ? { isFleetDriver: true, fleetId: driverFleetId }
+                : { walletBalance: Number(user.driver.walletBalance || 0) }),
               rejectionReason: (user.driver as any).rejectionReason || undefined,
               createdAt: user.driver.createdAt,
             }
@@ -1851,7 +1889,9 @@ export class AuthService implements OnModuleInit {
             verificationStatus: user.driver.verificationStatus,
             availabilityStatus: user.driver.availabilityStatus,
             vehicleType: user.driver.vehicleType || undefined,
-            walletBalance: Number(user.driver.walletBalance || 0),
+            ...((user.driver as any).fleetId
+              ? { isFleetDriver: true, fleetId: (user.driver as any).fleetId }
+              : { walletBalance: Number(user.driver.walletBalance || 0) }),
             rejectionReason: (user.driver as any).rejectionReason || undefined,
             profilePhotoUrl: driverKyc.profilePhotoUrl || undefined,
             dlFrontUrl: effectiveDlFront,

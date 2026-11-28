@@ -75,4 +75,7 @@ export class DisputeResponseDto {
 
   reporterName?: string;
   accusedName?: string;
+  reporterRole?: string;
+  accusedRole?: string;
+  entityType?: string;
 }

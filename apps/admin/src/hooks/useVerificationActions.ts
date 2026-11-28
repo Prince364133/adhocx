@@ -38,8 +38,13 @@ export function useVerificationActions(
             notes || 'Verified and approved by Super Admin',
             overrideReason || 'Approved by admin override',
           );
-        } else {
+        } else if (item.entityType === 'VENDOR') {
           await adminApi.verifyVendor(item.id, notes || 'Verified and approved by Super Admin');
+        } else if (item.entityType === 'FLEET') {
+          await adminApi.updateFleetStatus(item.id, 'ACTIVE', notes || 'Approved via Verification Center');
+        } else {
+          showToast(`Corporate verification approval for ${item.name} is managed in Corporate Clients.`);
+          return false;
         }
 
         onStatusUpdated?.(item.id, 'VERIFIED');

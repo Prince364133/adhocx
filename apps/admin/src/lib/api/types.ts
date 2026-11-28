@@ -483,7 +483,7 @@ export interface VendorFulfillmentResponse {
 
 export interface VerificationItem {
   id: string;
-  entityType: "DRIVER" | "VENDOR";
+  entityType: "DRIVER" | "FLEET" | "VENDOR" | "CORPORATE";
   name: string;
   organizationName?: string;
   phone: string;
@@ -537,8 +537,11 @@ export interface DisputeListItem {
   tripId: string;
   reporterId: string;
   reporterName?: string;
+  reporterRole?: string;
   accusedId: string;
   accusedName?: string;
+  accusedRole?: string;
+  entityType?: string;
   reason: string;
   description?: string;
   status: "OPEN" | "UNDER_REVIEW" | "RESOLVED" | "REJECTED";
@@ -579,6 +582,8 @@ export interface TripEvent {
 export interface SettlementListItem {
   id: string;
   driverId: string;
+  fleetId?: string;
+  entityType?: "DRIVER" | "FLEET";
   driverName?: string;
   amount: number;
   status: string;
@@ -2065,6 +2070,137 @@ export interface DriverFleetMetrics {
   assignedDrivers: number;
   unassignedDrivers: number;
   activeDrivers: number;
+}
+
+export interface AdminFleetPortalUserItem {
+  id: string;
+  fleetId: string;
+  fullName: string;
+  email?: string;
+  phone: string;
+  role: "FLEET_OWNER" | "FLEET_MANAGER";
+  status: "ACTIVE" | "INACTIVE";
+  permissions: string[];
+  lastLoginAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type FleetPayoutStatusType =
+  | "REQUESTED"
+  | "UNDER_REVIEW"
+  | "APPROVED"
+  | "SETTLED"
+  | "REJECTED";
+
+export interface AdminFleetPayoutItem {
+  id: string;
+  fleetId: string;
+  referenceCode: string;
+  amount: number;
+  currency: string;
+  status: FleetPayoutStatusType;
+  rejectionReason?: string;
+  notes?: string;
+  periodStart?: string;
+  periodEnd?: string;
+  settledAt?: string;
+  createdAt: string;
+  updatedAt: string;
+  fleet?: {
+    id: string;
+    name: string;
+    code: string;
+    ownerName: string;
+    phone: string;
+  };
+  requestedBy?: {
+    id: string;
+    fullName: string;
+    phone: string;
+    email?: string;
+  };
+}
+
+export interface AdminFleetPayoutMetrics {
+  pendingCount: number;
+  pendingAmount: number;
+  settledCount: number;
+  settledAmount: number;
+  rejectedCount: number;
+}
+
+export interface AdminFleetShortfallItem {
+  id: string;
+  fleetId: string;
+  periodStart: string;
+  periodEnd: string;
+  minimumTripsRequired: number;
+  actualTripsOffered: number;
+  shortfallTrips: number;
+  compensationAmount?: number;
+  status: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type AdminFleetSupportStatusType =
+  | "OPEN"
+  | "IN_PROGRESS"
+  | "RESOLVED"
+  | "CLOSED";
+
+export interface AdminFleetSupportAttachment {
+  key: string;
+  fileName: string;
+  mimeType: string;
+  downloadUrl?: string;
+}
+
+export interface AdminFleetSupportMessage {
+  id: string;
+  ticketId: string;
+  senderRole: string;
+  senderName?: string;
+  body: string;
+  attachments: AdminFleetSupportAttachment[];
+  createdAt: string;
+}
+
+export interface AdminFleetSupportTicket {
+  id: string;
+  ticketNumber: string;
+  fleetId: string;
+  category: string;
+  subject: string;
+  description: string;
+  status: AdminFleetSupportStatusType;
+  attachments?: AdminFleetSupportAttachment[];
+  messageCount?: number;
+  fleet?: {
+    id: string;
+    name: string;
+    code: string;
+    ownerName: string;
+    phone: string;
+  };
+  createdBy?: {
+    id: string;
+    fullName: string;
+    phone: string;
+    email?: string;
+  };
+  createdAt: string;
+  updatedAt: string;
+  messages?: AdminFleetSupportMessage[];
+}
+
+export interface AdminFleetSupportMetrics {
+  total: number;
+  open: number;
+  inProgress: number;
+  resolved: number;
 }
 
 

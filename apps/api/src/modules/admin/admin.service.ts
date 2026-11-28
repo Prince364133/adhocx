@@ -353,8 +353,31 @@ export class AdminService {
       this.logger.warn(`Failed to update referral status on driver verification: ${refErr?.message || refErr}`);
     }
 
+    await this.notifyFleetDriverVerificationChanged(driver, VerificationStatus.VERIFIED);
+
     this.logger.log(`Driver ${id} verified by admin ${adminId}`);
     return updated;
+  }
+
+  private async notifyFleetDriverVerificationChanged(
+    driver: { id: string; fullName?: string | null; fleetId?: string | null },
+    nextStatus: VerificationStatus,
+    reason?: string,
+  ): Promise<void> {
+    if (!driver?.fleetId || !(this.db as any).fleetNotification?.create) return;
+    await (this.db as any).fleetNotification
+      .create({
+        data: {
+          fleetId: driver.fleetId,
+          eventType: 'DRIVER_VERIFICATION_CHANGED',
+          title: 'Driver Verification Updated',
+          message: `${driver.fullName || 'Fleet driver'} status changed to ${nextStatus}${reason ? `: ${reason}` : '.'}`,
+          entityType: 'DRIVER',
+          entityId: driver.id,
+          actionUrl: '/drivers',
+        },
+      })
+      .catch(() => null);
   }
 
   /**
@@ -406,6 +429,8 @@ export class AdminService {
 
     // Keep KYC-rejected drivers signed in so they can view the rejection reason and re-apply.
     // Session revocation is reserved for account suspensions.
+
+    await this.notifyFleetDriverVerificationChanged(driver, VerificationStatus.REJECTED, dto.reason);
 
     this.logger.log(`Driver ${id} rejected by admin ${adminId}: ${dto.reason}`);
     return updated;
@@ -464,6 +489,8 @@ export class AdminService {
       },
     });
 
+    await this.notifyFleetDriverVerificationChanged(driver, VerificationStatus.SUSPENDED, dto.reason);
+
     this.logger.log(`Driver ${id} suspended by ${actorRole.toLowerCase()} ${adminId}: ${dto.reason}`);
     if (sessionSyncFailure) throw sessionSyncFailure;
     return updated;
@@ -521,6 +548,8 @@ export class AdminService {
         notes: dto.notes,
       },
     });
+
+    await this.notifyFleetDriverVerificationChanged(driver, VerificationStatus.VERIFIED, dto.notes);
 
     this.logger.log(`Driver ${id} reactivated by ${actorRole.toLowerCase()} ${adminId}`);
     if (sessionSyncFailure) throw sessionSyncFailure;

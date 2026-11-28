@@ -258,6 +258,8 @@ model Driver {
   fleetAssignedAt      DateTime?                   @map("fleet_assigned_at")
   fleet                Fleet?                      @relation(fields: [fleetId], references: [id], onDelete: SetNull)
   fleetHistories       FleetDriverHistory[]
+  fleetIncentiveProgresses FleetIncentiveProgress[]
+  fleetShifts          FleetShift[]
 
   referredBy           Driver?                     @relation("DriverReferrals", fields: [referredById], references: [id], onDelete: SetNull)
   referees             Driver[]                    @relation("DriverReferrals")
@@ -2308,10 +2310,80 @@ enum FleetStatus {
   INACTIVE
 }
 
+enum FleetCodeStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum FleetAdminRole {
+  FLEET_OWNER
+  FLEET_MANAGER
+}
+
+enum FleetAdminStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum FleetPayoutStatus {
+  REQUESTED
+  UNDER_REVIEW
+  APPROVED
+  SETTLED
+  REJECTED
+}
+
+enum FleetIncentiveType {
+  TARGET_BASED
+  TIME_BASED
+}
+
+enum FleetIncentiveStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  ENDED
+}
+
+enum FleetIncentiveEligibility {
+  ALL
+  SELECTED
+}
+
+enum FleetSupportTicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum FleetNotificationEventType {
+  DRIVER_JOINED
+  DRIVER_FLEET_CODE_LOGIN
+  FLEET_CODE_CHANGED
+  DRIVER_VERIFICATION_CHANGED
+  SHIFT_ASSIGNMENT_EVENT
+  FLEET_ANNOUNCEMENT
+  SUPPORT_TICKET_REPLY
+  INCENTIVE_LIFECYCLE
+  INCENTIVE_APPROACHING
+  INCENTIVE_QUALIFIED
+}
+
+enum FleetShiftStatus {
+  SCHEDULED
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
 model Fleet {
   id            String               @id @default(uuid()) @db.Uuid
   name          String               @db.VarChar(120)
   code          String               @unique @db.VarChar(24)
+  codeStatus    FleetCodeStatus      @default(ACTIVE) @map("code_status")
+  codeRotatedAt DateTime?            @map("code_rotated_at")
   ownerName     String               @map("owner_name") @db.VarChar(120)
   phone         String               @db.VarChar(20)
   email         String?              @db.VarChar(120)
@@ -2323,8 +2395,15 @@ model Fleet {
   createdAt     DateTime             @default(now()) @map("created_at")
   updatedAt     DateTime             @updatedAt @map("updated_at")
 
-  drivers       Driver[]
-  driverHistory FleetDriverHistory[]
+  drivers          Driver[]
+  driverHistory    FleetDriverHistory[]
+  adminUsers       FleetAdminUser[]
+  payoutRequests   FleetPayoutRequest[]
+  shortfallRecords FleetShortfallRecord[]
+  incentives       FleetIncentive[]
+  supportTickets   FleetSupportTicket[]
+  notifications    FleetNotification[]
+  shifts           FleetShift[]
 
   @@map("fleets")
   @@index([status])
@@ -2348,5 +2427,192 @@ model FleetDriverHistory {
   @@map("fleet_driver_histories")
   @@index([fleetId])
   @@index([driverId])
+}
+
+model FleetAdminUser {
+  id           String           @id @default(uuid()) @db.Uuid
+  fleetId      String           @map("fleet_id") @db.Uuid
+  fullName     String           @map("full_name") @db.VarChar(120)
+  email        String?          @unique @db.VarChar(160)
+  phone        String           @unique @db.VarChar(20)
+  passwordHash String           @map("password_hash")
+  role         FleetAdminRole   @default(FLEET_OWNER)
+  permissions  Json             @default("[]")
+  status       FleetAdminStatus @default(ACTIVE)
+  lastLoginAt  DateTime?        @map("last_login_at")
+  createdAt    DateTime         @default(now()) @map("created_at")
+  updatedAt    DateTime         @updatedAt @map("updated_at")
+
+  fleet          Fleet                @relation(fields: [fleetId], references: [id], onDelete: Cascade)
+  payoutRequests FleetPayoutRequest[]
+  supportTickets FleetSupportTicket[]
+
+  @@map("fleet_admin_users")
+  @@index([fleetId])
+  @@index([status])
+}
+
+model FleetPayoutRequest {
+  id              String            @id @default(uuid()) @db.Uuid
+  fleetId         String            @map("fleet_id") @db.Uuid
+  requestedById   String            @map("requested_by_id") @db.Uuid
+  referenceCode   String            @unique @map("reference_code") @db.VarChar(40)
+  amount          Decimal           @db.Decimal(12, 2)
+  currency        String            @default("INR") @db.VarChar(8)
+  periodStart     DateTime?         @map("period_start")
+  periodEnd       DateTime?         @map("period_end")
+  status          FleetPayoutStatus @default(REQUESTED)
+  rejectionReason String?           @map("rejection_reason")
+  notes           String?
+  settledAt       DateTime?         @map("settled_at")
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
+
+  fleet       Fleet          @relation(fields: [fleetId], references: [id], onDelete: Cascade)
+  requestedBy FleetAdminUser @relation(fields: [requestedById], references: [id], onDelete: Restrict)
+
+  @@map("fleet_payout_requests")
+  @@index([fleetId, status])
+  @@index([createdAt])
+}
+
+model FleetShortfallRecord {
+  id                   String    @id @default(uuid()) @db.Uuid
+  fleetId              String    @map("fleet_id") @db.Uuid
+  periodStart          DateTime  @map("period_start")
+  periodEnd            DateTime  @map("period_end")
+  minimumTripsRequired Int       @map("minimum_trips_required")
+  actualTripsOffered   Int       @map("actual_trips_offered")
+  shortfallTrips       Int       @map("shortfall_trips")
+  compensationAmount   Decimal?  @map("compensation_amount") @db.Decimal(12, 2)
+  status               String    @default("RECORDED") @db.VarChar(32)
+  notes                String?
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+
+  fleet Fleet @relation(fields: [fleetId], references: [id], onDelete: Cascade)
+
+  @@map("fleet_shortfall_records")
+  @@index([fleetId])
+}
+
+model FleetIncentive {
+  id                      String                    @id @default(uuid()) @db.Uuid
+  fleetId                 String                    @map("fleet_id") @db.Uuid
+  name                    String                    @db.VarChar(160)
+  type                    FleetIncentiveType
+  targetTrips             Int?                      @map("target_trips")
+  requiredDurationMinutes Int?                      @map("required_duration_minutes")
+  timeWindowStart         String?                   @map("time_window_start") @db.VarChar(16)
+  timeWindowEnd           String?                   @map("time_window_end") @db.VarChar(16)
+  eligibilityScope        FleetIncentiveEligibility @default(ALL) @map("eligibility_scope")
+  eligibleDriverIds       Json                      @default("[]") @map("eligible_driver_ids")
+  rewardAmount            Decimal                   @map("reward_amount") @db.Decimal(12, 2)
+  startsAt                DateTime                  @map("starts_at")
+  endsAt                  DateTime                  @map("ends_at")
+  status                  FleetIncentiveStatus      @default(ACTIVE)
+  createdAt               DateTime                  @default(now()) @map("created_at")
+  updatedAt               DateTime                  @updatedAt @map("updated_at")
+
+  fleet      Fleet                    @relation(fields: [fleetId], references: [id], onDelete: Cascade)
+  progresses FleetIncentiveProgress[]
+
+  @@map("fleet_incentives")
+  @@index([fleetId, status])
+}
+
+model FleetIncentiveProgress {
+  id             String    @id @default(uuid()) @db.Uuid
+  incentiveId    String    @map("incentive_id") @db.Uuid
+  fleetId        String    @map("fleet_id") @db.Uuid
+  driverId       String    @map("driver_id") @db.Uuid
+  completedCount Int       @default(0) @map("completed_count")
+  activeMinutes  Int       @default(0) @map("active_minutes")
+  qualified      Boolean   @default(false)
+  qualifiedAt    DateTime? @map("qualified_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  incentive FleetIncentive @relation(fields: [incentiveId], references: [id], onDelete: Cascade)
+  driver    Driver         @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  @@unique([incentiveId, driverId])
+  @@map("fleet_incentive_progresses")
+  @@index([fleetId, driverId])
+}
+
+model FleetSupportTicket {
+  id           String                   @id @default(uuid()) @db.Uuid
+  ticketNumber String                   @unique @map("ticket_number") @db.VarChar(40)
+  fleetId      String                   @map("fleet_id") @db.Uuid
+  createdById  String                   @map("created_by_id") @db.Uuid
+  category     String                   @db.VarChar(80)
+  subject      String                   @db.VarChar(200)
+  description  String
+  status       FleetSupportTicketStatus @default(OPEN)
+  attachments  Json                     @default("[]")
+  createdAt    DateTime                 @default(now()) @map("created_at")
+  updatedAt    DateTime                 @updatedAt @map("updated_at")
+
+  fleet     Fleet                 @relation(fields: [fleetId], references: [id], onDelete: Cascade)
+  createdBy FleetAdminUser        @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  messages  FleetSupportMessage[]
+
+  @@map("fleet_support_tickets")
+  @@index([fleetId, status])
+}
+
+model FleetSupportMessage {
+  id          String   @id @default(uuid()) @db.Uuid
+  ticketId    String   @map("ticket_id") @db.Uuid
+  senderRole  String   @map("sender_role") @db.VarChar(40)
+  senderName  String?  @map("sender_name") @db.VarChar(120)
+  body        String
+  attachments Json     @default("[]")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  ticket FleetSupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@map("fleet_support_messages")
+  @@index([ticketId])
+}
+
+model FleetNotification {
+  id         String                     @id @default(uuid()) @db.Uuid
+  fleetId    String                     @map("fleet_id") @db.Uuid
+  eventType  FleetNotificationEventType @map("event_type")
+  title      String                     @db.VarChar(160)
+  message    String
+  entityType String?                    @map("entity_type") @db.VarChar(60)
+  entityId   String?                    @map("entity_id") @db.Uuid
+  actionUrl  String?                    @map("action_url") @db.VarChar(255)
+  isRead     Boolean                    @default(false) @map("is_read")
+  readAt     DateTime?                  @map("read_at")
+  createdAt  DateTime                   @default(now()) @map("created_at")
+
+  fleet Fleet @relation(fields: [fleetId], references: [id], onDelete: Cascade)
+
+  @@map("fleet_notifications")
+  @@index([fleetId, isRead])
+  @@index([createdAt])
+}
+
+model FleetShift {
+  id         String           @id @default(uuid()) @db.Uuid
+  fleetId    String           @map("fleet_id") @db.Uuid
+  driverId   String           @map("driver_id") @db.Uuid
+  title      String           @db.VarChar(140)
+  shiftStart DateTime         @map("shift_start")
+  shiftEnd   DateTime         @map("shift_end")
+  status     FleetShiftStatus @default(SCHEDULED)
+  notes      String?
+  createdAt  DateTime         @default(now()) @map("created_at")
+  updatedAt  DateTime         @updatedAt @map("updated_at")
+
+  fleet  Fleet  @relation(fields: [fleetId], references: [id], onDelete: Cascade)
+  driver Driver @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  @@map("fleet_shifts")
+  @@index([fleetId, shiftStart])
+  @@index([driverId, shiftStart])
 }
 

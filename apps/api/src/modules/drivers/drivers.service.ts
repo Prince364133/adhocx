@@ -16,6 +16,7 @@ import {
   OfferStatus,
   validateAvailabilityTransition,
   DriverLocationPingDto,
+  ValidateFleetCodeDto,
 } from '@adhocx/contracts';
 import { DatabaseService } from '../../database/database.service';
 import { StorageService } from '../../common/storage/storage.service';
@@ -36,6 +37,180 @@ export class DriversService {
     @Optional() private readonly redis?: RedisService,
     @Optional() private readonly referrals?: ReferralsService,
   ) {}
+
+  async validateAndAssociateFleetCode(userId: string, dto: ValidateFleetCodeDto) {
+    const driver = await this.db.driver.findUnique({
+      where: { userId },
+      select: { id: true, fullName: true, phone: true, fleetId: true },
+    });
+    if (!driver) {
+      throw new NotFoundException('Driver profile not found');
+    }
+
+    if (driver.fleetId) {
+      throw new ConflictException({
+        errorCode: 'ALREADY_IN_FLEET',
+        message:
+          'You are already associated with an active fleet. Remove or leave your current fleet before joining another.',
+      });
+    }
+
+    const normalizedCode = dto.fleetCode.trim().toUpperCase();
+    const fleet = await this.db.fleet.findUnique({
+      where: { code: normalizedCode },
+    });
+
+    if (!fleet) {
+      throw new NotFoundException({
+        errorCode: 'INVALID_FLEET_CODE',
+        message: 'Invalid Fleet Code. Please check the code provided by your Fleet Owner.',
+      });
+    }
+
+    if (fleet.status !== 'ACTIVE') {
+      throw new BadRequestException({
+        errorCode: 'INACTIVE_FLEET',
+        message: 'This fleet account is currently inactive.',
+      });
+    }
+
+    if ((fleet as any).codeStatus === 'DISABLED') {
+      throw new BadRequestException({
+        errorCode: 'FLEET_CODE_DISABLED',
+        message: 'This Fleet Code has been disabled for new driver associations.',
+      });
+    }
+
+    const now = new Date();
+    if (typeof this.db.driver?.updateMany === 'function') {
+      await this.db.$transaction(async (tx) => {
+        const claimed = await tx.driver.updateMany({
+          where: { id: driver.id, fleetId: null },
+          data: { fleetId: fleet.id, fleetAssignedAt: now },
+        });
+        if (claimed.count !== 1) {
+          throw new ConflictException({
+            errorCode: 'ALREADY_IN_FLEET',
+            message:
+              'You are already associated with an active fleet. Remove or leave your current fleet before joining another.',
+          });
+        }
+        await tx.fleetDriverHistory.create({
+          data: {
+            fleetId: fleet.id,
+            driverId: driver.id,
+            action: 'ASSIGNED',
+            toFleetId: fleet.id,
+            notes: `Associated via Fleet Code ${normalizedCode}`,
+          },
+        });
+        if (tx.fleetNotification?.create) {
+          await tx.fleetNotification.create({
+            data: {
+              fleetId: fleet.id,
+              eventType: 'DRIVER_JOINED' as any,
+              title: 'New Driver Joined Fleet',
+              message: `${driver.fullName || driver.phone} associated with your fleet using Fleet Code ${normalizedCode}.`,
+              entityType: 'DRIVER',
+              entityId: driver.id,
+              actionUrl: '/drivers',
+            },
+          });
+        }
+      });
+    } else {
+      await this.db.$transaction([
+        this.db.driver.update({
+          where: { id: driver.id },
+          data: { fleetId: fleet.id, fleetAssignedAt: now },
+        }),
+        this.db.fleetDriverHistory.create({
+          data: {
+            fleetId: fleet.id,
+            driverId: driver.id,
+            action: 'ASSIGNED',
+            toFleetId: fleet.id,
+            notes: `Associated via Fleet Code ${normalizedCode}`,
+          },
+        }),
+        ...(this.db.fleetNotification
+          ? [
+              this.db.fleetNotification.create({
+                data: {
+                  fleetId: fleet.id,
+                  eventType: 'DRIVER_JOINED' as any,
+                  title: 'New Driver Joined Fleet',
+                  message: `${driver.fullName || driver.phone} associated with your fleet using Fleet Code ${normalizedCode}.`,
+                  entityType: 'DRIVER',
+                  entityId: driver.id,
+                  actionUrl: '/drivers',
+                },
+              }),
+            ]
+          : []),
+      ]);
+    }
+
+    return {
+      associated: true,
+      fleetId: fleet.id,
+      fleetName: fleet.name,
+      fleetCode: fleet.code,
+      driverId: driver.id,
+    };
+  }
+
+  async getMyFleetIncentives(userId: string) {
+    const driver = await this.db.driver.findUnique({
+      where: { userId },
+      select: { id: true, fleetId: true },
+    });
+    if (!driver || !driver.fleetId) {
+      return [];
+    }
+
+    const incentives = await this.db.fleetIncentive.findMany({
+      where: {
+        fleetId: driver.fleetId,
+        status: 'ACTIVE',
+      },
+      include: {
+        progresses: {
+          where: { driverId: driver.id },
+        },
+      },
+      orderBy: { endsAt: 'asc' },
+    });
+
+    return incentives
+      .filter((inc) => {
+        if (inc.eligibilityScope === 'ALL') return true;
+        const list = Array.isArray(inc.eligibleDriverIds) ? (inc.eligibleDriverIds as string[]) : [];
+        return list.includes(driver.id);
+      })
+      .map((inc) => {
+        const prog = inc.progresses?.[0];
+        return {
+          id: inc.id,
+          name: inc.name,
+          type: inc.type,
+          targetTrips: inc.targetTrips ?? undefined,
+          requiredDurationMinutes: inc.requiredDurationMinutes ?? undefined,
+          timeWindowStart: inc.timeWindowStart ?? undefined,
+          timeWindowEnd: inc.timeWindowEnd ?? undefined,
+          rewardAmount: Number(inc.rewardAmount),
+          startsAt: inc.startsAt.toISOString(),
+          endsAt: inc.endsAt.toISOString(),
+          status: inc.status,
+          progress: {
+            completedCount: prog?.completedCount ?? 0,
+            activeMinutes: prog?.activeMinutes ?? 0,
+            qualified: prog?.qualified ?? false,
+            qualifiedAt: prog?.qualifiedAt?.toISOString(),
+          },
+        };
+      });
+  }
 
   private async getActiveVehicleCategory(code: string): Promise<string> {
     const vehicleType = code.trim().toUpperCase();
@@ -201,7 +376,9 @@ export class DriversService {
         vehicleType: driver.vehicleType || undefined,
         vehicleModel: driver.vehicleModel || undefined,
         vehiclePlate: driver.vehiclePlate || undefined,
-        walletBalance: Number(driver.walletBalance),
+        ...(driver.fleetId
+          ? { isFleetDriver: true, fleetId: driver.fleetId }
+          : { walletBalance: Number(driver.walletBalance) }),
         trustScore: driver.trustScore !== undefined ? Number(driver.trustScore) : 100.0,
         averageRating: driver.averageRating !== undefined ? Number(driver.averageRating) : 5.0,
         ratingCount: driver.ratingCount || 0,

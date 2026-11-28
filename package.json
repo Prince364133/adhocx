@@ -11,6 +11,7 @@
     "dev:admin": "pnpm --filter @adhocx/admin run dev",
     "dev:ops": "pnpm --filter @adhocx/ops run dev",
     "dev:corporate": "pnpm --filter @adhocx/corporate run dev",
+    "dev:fleet": "pnpm --filter @adhocx/fleet run dev",
     "dev:marketing": "pnpm --filter @adhocx/marketing run dev",
     "dev:docs": "pnpm --filter @adhocx/docs run dev",
     "dev:mobile": "pnpm --filter @adhocx/mobile run dev",

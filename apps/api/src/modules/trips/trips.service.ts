@@ -91,7 +91,10 @@ export class TripsService {
       orderBy: { createdAt: 'desc' },
     });
 
-    return trips.map((t) => this.mapToDto(t));
+    return trips.map((t) => {
+      const dto = this.mapToDto(t);
+      return driver.fleetId ? redactForFleetDriver(dto) : dto;
+    });
   }
 
   /**
@@ -133,6 +136,171 @@ export class TripsService {
     });
 
     return trips.map((t) => redactForVendor(this.mapToDto(t), t));
+  }
+
+  /**
+   * Increments fleet driver progress for eligible active incentives upon trip completion
+   * and records INCENTIVE_APPROACHING (>=80%) or INCENTIVE_QUALIFIED notifications.
+   */
+  async updateFleetIncentiveProgress(
+    driverId: string,
+    fleetId: string,
+    startedAt: Date,
+    completedAt: Date,
+  ): Promise<void> {
+    if (!this.db.fleetIncentive || !this.db.fleetIncentiveProgress) return;
+
+    const incentives = await this.db.fleetIncentive.findMany({
+      where: {
+        fleetId,
+        status: 'ACTIVE',
+        startsAt: { lte: completedAt },
+        endsAt: { gte: completedAt },
+      },
+    });
+    if (!incentives.length) return;
+
+    const durationMinutes = Math.max(
+      1,
+      Math.round((completedAt.getTime() - startedAt.getTime()) / 60000),
+    );
+
+    const driverRecord = this.db.driver?.findUnique
+      ? await this.db.driver.findUnique({
+          where: { id: driverId },
+          select: { userId: true, fullName: true },
+        })
+      : null;
+
+    for (const incentive of incentives) {
+      if (incentive.eligibilityScope === 'SELECTED') {
+        const eligibleIds = Array.isArray(incentive.eligibleDriverIds)
+          ? (incentive.eligibleDriverIds as string[])
+          : [];
+        if (!eligibleIds.includes(driverId)) continue;
+      }
+
+      const existing = await this.db.fleetIncentiveProgress.findUnique({
+        where: {
+          incentiveId_driverId: {
+            incentiveId: incentive.id,
+            driverId,
+          },
+        },
+      });
+
+      const nextCount = (existing?.completedCount ?? 0) + 1;
+      const nextMinutes = (existing?.activeMinutes ?? 0) + durationMinutes;
+
+      const qualifiesTarget =
+        incentive.type === 'TARGET_BASED' &&
+        incentive.targetTrips != null &&
+        nextCount >= incentive.targetTrips;
+      const qualifiesTime =
+        incentive.type === 'TIME_BASED' &&
+        incentive.requiredDurationMinutes != null &&
+        nextMinutes >= incentive.requiredDurationMinutes;
+
+      const wasQualified = existing?.qualified ?? false;
+      const nowQualified = wasQualified || qualifiesTarget || qualifiesTime;
+
+      await this.db.fleetIncentiveProgress.upsert({
+        where: {
+          incentiveId_driverId: {
+            incentiveId: incentive.id,
+            driverId,
+          },
+        },
+        create: {
+          incentiveId: incentive.id,
+          fleetId,
+          driverId,
+          completedCount: nextCount,
+          activeMinutes: nextMinutes,
+          qualified: nowQualified,
+          qualifiedAt: nowQualified ? completedAt : null,
+        },
+        update: {
+          completedCount: nextCount,
+          activeMinutes: nextMinutes,
+          qualified: nowQualified,
+          ...(nowQualified && !wasQualified ? { qualifiedAt: completedAt } : {}),
+        },
+      });
+
+      const ratio =
+        incentive.type === 'TARGET_BASED' && incentive.targetTrips
+          ? nextCount / incentive.targetTrips
+          : incentive.type === 'TIME_BASED' && incentive.requiredDurationMinutes
+            ? nextMinutes / incentive.requiredDurationMinutes
+            : 0;
+
+      if (nowQualified && !wasQualified) {
+        if (this.db.fleetNotification) {
+          await this.db.fleetNotification
+            .create({
+              data: {
+                fleetId,
+                eventType: 'INCENTIVE_QUALIFIED',
+                title: 'Driver Qualified for Incentive',
+                message: `${driverRecord?.fullName || 'Fleet driver'} qualified for "${incentive.name}".`,
+                entityType: 'INCENTIVE',
+                entityId: incentive.id,
+                actionUrl: '/incentives',
+              },
+            })
+            .catch(() => null);
+        }
+        if (driverRecord?.userId) {
+          this.notifications
+            .sendPushToUser(driverRecord.userId, {
+              title: 'Incentive Target Reached',
+              body: `You qualified for "${incentive.name}"!`,
+              type: NotificationType.SYSTEM,
+              data: { incentiveId: incentive.id, route: '/incentives' },
+              actionUrl: '/incentives',
+              saveInApp: true,
+            })
+            .catch(() => null);
+        }
+      } else if (!nowQualified && ratio >= 0.8) {
+        const prevRatio =
+          incentive.type === 'TARGET_BASED' && incentive.targetTrips
+            ? (existing?.completedCount ?? 0) / incentive.targetTrips
+            : incentive.type === 'TIME_BASED' && incentive.requiredDurationMinutes
+              ? (existing?.activeMinutes ?? 0) / incentive.requiredDurationMinutes
+              : 0;
+        if (prevRatio < 0.8) {
+          if (this.db.fleetNotification) {
+            await this.db.fleetNotification
+              .create({
+                data: {
+                  fleetId,
+                  eventType: 'INCENTIVE_APPROACHING',
+                  title: 'Driver Approaching Incentive Target',
+                  message: `${driverRecord?.fullName || 'Fleet driver'} reached ${Math.round(ratio * 100)}% of "${incentive.name}".`,
+                  entityType: 'INCENTIVE',
+                  entityId: incentive.id,
+                  actionUrl: '/incentives',
+                },
+              })
+              .catch(() => null);
+          }
+          if (driverRecord?.userId) {
+            this.notifications
+              .sendPushToUser(driverRecord.userId, {
+                title: 'Almost There!',
+                body: `You are ${Math.round(ratio * 100)}% towards "${incentive.name}".`,
+                type: NotificationType.SYSTEM,
+                data: { incentiveId: incentive.id, route: '/incentives' },
+                actionUrl: '/incentives',
+                saveInApp: true,
+              })
+              .catch(() => null);
+          }
+        }
+      }
+    }
   }
 
   async getTripsForOperations(query?: TripQueryDto): Promise<TripResponseDto[]> {
@@ -310,7 +478,13 @@ export class TripsService {
         createdAt: e.createdAt.toISOString(),
       })),
     };
-    return (role === UserRole.VENDOR ? redactForVendor(detail, trip) : detail) as TripDetailResponseDto;
+    if (role === UserRole.VENDOR) {
+      return redactForVendor(detail, trip) as TripDetailResponseDto;
+    }
+    if (role === UserRole.DRIVER && trip.driver?.fleetId) {
+      return redactForFleetDriver(detail) as TripDetailResponseDto;
+    }
+    return detail as TripDetailResponseDto;
   }
 
   /**
@@ -931,24 +1105,39 @@ export class TripsService {
       ...(zonalQuote ? {} : { totalEarnings: totalDriverEarnings }),
     });
 
+    const isFleetDriver = Boolean((updatedDriver as any)?.fleetId);
     this.notifications.emitEvent(`driver:${updated.driverId}`, 'TRIP_COMPLETED', {
       tripId: id,
-      totalEarnings: totalDriverEarnings,
+      ...(isFleetDriver ? {} : { totalEarnings: totalDriverEarnings }),
     });
     this.notifications.emitEvent(`user:${driverUserId}`, 'TRIP_COMPLETED', {
       tripId: id,
-      totalEarnings: totalDriverEarnings,
+      ...(isFleetDriver ? {} : { totalEarnings: totalDriverEarnings }),
     });
 
-    // FCM Push to Driver: Trip Completed with earnings
+    // FCM Push to Driver: hide earnings for fleet-associated drivers
     this.notifications.sendPushToUser(driverUserId, {
       title: '🎉 Trip Completed!',
-      body: `Trip finished! ₹${totalDriverEarnings} has been credited to your wallet.`,
+      body: isFleetDriver
+        ? 'Trip completed successfully!'
+        : `Trip finished! ₹${totalDriverEarnings} has been credited to your wallet.`,
       type: NotificationType.WALLET_UPDATE,
-      data: { tripId: id, totalEarnings: String(totalDriverEarnings), route: '/wallet' },
-      actionUrl: '/wallet',
+      data: isFleetDriver
+        ? { tripId: id, route: '/trips' }
+        : { tripId: id, totalEarnings: String(totalDriverEarnings), route: '/wallet' },
+      actionUrl: isFleetDriver ? '/trips' : '/wallet',
       saveInApp: true,
     }).catch((err) => this.logger.warn(`Driver trip completed push failed: ${err.message}`));
+
+    // Update fleet incentive progress if the driver belongs to a fleet
+    if (isFleetDriver && (updatedDriver as any)?.fleetId && this.db.fleetIncentive) {
+      this.updateFleetIncentiveProgress(
+        updated.driverId,
+        (updatedDriver as any).fleetId,
+        updated.startedAt || updated.createdAt,
+        now,
+      ).catch((err) => this.logger.warn(`Fleet incentive progress update failed: ${err.message}`));
+    }
 
     // FCM Push to Vendor: Trip Completed
     const vendorUser = await this.db.vendor.findUnique({
@@ -1441,5 +1630,16 @@ function redactForVendor<T extends Record<string, any>>(dto: T, trip: any): T {
   }
   const vendorRate = Number(trip?.requirement?.ratePerVehicle ?? 0);
   if (vendorRate > 0) out.vendorCharge = vendorRate;
+  return out as T;
+}
+
+/**
+ * Fleet-driver trip view: drivers associated with a fleet must never see trip earnings.
+ */
+function redactForFleetDriver<T extends Record<string, any>>(dto: T): T {
+  const out: Record<string, any> = { ...dto };
+  for (const key of ['driverRate', 'fare', 'driverEarnings', 'totalDriverEarnings', 'netEarnings']) {
+    delete out[key];
+  }
   return out as T;
 }

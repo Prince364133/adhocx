@@ -14,6 +14,7 @@ interface FilterBarProps {
   onRefresh: () => void;
   isLoading: boolean;
   totalCount: number;
+  scopedContext?: string | null;
 }
 
 export const VerificationFilterBar: React.FC<FilterBarProps> = ({
@@ -26,6 +27,7 @@ export const VerificationFilterBar: React.FC<FilterBarProps> = ({
   onRefresh,
   isLoading,
   totalCount,
+  scopedContext,
 }) => {
   return (
     <div
@@ -85,33 +87,41 @@ export const VerificationFilterBar: React.FC<FilterBarProps> = ({
 
       {/* Bottom row: Entity Filter Tabs & Status Pills */}
       <div className="flex justify-between items-center flex-wrap gap-3 border-t border-subtle pt-3">
-        <div className="tabs">
-          {(
-            [
-              { id: "ALL", label: "All Applicants" },
-              { id: "DRIVER", label: "Drivers (KYC)" },
-              { id: "VENDOR", label: "Vendors (Enterprise)" },
-            ] as const
-          ).map((tab) => {
-            const isSelected = entityFilter === tab.id;
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => onEntityFilterChange(tab.id)}
-                className={`tab-item${isSelected ? " active" : ""}`}
-                style={{
-                  background: isSelected
-                    ? "var(--brand-primary)"
-                    : "transparent",
-                  color: isSelected ? "#ffffff" : "var(--text-secondary)",
-                }}
-              >
-                {tab.label}
-              </button>
-            );
-          })}
-        </div>
+        {!scopedContext ? (
+          <div className="tabs">
+            {(
+              [
+                { id: "ALL", label: "All Applicants" },
+                { id: "DRIVER", label: "Drivers (KYC)" },
+                { id: "FLEET", label: "Fleets" },
+                { id: "VENDOR", label: "Vendors (Enterprise)" },
+                { id: "CORPORATE", label: "Corporate" },
+              ] as const
+            ).map((tab) => {
+              const isSelected = entityFilter === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => onEntityFilterChange(tab.id)}
+                  className={`tab-item${isSelected ? " active" : ""}`}
+                  style={{
+                    background: isSelected
+                      ? "var(--brand-primary)"
+                      : "transparent",
+                    color: isSelected ? "#ffffff" : "var(--text-secondary)",
+                  }}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="text-body-sm font-semibold text-brand">
+            Scoped to: {scopedContext.charAt(0).toUpperCase() + scopedContext.slice(1)}
+          </div>
+        )}
 
         <div className="flex gap-compact items-center flex-wrap">
           <span className="text-label text-muted font-semibold">Status:</span>

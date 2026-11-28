@@ -43,6 +43,14 @@ import {
   DriverFleetAssociationItem,
   FleetMetrics,
   DriverFleetMetrics,
+  AdminFleetPortalUserItem,
+  AdminFleetPayoutItem,
+  AdminFleetPayoutMetrics,
+  AdminFleetShortfallItem,
+  AdminFleetSupportTicket,
+  AdminFleetSupportMetrics,
+  FleetPayoutStatusType,
+  AdminFleetSupportStatusType,
   NotificationBroadcastProgress,
   NotificationMetrics,
   AudienceFilter,
@@ -2346,6 +2354,7 @@ export const adminApi = {
     address?: string;
     gstin?: string;
     notes?: string;
+    portalPassword?: string;
   }) =>
     apiClient<FleetListItem>("/admin/fleets", {
       method: "POST",
@@ -2426,6 +2435,152 @@ export const adminApi = {
 
   getFleetMetrics: () =>
     apiClient<FleetMetrics>("/admin/fleets/metrics"),
+
+  listFleetPortalUsers: (fleetId: string) =>
+    apiClient<AdminFleetPortalUserItem[]>(`/admin/fleets/${fleetId}/users`),
+
+  createFleetPortalUser: (
+    fleetId: string,
+    payload: {
+      fullName: string;
+      phone: string;
+      email?: string;
+      role?: "FLEET_OWNER" | "FLEET_MANAGER";
+      password: string;
+    },
+  ) =>
+    apiClient<AdminFleetPortalUserItem>(`/admin/fleets/${fleetId}/users`, {
+      method: "POST",
+      body: payload,
+    }),
+
+  updateFleetPortalUser: (
+    fleetId: string,
+    userId: string,
+    payload: {
+      fullName?: string;
+      status?: "ACTIVE" | "INACTIVE";
+      role?: "FLEET_OWNER" | "FLEET_MANAGER";
+      password?: string;
+    },
+  ) =>
+    apiClient<AdminFleetPortalUserItem>(
+      `/admin/fleets/${fleetId}/users/${userId}`,
+      {
+        method: "PATCH",
+        body: payload,
+      },
+    ),
+
+  listFleetPayouts: (params?: {
+    status?: string;
+    fleetId?: string;
+    search?: string;
+    page?: number;
+    limit?: number;
+  }) => {
+    const q = new URLSearchParams();
+    if (params?.status && params.status !== "ALL") q.set("status", params.status);
+    if (params?.fleetId) q.set("fleetId", params.fleetId);
+    if (params?.search) q.set("search", params.search);
+    if (params?.page) q.set("page", String(params.page));
+    if (params?.limit) q.set("limit", String(params.limit));
+    const qs = q.toString() ? `?${q.toString()}` : "";
+    return apiClient<{
+      items: AdminFleetPayoutItem[];
+      total: number;
+      page: number;
+      limit: number;
+      totalPages: number;
+      metrics: AdminFleetPayoutMetrics;
+    }>(`/admin/fleets/payouts${qs}`);
+  },
+
+  processFleetPayout: (
+    payoutId: string,
+    payload: {
+      status: FleetPayoutStatusType;
+      rejectionReason?: string;
+      notes?: string;
+    },
+  ) =>
+    apiClient<AdminFleetPayoutItem>(`/admin/fleets/payouts/${payoutId}`, {
+      method: "PATCH",
+      body: payload,
+    }),
+
+  listFleetShortfalls: (fleetId: string) =>
+    apiClient<AdminFleetShortfallItem[]>(`/admin/fleets/${fleetId}/shortfalls`),
+
+  createFleetShortfall: (
+    fleetId: string,
+    payload: {
+      periodStart: string;
+      periodEnd: string;
+      minimumTripsRequired: number;
+      actualTripsOffered: number;
+      compensationAmount?: number;
+      status?: "RECORDED" | "APPROVED" | "SETTLED" | "WAIVED";
+      notes?: string;
+    },
+  ) =>
+    apiClient<AdminFleetShortfallItem>(`/admin/fleets/${fleetId}/shortfalls`, {
+      method: "POST",
+      body: payload,
+    }),
+
+  listFleetSupportTickets: (params?: {
+    status?: string;
+    category?: string;
+    fleetId?: string;
+    search?: string;
+    page?: number;
+    limit?: number;
+  }) => {
+    const q = new URLSearchParams();
+    if (params?.status && params.status !== "ALL") q.set("status", params.status);
+    if (params?.category && params.category !== "ALL") q.set("category", params.category);
+    if (params?.fleetId) q.set("fleetId", params.fleetId);
+    if (params?.search) q.set("search", params.search);
+    if (params?.page) q.set("page", String(params.page));
+    if (params?.limit) q.set("limit", String(params.limit));
+    const qs = q.toString() ? `?${q.toString()}` : "";
+    return apiClient<{
+      items: AdminFleetSupportTicket[];
+      total: number;
+      page: number;
+      limit: number;
+      totalPages: number;
+      metrics: AdminFleetSupportMetrics;
+    }>(`/admin/fleets/support/tickets${qs}`);
+  },
+
+  getFleetSupportTicketDetail: (ticketId: string) =>
+    apiClient<AdminFleetSupportTicket>(
+      `/admin/fleets/support/tickets/${ticketId}`,
+    ),
+
+  replyFleetSupportTicket: (ticketId: string, body: string) =>
+    apiClient<AdminFleetSupportTicket>(
+      `/admin/fleets/support/tickets/${ticketId}/reply`,
+      {
+        method: "POST",
+        body: { body },
+      },
+    ),
+
+  updateFleetSupportTicketStatus: (
+    ticketId: string,
+    status: AdminFleetSupportStatusType,
+    resolutionNote?: string,
+  ) =>
+    apiClient<AdminFleetSupportTicket>(
+      `/admin/fleets/support/tickets/${ticketId}/status`,
+      {
+        method: "PATCH",
+        body: { status, resolutionNote },
+      },
+    ),
 
   logoutAdmin: async () => {
     try {

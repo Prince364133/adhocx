@@ -224,7 +224,9 @@ export class DriverProfileDto {
   vehicleType?: string;
   vehicleModel?: string;
   vehiclePlate?: string;
-  walletBalance!: number;
+  walletBalance?: number;
+  isFleetDriver?: boolean;
+  fleetId?: string;
   trustScore?: number;
   averageRating?: number;
   ratingCount?: number;

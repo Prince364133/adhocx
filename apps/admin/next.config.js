@@ -3,7 +3,9 @@ const nextConfig = {
   distDir:
     process.env.ADMIN_NEXT_DIST_DIR ||
     (process.env.NODE_ENV === 'development' ? '.next-dev' : '.next'),
-  output: 'standalone',
+  ...(process.platform === 'win32' && process.env.NEXT_OUTPUT !== 'standalone'
+    ? {}
+    : { output: 'standalone' }),
   transpilePackages: ['@adhocx/contracts', '@adhocx/ui'],
   reactStrictMode: true,
   poweredByHeader: false,

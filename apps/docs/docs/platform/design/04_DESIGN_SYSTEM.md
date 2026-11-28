@@ -2,9 +2,11 @@
 
 **Product:** AdhocX
 **Document:** Design System
-**Status:** Source of Truth
-**Version:** V1
-**Last Updated:** 2026-09-02
+**Status:** Source of Truth (Synchronized with root `DESIGN.md` & `apps/admin`)
+**Version:** V2 (Admin Reference Standard)
+**Last Updated:** 2026-11-27
+
+> **Canonical Reference:** All web dashboards across AdhocX (`apps/admin`, `apps/ops`, `apps/corporate`, and future portals) must strictly follow [`DESIGN.md`](../../../../DESIGN.md) and the reference implementation in `apps/admin/src/styles/style.css`.
 
 ---
 
@@ -155,18 +157,18 @@ Avoid making the interface overly aggressive or flashy.
 
 ---
 
-# 6. Color System
+# 6. Color System & Color Theory (60–30–10 Rule)
 
-All colors must be defined as centralized design tokens.
+All colors must be defined as centralized CSS design tokens in `src/styles/style.css`. Components must never randomly introduce custom hex values.
 
-Components must never randomly introduce custom colors.
-
-AdhocX visual architecture is anchored by a high-clarity dual-palette:
-* **Primary Brand Color (`#5728B2`)**: Commands interactive authority, high reliability, primary CTAs, and enterprise fulfillment status.
-* **Brand Logo Accent Orange (`#FF5F09`)**: Logo "X" accent, key operational indicators, and high-energy highlights.
-* **Warm Amber Gold Accent (`#EE9811`)**: High-visibility highlight, driver bonus programs, partner incentives, and operational alerts.
-* **Midnight Navy & Crisp Slate Neutrals (`#010D2D` to `#191B1C`)**: Enterprise-grade contrast, low eye fatigue, and professional logistics telemetry.
-* **Regional Scenario Governance**: Built for high-volume commercial transport operations across Telangana (Hyderabad tech corridors: HITEC City, Gachibowli, Financial District, Madhapur) and regional hubs, strictly enforcing 100% yellow-plate commercial compliance.
+AdhocX follows a **60–30–10 Operational Color Theory** (matching `apps/admin`):
+* **60% Neutral Canvas & Surfaces:** Light Mode (`--bg-base: #f8fafc`, `--bg-surface: #ffffff`, `--bg-surface-elevated: #f1f5f9`, `--border: #e2e8f0`); Dark Mode (`--bg-base: #121212`, `--bg-surface: #1b1b1b`, `--bg-surface-elevated: #222222`, `--border: #383838`).
+* **30% Structural Chrome & Typography:** Crisp Slate foregrounds (`#0f172a` primary, `#475569` secondary, `#64748b` muted) and glassmorphic sidebar chrome (`blur(20px) saturate(180%)`).
+* **10% Brand Authority & Semantic Signals:**
+  * **Primary Brand Color (`#5728b2`):** Commands interactive authority, primary CTAs, active `SegmentedTabs`, active sidebar indicators, and focus rings.
+  * **Brand Logo Accent Orange (`#ff5f09`):** Logo "X" accent and high-energy operational callouts.
+  * **Supporting Chart & Accent Palette:** Indigo (`#4f46e5`, `#6366f1`), Violet (`#7c3aed`, `#8b5cf6`), Lavender (`#a78bfa`), Cyan (`#0891b2`).
+  * **Regional Scenario Governance:** Built for high-volume commercial transport operations across Telangana (Hyderabad tech corridors: HITEC City, Gachibowli, Financial District, Madhapur) and regional hubs, strictly enforcing 100% yellow-plate commercial compliance.
 
 ---
 
@@ -222,20 +224,22 @@ linear-gradient(135deg, #EE9811 0%, #C17A0B 100%)
 
 ---
 
-# 7. Neutral Colors
+# 7. Neutral Colors (Light & Dark Mode Tokens)
 
-| Token          | Hex       | Usage                            |
-| -------------- | --------- | -------------------------------- |
-| Background     | `#EDEFF0` | application / page background    |
-| Surface        | `#FFFFFF` | cards / panels / light surface   |
-| Surface Warm   | `#FFFBF7` | warm promo panels / alerts       |
-| Surface Muted  | `#EDEFF0` | secondary surfaces / muted areas |
-| Border         | `#C2C9CC` | default crisp borders            |
-| Border Strong  | `#9BA3A8` | emphasized borders / dividers    |
-| Text Primary   | `#191B1C` | primary text (high contrast)     |
-| Text Secondary | `#595F61` | supporting descriptive text      |
-| Text Muted     | `#94A3B8` | low-emphasis metadata text       |
-| Text Inverse   | `#FFFFFF` | text on dark surfaces            |
+| Token | Light Mode (`:root`) | Dark Mode (`[data-theme="dark"]`) | Usage |
+| --- | --- | --- | --- |
+| `--bg-base` / `--bg-canvas` | `#f8fafc` | `#121212` | Application / page background |
+| `--bg-surface` / `--bg-card` | `#ffffff` | `#1b1b1b` | Cards / panels / header surface |
+| `--bg-surface-elevated` | `#f1f5f9` | `#222222` | Secondary / elevated surfaces |
+| `--bg-surface-hover` | `#e2e8f0` | `#292929` | Hover state surface |
+| `--border` / `--border-subtle` | `#e2e8f0` | `#383838` | Default crisp 1px borders |
+| `--border-light` | `#cbd5e1` | `#4a4a4a` | Emphasized borders / dividers |
+| `--border-focus` | `#5728b2` | `#bdbdbd` | Focus rings & active borders |
+| `--text-primary` | `#0f172a` | `#f5f5f5` | Primary text (high contrast) |
+| `--text-secondary` | `#475569` | `#bdbdbd` | Supporting descriptive text |
+| `--text-muted` | `#64748b` | `#a0a0a0` | Low-emphasis metadata text |
+| `--text-inverse` | `#f8fafc` | `#121212` | Text on inverse surfaces |
+| `--text-brand` | `#5728b2` | `#f5f5f5` | Branded links, icons & KPI accents |
 
 Do not use pure `#000000` for normal text.
 
@@ -246,8 +250,9 @@ Do not use pure `#000000` for normal text.
 ## Success
 
 ```text
-Success: #16A34A
-Success Bg: #DCFCE7
+--color-success: #15803d (Dark: #22c55e)
+--color-success-bg: rgba(22, 163, 74, 0.08) (Dark: rgba(34, 197, 94, 0.12))
+--color-success-border: rgba(22, 163, 74, 0.24)
 ```
 
 Used for:
@@ -263,8 +268,9 @@ Used for:
 ## Warning
 
 ```text
-Warning: #EE9811
-Warning Bg: #FFFBF7
+--color-warning: #b45309 (Dark: #f59e0b)
+--color-warning-bg: rgba(217, 119, 6, 0.09) (Dark: rgba(245, 158, 11, 0.12))
+--color-warning-border: rgba(217, 119, 6, 0.25)
 ```
 
 Used for:
@@ -276,11 +282,12 @@ Used for:
 
 ---
 
-## Error
+## Error / Danger
 
 ```text
-Error: #DC2626
-Error Bg: #FEE2E2
+--color-danger: #dc2626 (Dark: #f87171)
+--color-danger-bg: rgba(220, 38, 38, 0.08) (Dark: rgba(248, 113, 113, 0.12))
+--color-danger-border: rgba(220, 38, 38, 0.24)
 ```
 
 Used for:
@@ -296,8 +303,8 @@ Used for:
 ## Info
 
 ```text
-Info: #5728B2
-Info Bg: #CEE0FD
+--color-info: #0369a1 (Dark: #38bdf8)
+--color-info-bg: rgba(2, 132, 199, 0.08) (Dark: rgba(56, 189, 248, 0.12))
 ```
 
 Used for:

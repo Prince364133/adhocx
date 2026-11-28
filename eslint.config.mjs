@@ -82,9 +82,14 @@ export default tseslint.config(
     languageOptions: { sourceType: 'commonjs' },
   },
 
-  // React / Next.js client applications (Admin, Ops, Corporate)
+  // React / Next.js client applications (Admin, Ops, Corporate, Fleet)
   {
-    files: ['apps/admin/**/*.{ts,tsx}', 'apps/ops/**/*.{ts,tsx}', 'apps/corporate/**/*.{ts,tsx}'],
+    files: [
+      'apps/admin/**/*.{ts,tsx}',
+      'apps/ops/**/*.{ts,tsx}',
+      'apps/corporate/**/*.{ts,tsx}',
+      'apps/fleet/**/*.{ts,tsx}',
+    ],
     plugins: { 'react-hooks': reactHooks },
     languageOptions: { globals: { ...globals.browser, ...globals.node } },
     rules: {

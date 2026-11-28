@@ -992,6 +992,90 @@ a {
   transition-duration: 0.08s;
 }
 
+/* Nested Sidebar Submenus */
+.sidebar-group-wrapper {
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-chevron {
+  display: inline-flex;
+  align-items: center;
+  color: var(--sidebar-item-icon);
+  flex-shrink: 0;
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.sidebar-chevron.is-open {
+  transform: rotate(90deg);
+}
+
+.sidebar-submenu-collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition:
+    grid-template-rows 0.24s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.18s ease;
+}
+
+.sidebar-submenu-collapse.is-open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+
+.sidebar-submenu-inner {
+  overflow: hidden;
+  min-height: 0;
+}
+
+.sidebar-submenu {
+  display: flex;
+  flex-direction: column;
+  gap: 0.18rem;
+  margin: 0.2rem 0 0.35rem 0.95rem;
+  padding-left: 0.65rem;
+  border-left: 1px solid var(--sidebar-divider);
+}
+
+.admin-sidebar:not(.is-expanded) .sidebar-submenu {
+  display: none;
+}
+
+.sidebar-subitem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.4rem 0.6rem;
+  border-radius: 8px;
+  font-size: 0.775rem;
+  font-weight: 500;
+  color: var(--sidebar-item-color);
+  text-decoration: none;
+  border: 1px solid transparent;
+  transition:
+    background 0.18s ease,
+    color 0.18s ease,
+    border-color 0.18s ease;
+}
+
+.sidebar-subitem:not(.is-active):hover {
+  background: var(--sidebar-item-hover-bg);
+  border-color: var(--sidebar-item-hover-border);
+  color: var(--sidebar-item-hover-color);
+}
+
+.sidebar-subitem.is-active {
+  background: var(--sidebar-item-active-bg);
+  border-color: var(--sidebar-item-active-border);
+  color: var(--sidebar-item-active-color);
+  font-weight: 600;
+}
+
+.sidebar-subitem.is-active .sidebar-item-icon {
+  color: var(--sidebar-item-active-icon);
+}
+
 /* Badges */
 .sidebar-badge {
   font-size: 0.65rem;
@@ -1221,18 +1305,18 @@ a {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 2rem;
+  padding: 0 1.25rem;
   position: sticky;
   top: 0;
   z-index: var(--z-sticky);
 }
 
 .admin-content {
-  padding: 1.98rem 2rem 2.25rem;
+  padding: 1.35rem 1.25rem 1.85rem;
   flex: 1;
-  max-width: 1260px;
   width: 100%;
-  margin: 0 auto;
+  max-width: none;
+  margin: 0;
 }
 
 .admin-page {

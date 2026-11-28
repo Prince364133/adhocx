@@ -65,6 +65,18 @@ The configured `/api/v1` prefix and exclusions are described in [API conventions
 | `API-CTRL-SUBSCRIPTIONS` | SubscriptionsController (Driver Subscriptions) | 7 | 7 | [Open controller reference](./endpoints/subscriptions-controller.md) | `apps/api/src/modules/subscriptions/subscriptions.controller.ts` |
 | `API-CTRL-TRIPS` | TripsController (Trips) | 13 | 14 | [Open controller reference](./endpoints/trips-controller.md) | `apps/api/src/modules/trips/trips.controller.ts` |
 | `API-CTRL-VENDORS` | VendorsController (Vendors) | 4 | 4 | [Open controller reference](./endpoints/vendors-controller.md) | `apps/api/src/modules/vendors/vendors.controller.ts` |
+| `API-CTRL-FLEET-ADMIN` | FleetController (Platform Admin Fleet Provisioning) | 11 | 11 | [Fleet API reference](../../fleet/api-reference.md#5-admin-fleet-operations) | `apps/api/src/domains/fleet/fleet.controller.ts` |
+| `API-CTRL-FLEET-ADMIN-OPS` | FleetAdminOperationsController (Admin Portal Access, Payouts, Support & Shortfalls) | 11 | 11 | [Fleet API reference](../../fleet/api-reference.md#5-admin-fleet-operations) | `apps/api/src/domains/fleet/fleet-admin-ops.controller.ts` |
+| `API-CTRL-FLEET-AUTH` | FleetAuthController (Fleet Portal Auth) | 3 | 3 | [Fleet API reference](../../fleet/api-reference.md#1-authentication--fleet-code) | `apps/api/src/domains/fleet/portal/auth/fleet-auth.controller.ts` |
+| `API-CTRL-FLEET-CODE` | FleetCodeController (Fleet Code Management) | 3 | 3 | [Fleet API reference](../../fleet/api-reference.md#1-authentication--fleet-code) | `apps/api/src/domains/fleet/portal/code/fleet-code.controller.ts` |
+| `API-CTRL-FLEET-DASHBOARD` | FleetDashboardController (Fleet Dashboard) | 1 | 1 | [Fleet API reference](../../fleet/api-reference.md#2-dashboard-drivers--live-operations) | `apps/api/src/domains/fleet/portal/dashboard/fleet-dashboard.controller.ts` |
+| `API-CTRL-FLEET-DRIVERS` | FleetDriversController (Fleet Drivers & 1:1 Vehicles) | 4 | 4 | [Fleet API reference](../../fleet/api-reference.md#2-dashboard-drivers--live-operations) | `apps/api/src/domains/fleet/portal/drivers/fleet-drivers.controller.ts` |
+| `API-CTRL-FLEET-LIVE-OPS` | FleetLiveOpsController (Fleet Live Operations) | 1 | 1 | [Fleet API reference](../../fleet/api-reference.md#2-dashboard-drivers--live-operations) | `apps/api/src/domains/fleet/portal/live-operations/fleet-live-ops.controller.ts` |
+| `API-CTRL-FLEET-FINANCE` | FleetFinanceController (Earnings, Payouts & Shortfall) | 5 | 5 | [Fleet API reference](../../fleet/api-reference.md#3-earnings-payouts-shortfall--incentives) | `apps/api/src/domains/fleet/portal/earnings-payouts/fleet-finance.controller.ts` |
+| `API-CTRL-FLEET-INCENTIVES` | FleetIncentivesController (Driver Incentives) | 4 | 4 | [Fleet API reference](../../fleet/api-reference.md#3-earnings-payouts-shortfall--incentives) | `apps/api/src/domains/fleet/portal/incentives/fleet-incentives.controller.ts` |
+| `API-CTRL-FLEET-SHIFTS` | FleetShiftsController (Feature-Flagged Shifts) | 3 | 3 | [Fleet API reference](../../fleet/api-reference.md#4-support-notifications--optional-shifts) | `apps/api/src/domains/fleet/portal/shifts/fleet-shifts.controller.ts` |
+| `API-CTRL-FLEET-SUPPORT` | FleetSupportController (Fleet Support Center) | 6 | 6 | [Fleet API reference](../../fleet/api-reference.md#4-support-notifications--optional-shifts) | `apps/api/src/domains/fleet/portal/support/fleet-support.controller.ts` |
+| `API-CTRL-FLEET-NOTIFICATIONS` | FleetNotificationsController (Fleet Notifications) | 4 | 4 | [Fleet API reference](../../fleet/api-reference.md#4-support-notifications--optional-shifts) | `apps/api/src/domains/fleet/portal/notifications/fleet-notifications.controller.ts` |
 
 ## Alias and deprecation handling
 
