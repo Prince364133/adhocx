@@ -4,25 +4,46 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { adminApi, resolveDocumentUrl } from '../lib/api/client';
 import { VerificationItem, DriverListItem, VendorListItem } from '../lib/api/types';
 
-export type EntityFilter = 'ALL' | 'DRIVER' | 'VENDOR';
+export type EntityFilter = 'ALL' | 'DRIVER' | 'FLEET' | 'VENDOR' | 'CORPORATE';
 export type StatusFilter = 'ALL' | 'UNDER_REVIEW' | 'PENDING' | 'VERIFIED' | 'REJECTED';
 
-export function useVerificationCenter() {
+function mapContextToEntityFilter(context?: string | null): EntityFilter {
+  switch (context) {
+    case 'driver':
+      return 'DRIVER';
+    case 'fleet':
+      return 'FLEET';
+    case 'vendor':
+      return 'VENDOR';
+    case 'corporate':
+      return 'CORPORATE';
+    default:
+      return 'ALL';
+  }
+}
+
+export function useVerificationCenter(initialContext?: string | null) {
   const [items, setItems] = useState<VerificationItem[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [entityFilter, setEntityFilter] = useState<EntityFilter>('ALL');
+  const [entityFilter, setEntityFilter] = useState<EntityFilter>(() =>
+    mapContextToEntityFilter(initialContext),
+  );
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('UNDER_REVIEW');
   const [selectedItem, setSelectedItem] = useState<VerificationItem | null>(null);
+
+  useEffect(() => {
+    setEntityFilter(mapContextToEntityFilter(initialContext));
+  }, [initialContext]);
 
   const loadVerifications = useCallback(async () => {
     setIsLoading(true);
     setError(null);
 
     try {
-      const [drivers, vendors] = await Promise.all([
+      const [drivers, vendors, fleetsRes, corpRes] = await Promise.all([
         adminApi.getDrivers().catch((err) => {
           console.warn('[VerificationCenter] Failed to fetch drivers:', err?.message || err);
           return [] as DriverListItem[];
@@ -31,6 +52,8 @@ export function useVerificationCenter() {
           console.warn('[VerificationCenter] Failed to fetch vendors:', err?.message || err);
           return [] as VendorListItem[];
         }),
+        adminApi.listFleets({ limit: 200 }).catch(() => ({ items: [] as any[] })),
+        adminApi.getCorporateTenants({ limit: 200 }).catch(() => ({ items: [] as any[] })),
       ]);
 
       const normalizedDrivers: VerificationItem[] = (drivers || []).map((d: any) => {
@@ -142,7 +165,39 @@ export function useVerificationCenter() {
         };
       });
 
-      const combined = [...normalizedDrivers, ...normalizedVendors];
+      const normalizedFleets: VerificationItem[] = (fleetsRes?.items || []).map((f: any) => ({
+        id: f.id,
+        entityType: 'FLEET',
+        name: f.ownerName || f.name || 'Fleet Partner',
+        organizationName: f.name || '',
+        phone: f.phone || '',
+        email: f.email || '',
+        verificationStatus: f.status === 'ACTIVE' ? 'VERIFIED' : 'UNDER_REVIEW',
+        address: f.city || '',
+        documents: [],
+        submittedAt: f.createdAt || new Date().toISOString(),
+        updatedAt: f.updatedAt,
+      }));
+
+      const normalizedCorporates: VerificationItem[] = (corpRes?.items || []).map((c: any) => ({
+        id: c.id,
+        entityType: 'CORPORATE',
+        name: c.name || 'Corporate Client',
+        organizationName: c.name || '',
+        phone: c.contactPhone || '',
+        email: c.contactEmail || '',
+        verificationStatus: c.status === 'ACTIVE' || c.isActive ? 'VERIFIED' : 'UNDER_REVIEW',
+        documents: [],
+        submittedAt: c.createdAt || new Date().toISOString(),
+        updatedAt: c.updatedAt,
+      }));
+
+      const combined = [
+        ...normalizedDrivers,
+        ...normalizedFleets,
+        ...normalizedVendors,
+        ...normalizedCorporates,
+      ];
       setItems(combined);
     } catch (e: any) {
       setError(e.message || 'Failed to load verification queue');
@@ -187,22 +242,26 @@ export function useVerificationCenter() {
     });
   }, [items, entityFilter, statusFilter, searchQuery]);
 
-  // Summary Metrics Computation
+  // Summary Metrics Computation (scoped to active entityFilter when contextualized)
   const stats = useMemo(() => {
-    const underReview = items.filter(
+    const scopedItems =
+      entityFilter === 'ALL'
+        ? items
+        : items.filter((i) => i.entityType === entityFilter);
+    const underReview = scopedItems.filter(
       (i) => i.verificationStatus === 'UNDER_REVIEW',
     ).length;
-    const incompleteDrafts = items.filter(
+    const incompleteDrafts = scopedItems.filter(
       (i) => i.verificationStatus === 'PENDING',
     ).length;
-    const driversPending = items.filter(
+    const driversPending = scopedItems.filter(
       (i) => i.entityType === 'DRIVER' && i.verificationStatus === 'UNDER_REVIEW',
     ).length;
-    const vendorsPending = items.filter(
+    const vendorsPending = scopedItems.filter(
       (i) => i.entityType === 'VENDOR' && i.verificationStatus === 'UNDER_REVIEW',
     ).length;
-    const verifiedTotal = items.filter((i) => i.verificationStatus === 'VERIFIED').length;
-    const rejectedTotal = items.filter((i) => i.verificationStatus === 'REJECTED').length;
+    const verifiedTotal = scopedItems.filter((i) => i.verificationStatus === 'VERIFIED').length;
+    const rejectedTotal = scopedItems.filter((i) => i.verificationStatus === 'REJECTED').length;
 
     return {
       underReview,
@@ -211,9 +270,9 @@ export function useVerificationCenter() {
       vendorsPending,
       verifiedTotal,
       rejectedTotal,
-      totalQueue: items.length,
+      totalQueue: scopedItems.length,
     };
-  }, [items]);
+  }, [items, entityFilter]);
 
   const updateItemStatus = useCallback(
     (id: string, status: 'VERIFIED' | 'REJECTED', reason?: string) => {

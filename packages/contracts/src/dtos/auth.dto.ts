@@ -252,7 +252,9 @@ export class UserMeResponseDto {
     verificationStatus: string;
     availabilityStatus: string;
     vehicleType?: string;
-    walletBalance: number;
+    walletBalance?: number;
+    isFleetDriver?: boolean;
+    fleetId?: string;
     rejectionReason?: string;
     createdAt?: any;
     profilePhotoUrl?: string;

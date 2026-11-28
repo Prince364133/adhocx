@@ -517,6 +517,7 @@ export class SettlementsService {
         driver: {
           select: {
             id: true,
+            fleetId: true,
             fullName: true,
             phone: true,
             vehicleType: true,
@@ -553,6 +554,8 @@ export class SettlementsService {
     return {
       id: s.id,
       driverId: s.driverId,
+      fleetId: driver?.fleetId || undefined,
+      entityType: driver?.fleetId ? 'FLEET' : 'DRIVER',
       amount: Number(s.amount),
       status: s.status as SettlementStatus,
       bankAccountName,

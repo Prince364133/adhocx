@@ -28,6 +28,8 @@ export class WithdrawalRequestDto {
 export class SettlementResponseDto {
   id!: string;
   driverId!: string;
+  fleetId?: string;
+  entityType?: 'DRIVER' | 'FLEET';
   amount!: number;
   status!: SettlementStatus;
   bankAccountName?: string;

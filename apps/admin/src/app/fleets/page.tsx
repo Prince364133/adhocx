@@ -5,28 +5,26 @@ import Link from "next/link";
 import {
   Truck,
   Plus,
-  Search,
   Copy,
   Check,
   Phone,
   Mail,
   MapPin,
-  Building,
   Users,
   Eye,
+  EyeOff,
+  KeyRound,
   Edit2,
   Power,
   RotateCcw,
   CheckCircle2,
   XCircle,
-  AlertTriangle,
-  Calendar,
-  Activity,
-  IndianRupee,
   Shield,
   Star,
   ExternalLink,
 } from "lucide-react";
+import { FleetPortalAccessTab } from "../../components/fleet/FleetPortalAccessTab";
+import { FleetShortfallsTab } from "../../components/fleet/FleetShortfallsTab";
 import { adminApi } from "../../lib/api/client";
 import {
   FleetListItem,
@@ -44,7 +42,6 @@ import {
   Drawer,
   FeedbackBanner,
   ConfirmDialog,
-  Modal,
   TableLoadingSkeleton,
   EmptyState,
   ErrorState,
@@ -82,11 +79,21 @@ export default function FleetListPage() {
   const [selectedFleetId, setSelectedFleetId] = useState<string | null>(null);
   const [fleetDetail, setFleetDetail] = useState<FleetDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
-  const [activeDetailTab, setActiveDetailTab] = useState<"overview" | "drivers" | "activity" | "financials">("overview");
+  const [activeDetailTab, setActiveDetailTab] = useState<
+    "overview" | "drivers" | "activity" | "financials" | "portal" | "shortfalls"
+  >("overview");
 
-  // Create Fleet Modal
+  const handleSubTabNotify = useCallback(
+    (type: "success" | "error", message: string) => {
+      setFeedback({ type, message });
+    },
+    [],
+  );
+
+  // Create Fleet Side Drawer
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createSubmitting, setCreateSubmitting] = useState(false);
+  const [showPortalPassword, setShowPortalPassword] = useState(false);
   const [createForm, setCreateForm] = useState({
     name: "",
     code: "",
@@ -97,6 +104,8 @@ export default function FleetListPage() {
     address: "",
     gstin: "",
     notes: "",
+    portalPassword: "",
+    confirmPortalPassword: "",
   });
 
   // Edit Fleet Modal
@@ -181,11 +190,34 @@ export default function FleetListPage() {
     setTimeout(() => setCopiedCode(null), 2000);
   };
 
+  const handleGeneratePortalPassword = () => {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
+    let generated = "Flt@";
+    for (let i = 0; i < 8; i++) {
+      generated += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    setCreateForm((prev) => ({
+      ...prev,
+      portalPassword: generated,
+      confirmPortalPassword: generated,
+    }));
+    setShowPortalPassword(true);
+  };
+
   // Submit Create Fleet
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!createForm.name.trim() || !createForm.ownerName.trim() || !createForm.phone.trim()) {
       setFeedback({ type: "error", message: "Please fill in all required fields (Fleet Name, Owner Name, Phone)." });
+      return;
+    }
+    const pwd = createForm.portalPassword.trim();
+    if (pwd && pwd.length < 8) {
+      setFeedback({ type: "error", message: "Fleet Portal password must be at least 8 characters." });
+      return;
+    }
+    if (pwd && pwd !== createForm.confirmPortalPassword.trim()) {
+      setFeedback({ type: "error", message: "Fleet Portal password and confirm password do not match." });
       return;
     }
     setCreateSubmitting(true);
@@ -200,8 +232,10 @@ export default function FleetListPage() {
         address: createForm.address.trim() || undefined,
         gstin: createForm.gstin.trim() || undefined,
         notes: createForm.notes.trim() || undefined,
+        portalPassword: pwd || undefined,
       });
       setShowCreateModal(false);
+      setShowPortalPassword(false);
       setCreateForm({
         name: "",
         code: "",
@@ -212,8 +246,15 @@ export default function FleetListPage() {
         address: "",
         gstin: "",
         notes: "",
+        portalPassword: "",
+        confirmPortalPassword: "",
       });
-      setFeedback({ type: "success", message: `Fleet "${created.name}" (${created.code}) registered successfully.` });
+      setFeedback({
+        type: "success",
+        message: pwd
+          ? `Fleet "${created.name}" (${created.code}) & Portal Owner login created successfully.`
+          : `Fleet "${created.name}" (${created.code}) registered successfully.`,
+      });
       await fetchFleets(true);
     } catch (err: any) {
       setFeedback({ type: "error", message: err?.message || "Failed to register fleet." });
@@ -462,7 +503,23 @@ export default function FleetListPage() {
         title="Fleet List"
         subtitle="Centrally monitor, register, and configure platform commercial fleets and verify fleet-code operations."
         actions={
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+            <Link href="/settlements?context=fleet">
+              <Button variant="outline" size="md">
+                <ExternalLink size={14} style={{ marginRight: "5px" }} />
+                Fleet Payouts
+              </Button>
+            </Link>
+            <Link href="/support?context=fleet">
+              <Button variant="outline" size="md">
+                Fleet Support
+              </Button>
+            </Link>
+            <Link href="/business-insights?context=fleet">
+              <Button variant="outline" size="md">
+                Fleet Insights
+              </Button>
+            </Link>
             <Button variant="primary" size="md" onClick={() => setShowCreateModal(true)}>
               <Plus size={15} style={{ marginRight: "6px" }} />
               Register Fleet
@@ -707,7 +764,9 @@ export default function FleetListPage() {
                 { id: "overview", label: "Overview" },
                 { id: "drivers", label: `Drivers (${fleetDetail.drivers.length})` },
                 { id: "activity", label: `Activity (${fleetDetail.activity.recentTrips.length})` },
-                { id: "financials", label: "Financial Details" },
+                { id: "financials", label: "Financials" },
+                { id: "portal", label: "Portal Access" },
+                { id: "shortfalls", label: "Shortfall Claims" },
               ].map((t) => (
                 <button
                   key={t.id}
@@ -958,21 +1017,77 @@ export default function FleetListPage() {
                     color: "var(--text-secondary)",
                   }}
                 >
-                  Financial metrics reflect aggregated performance of drivers active in this fleet. In the future Fleet Portal, fleet owners will be able to configure commission splits and view automated settlement statements.
+                  Financial metrics reflect aggregated performance of drivers active in this fleet. Use{" "}
+                  <Link href="/settlements?context=fleet" style={{ color: "var(--brand-primary)", fontWeight: 600 }}>
+                    Fleet Payouts
+                  </Link>{" "}
+                  and the <strong>Shortfall Claims</strong> tab to manage disbursals and guaranteed trip compensation.
                 </div>
               </div>
+            )}
+
+            {/* TAB 5: PORTAL ACCESS */}
+            {activeDetailTab === "portal" && (
+              <FleetPortalAccessTab
+                fleetId={fleetDetail.fleet.id}
+                ownerName={fleetDetail.fleet.ownerName}
+                ownerPhone={fleetDetail.fleet.phone}
+                ownerEmail={fleetDetail.fleet.email || undefined}
+                onNotify={handleSubTabNotify}
+              />
+            )}
+
+            {/* TAB 6: SHORTFALL CLAIMS */}
+            {activeDetailTab === "shortfalls" && (
+              <FleetShortfallsTab
+                fleetId={fleetDetail.fleet.id}
+                onNotify={handleSubTabNotify}
+              />
             )}
           </div>
         ) : null}
       </Drawer>
 
-      {/* Modal: Register New Fleet */}
-      <Modal
+      {/* Side Drawer: Register New Fleet */}
+      <Drawer
         isOpen={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
+        onClose={() => {
+          setShowCreateModal(false);
+          setShowPortalPassword(false);
+        }}
         title="Register New Fleet"
+        subtitle="Configure commercial fleet identity, Fleet Code, and Fleet Portal login credentials"
+        width="600px"
+        footer={
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", width: "100%" }}>
+            <Button
+              variant="outline"
+              size="md"
+              type="button"
+              onClick={() => {
+                setShowCreateModal(false);
+                setShowPortalPassword(false);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              size="md"
+              type="submit"
+              form="register-fleet-form"
+              isLoading={createSubmitting}
+            >
+              Register Fleet
+            </Button>
+          </div>
+        }
       >
-        <form onSubmit={handleCreateSubmit} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+        <form
+          id="register-fleet-form"
+          onSubmit={handleCreateSubmit}
+          style={{ display: "flex", flexDirection: "column", gap: "14px" }}
+        >
           <p style={{ fontSize: "13px", color: "var(--text-secondary)", margin: 0 }}>
             Enter official business credentials. A unique Fleet Code will be generated automatically if left blank.
           </p>
@@ -1154,24 +1269,141 @@ export default function FleetListPage() {
             />
           </div>
 
-          <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "12px" }}>
-            <Button variant="outline" size="md" type="button" onClick={() => setShowCreateModal(false)}>
-              Cancel
-            </Button>
-            <Button variant="primary" size="md" type="submit" isLoading={createSubmitting}>
-              Register Fleet
-            </Button>
+          <div
+            style={{
+              padding: "12px 14px",
+              borderRadius: "8px",
+              backgroundColor: "var(--bg-surface)",
+              border: "1px solid var(--border-subtle)",
+              display: "flex",
+              flexDirection: "column",
+              gap: "10px",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+              <div
+                style={{
+                  fontSize: "12.5px",
+                  fontWeight: 700,
+                  color: "var(--text-primary)",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                }}
+              >
+                <Shield size={14} color="var(--brand-primary)" />
+                Fleet Portal Login Password Creation
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleGeneratePortalPassword}
+              >
+                <KeyRound size={12} style={{ marginRight: "4px" }} />
+                Generate Password
+              </Button>
+            </div>
+
+            <div style={{ fontSize: "12px", color: "var(--text-secondary)" }}>
+              Set an initial password (at least 8 characters) to immediately enable signing in on AdhocX Fleet Portal with the owner phone or email above, or leave blank to provision later.
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+              <div>
+                <label style={{ fontSize: "11.5px", fontWeight: 600, color: "var(--text-primary)", display: "block", marginBottom: "4px" }}>
+                  Portal Password
+                </label>
+                <div style={{ position: "relative" }}>
+                  <input
+                    type={showPortalPassword ? "text" : "password"}
+                    minLength={8}
+                    placeholder="Min 8 characters (optional)"
+                    value={createForm.portalPassword}
+                    onChange={(e) => setCreateForm({ ...createForm, portalPassword: e.target.value })}
+                    style={{
+                      width: "100%",
+                      padding: "8px 34px 8px 12px",
+                      borderRadius: "6px",
+                      border: "1px solid var(--border-subtle)",
+                      backgroundColor: "var(--bg-card, var(--bg-surface))",
+                      color: "var(--text-primary)",
+                      fontSize: "13px",
+                    }}
+                  />
+                  <button
+                    type="button"
+                    aria-label={showPortalPassword ? "Hide password" : "Show password"}
+                    onClick={() => setShowPortalPassword((prev) => !prev)}
+                    style={{
+                      position: "absolute",
+                      right: "8px",
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                      background: "transparent",
+                      border: "none",
+                      color: "var(--text-muted)",
+                      cursor: "pointer",
+                      display: "inline-flex",
+                      alignItems: "center",
+                    }}
+                  >
+                    {showPortalPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label style={{ fontSize: "11.5px", fontWeight: 600, color: "var(--text-primary)", display: "block", marginBottom: "4px" }}>
+                  Confirm Password
+                </label>
+                <input
+                  type={showPortalPassword ? "text" : "password"}
+                  minLength={8}
+                  placeholder="Re-enter password"
+                  value={createForm.confirmPortalPassword}
+                  onChange={(e) => setCreateForm({ ...createForm, confirmPortalPassword: e.target.value })}
+                  style={{
+                    width: "100%",
+                    padding: "8px 12px",
+                    borderRadius: "6px",
+                    border: "1px solid var(--border-subtle)",
+                    backgroundColor: "var(--bg-card, var(--bg-surface))",
+                    color: "var(--text-primary)",
+                    fontSize: "13px",
+                  }}
+                />
+              </div>
+            </div>
           </div>
         </form>
-      </Modal>
+      </Drawer>
 
-      {/* Modal: Edit Fleet */}
-      <Modal
+      {/* Side Drawer: Edit Fleet */}
+      <Drawer
         isOpen={Boolean(editingFleet)}
         onClose={() => setEditingFleet(null)}
         title={editingFleet ? `Edit Fleet: ${editingFleet.name}` : "Edit Fleet"}
+        subtitle="Update registered fleet partner details and internal audit notes"
+        width="560px"
+        footer={
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", width: "100%" }}>
+            <Button variant="outline" size="md" type="button" onClick={() => setEditingFleet(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              size="md"
+              type="submit"
+              form="edit-fleet-form"
+              isLoading={editSubmitting}
+            >
+              Save Changes
+            </Button>
+          </div>
+        }
       >
-        <form onSubmit={handleEditSubmit} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+        <form id="edit-fleet-form" onSubmit={handleEditSubmit} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
           <div>
             <label style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-primary)", display: "block", marginBottom: "4px" }}>
               Fleet Name
@@ -1338,16 +1570,8 @@ export default function FleetListPage() {
             />
           </div>
 
-          <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "12px" }}>
-            <Button variant="outline" size="md" type="button" onClick={() => setEditingFleet(null)}>
-              Cancel
-            </Button>
-            <Button variant="primary" size="md" type="submit" isLoading={editSubmitting}>
-              Save Changes
-            </Button>
-          </div>
         </form>
-      </Modal>
+      </Drawer>
 
       {/* Dialog: Toggle Fleet Status */}
       <ConfirmDialog

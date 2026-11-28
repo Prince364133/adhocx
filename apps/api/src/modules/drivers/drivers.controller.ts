@@ -20,6 +20,7 @@ import {
   AuthUserDto,
   UserRole,
   DriverLocationPingDto,
+  ValidateFleetCodeDto,
 } from '@adhocx/contracts';
 import { JwtAuthGuard, RolesGuard, Roles, CurrentUser } from '../../common';
 import { DriversService } from './drivers.service';
@@ -93,6 +94,23 @@ export class DriversController {
     @Body() dto: KycSubmissionDto,
   ) {
     return this.driversService.submitKyc(user.id, dto);
+  }
+
+  @Get('me/incentives')
+  @Roles(UserRole.DRIVER)
+  @ApiOperation({ summary: 'List active fleet incentives and progress for current fleet driver (no earnings exposed)' })
+  async getMyIncentives(@CurrentUser() user: AuthUserDto) {
+    return this.driversService.getMyFleetIncentives(user.id);
+  }
+
+  @Post('fleet-code/validate')
+  @Roles(UserRole.DRIVER)
+  @ApiOperation({ summary: 'Validate Fleet Code and associate current driver with the fleet (one-fleet rule)' })
+  async validateFleetCode(
+    @CurrentUser() user: AuthUserDto,
+    @Body() dto: ValidateFleetCodeDto,
+  ) {
+    return this.driversService.validateAndAssociateFleetCode(user.id, dto);
   }
 
   @Post('documents/upload')

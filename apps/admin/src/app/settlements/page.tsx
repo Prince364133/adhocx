@@ -1,12 +1,14 @@
 "use client";
 
-import React, { useEffect, useState, useMemo } from "react";
+import React, { Suspense, useEffect, useState, useMemo } from "react";
+import { useSearchParams } from "next/navigation";
 import { Clock, CreditCard, RotateCcw, ShieldCheck } from "lucide-react";
 import { adminApi } from "../../lib/api/client";
 import { SettlementListItem } from "../../lib/api/types";
 import {
   PageHeader,
   KpiStrip,
+  SegmentedTabs,
   FilterBar,
   DataTable,
   StatusBadge,
@@ -17,6 +19,7 @@ import {
   Input,
   Textarea,
 } from "../../components/common";
+import { FleetPayoutsDesk } from "../../components/fleet/FleetPayoutsDesk";
 
 const STATUS_TABS = [
   { id: "ALL", label: "All Settlements" },
@@ -25,7 +28,31 @@ const STATUS_TABS = [
   { id: "FAILED", label: "Failed / Refunded" },
 ];
 
-export default function SettlementsPage() {
+const SETTLEMENT_DESK_TABS = [
+  { id: "DRIVER", label: "Driver Withdrawals" },
+  { id: "FLEET", label: "Fleet Owner Payouts" },
+];
+
+const SETTLEMENT_CONTEXT_TITLES: Record<string, string> = {
+  driver: "Drivers · Settlements & Payouts",
+  fleet: "Fleet · Settlements & Payouts",
+};
+
+function SettlementsPageContent() {
+  const searchParams = useSearchParams();
+  const contextParam = searchParams.get("context");
+  const [deskScope, setDeskScope] = useState<"DRIVER" | "FLEET">(
+    contextParam === "fleet" ? "FLEET" : "DRIVER",
+  );
+
+  useEffect(() => {
+    if (contextParam === "fleet") {
+      setDeskScope("FLEET");
+    } else if (contextParam === "driver") {
+      setDeskScope("DRIVER");
+    }
+  }, [contextParam]);
+
   const [activeTab, setActiveTab] = useState("ALL");
   const [searchQuery, setSearchQuery] = useState("");
   const [settlements, setSettlements] = useState<SettlementListItem[]>([]);
@@ -47,8 +74,10 @@ export default function SettlementsPage() {
   } | null>(null);
 
   useEffect(() => {
-    loadSettlements(activeTab);
-  }, [activeTab]);
+    if (deskScope === "DRIVER") {
+      loadSettlements(activeTab);
+    }
+  }, [activeTab, deskScope]);
 
   async function loadSettlements(status: string) {
     setLoading(true);
@@ -62,11 +91,27 @@ export default function SettlementsPage() {
     }
   }
 
+  const contextScopedSettlements = useMemo(() => {
+    if (contextParam !== "driver" && contextParam !== "fleet") {
+      return settlements;
+    }
+    const target = contextParam.toUpperCase();
+    const hasEntityMeta = settlements.some(
+      (s: any) => s.entityType || s.settlementType || s.fleetId,
+    );
+    if (!hasEntityMeta) return settlements;
+    return settlements.filter((s: any) => {
+      const et = String(s.entityType || s.settlementType || "").toUpperCase();
+      if (target === "FLEET") return et === "FLEET" || Boolean(s.fleetId);
+      return et === "DRIVER" || (!s.fleetId && et !== "FLEET");
+    });
+  }, [settlements, contextParam]);
+
   // Filter settlements by search query
   const filteredSettlements = useMemo(() => {
-    if (!searchQuery.trim()) return settlements;
+    if (!searchQuery.trim()) return contextScopedSettlements;
     const q = searchQuery.toLowerCase();
-    return settlements.filter(
+    return contextScopedSettlements.filter(
       (s) =>
         s.id.toLowerCase().includes(q) ||
         s.driverName?.toLowerCase().includes(q) ||
@@ -74,13 +119,13 @@ export default function SettlementsPage() {
         s.bankIfsc?.toLowerCase().includes(q) ||
         s.transactionRef?.toLowerCase().includes(q),
     );
-  }, [settlements, searchQuery]);
+  }, [contextScopedSettlements, searchQuery]);
 
   // Settlement KPI calculations
   const metrics = useMemo(() => {
-    const pending = settlements.filter((s) => s.status === "PENDING");
-    const settled = settlements.filter((s) => s.status === "SETTLED");
-    const failed = settlements.filter((s) => s.status === "FAILED");
+    const pending = contextScopedSettlements.filter((s) => s.status === "PENDING");
+    const settled = contextScopedSettlements.filter((s) => s.status === "SETTLED");
+    const failed = contextScopedSettlements.filter((s) => s.status === "FAILED");
 
     const pendingTotal = pending.reduce(
       (sum, s) => sum + (Number(s.amount) || 0),
@@ -98,7 +143,7 @@ export default function SettlementsPage() {
       settledTotal,
       failedCount: failed.length,
     };
-  }, [settlements]);
+  }, [contextScopedSettlements]);
 
   function requestActionConfirm() {
     if (!selectedSettlement || !actionType) return;
@@ -228,12 +273,30 @@ export default function SettlementsPage() {
 
       {/* Page Header */}
       <PageHeader
-        title="On-Demand Driver Withdrawals"
-        subtitle="Review withdrawal requests, verify beneficiary banking details, authorize disbursals with UTR reference, and audit automated refund rollbacks"
+        title={(contextParam && SETTLEMENT_CONTEXT_TITLES[contextParam]) || "On-Demand Withdrawals & Payouts"}
+        subtitle={
+          deskScope === "FLEET"
+            ? "Review Fleet Owner payout requests, verify cumulative trip settlements, approve, settle with remittance notes, or reject with reason"
+            : "Review withdrawal requests, verify beneficiary banking details, authorize disbursals with UTR reference, and audit automated refund rollbacks"
+        }
         liveStatus="Bank Gateway Synchronized"
       />
 
-      {/* Settlement Metrics KPI Grid */}
+      {!contextParam && (
+        <div style={{ marginBottom: "1rem" }}>
+          <SegmentedTabs
+            tabs={SETTLEMENT_DESK_TABS}
+            activeTab={deskScope}
+            onChange={(tab) => setDeskScope(tab as "DRIVER" | "FLEET")}
+          />
+        </div>
+      )}
+
+      {deskScope === "FLEET" ? (
+        <FleetPayoutsDesk />
+      ) : (
+        <>
+          {/* Settlement Metrics KPI Grid */}
       <KpiStrip
         columns={3}
         items={[
@@ -725,6 +788,22 @@ export default function SettlementsPage() {
             : "Confirm Settlement"
         }
       />
+        </>
+      )}
     </div>
+  );
+}
+
+export default function SettlementsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="admin-page">
+          <div className="text-muted text-body-lg p-6">Loading Settlements...</div>
+        </div>
+      }
+    >
+      <SettlementsPageContent />
+    </Suspense>
   );
 }

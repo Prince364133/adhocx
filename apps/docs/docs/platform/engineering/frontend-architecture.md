@@ -6,8 +6,14 @@ description: Cross-application frontend patterns for Next.js, Astro, Flutter and
 # Frontend Architecture
 
 **Evidence status:** Verified against workspace manifests and application
-entrypoints. UI behavior that is not shared by every app is identified
-separately.
+entrypoints. **`apps/admin` is the canonical reference frontend architecture**
+for all AdhocX web dashboards (`apps/admin`, `apps/ops`, `apps/corporate`).
+UI behavior that is not shared by every app is identified separately.
+
+> **Design & UX Source of Truth:** All web dashboards must strictly follow
+> [`DESIGN.md`](../../../../DESIGN.md), [`UX.md`](../../../../UX.md),
+> [`04_DESIGN_SYSTEM.md`](../design/04_DESIGN_SYSTEM.md), and
+> [`05_UI_UX_GUIDELINES.md`](../design/05_UI_UX_GUIDELINES.md).
 
 ## Technology Matrix
 
@@ -21,16 +27,31 @@ separately.
 | Employee App | Flutter | GoRouter | Provider, repositories |
 | Documentation | Docusaurus 3 | Docs plugin | React theme and Markdown |
 
-## Next.js Architecture
+## Next.js Architecture (Canonical `apps/admin` Pattern)
 
-The three Next.js applications use the App Router:
+All three Next.js applications (`apps/admin`, `apps/ops`, `apps/corporate`) use
+the App Router and should follow the exact structural pattern established in
+`apps/admin`:
 
-- `src/app/layout.tsx` owns root metadata and shell composition.
-- `src/app/**/page.tsx` defines route pages.
-- Nested layouts provide feature-scoped presentation.
-- Root shells enforce authentication and session availability.
-- API helpers resolve environment-specific API URLs.
-- Shared TypeScript contracts are transpiled into the application build.
+- `src/styles/style.css` owns centralized CSS design tokens (`:root` light mode,
+  `[data-theme="dark"]` dark mode), layout shell classes (`.admin-layout`,
+  `.admin-sidebar`, `.admin-main`, `.admin-header`, `.admin-content`,
+  `.admin-page`), and component utility classes.
+- `src/app/globals.css` imports `../styles/style.css`.
+- `src/app/layout.tsx` owns root metadata and shell composition (`AdminShell` /
+  portal shell).
+- `src/components/AdminShell.tsx` enforces session verification and renders
+  `ToastProvider` + `.admin-layout` (`Sidebar` + `.admin-main` containing
+  `Header` and full-width `.admin-content` with `max-width: none` and compact
+  `1.25rem` horizontal padding).
+- `src/components/common/index.ts` exports the canonical UI primitive barrel
+  (`PageHeader`, `Card`, `SegmentedTabs`, `KpiStrip`, `MetricCard`, `DataTable`,
+  `FilterBar`, `Button`, `StatusBadge`, `Drawer`, `Modal`, `ConfirmDialog`,
+  `EmptyState`, `ErrorState`, `LoadingSkeleton`, `ToastProvider`).
+- `src/app/**/page.tsx` composes route pages inside `<main className="admin-page">`
+  using the 5-band dashboard blueprint defined in `UX.md`.
+- `src/lib/api/client.ts` and `src/lib/api/types.ts` resolve environment-specific
+  API URLs and consume shared TypeScript contracts from `@adhocx/contracts`.
 
 ```mermaid
 flowchart LR

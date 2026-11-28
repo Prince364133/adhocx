@@ -138,8 +138,21 @@ export class DisputesService {
       this.db.dispute.findMany({
         where,
         include: {
-          reporter: true,
-          accused: true,
+          reporter: {
+            include: {
+              driver: { select: { fleetId: true } },
+            },
+          },
+          accused: {
+            include: {
+              driver: { select: { fleetId: true } },
+            },
+          },
+          trip: {
+            select: {
+              driver: { select: { fleetId: true } },
+            },
+          },
         },
         skip,
         take: limit,
@@ -427,6 +440,19 @@ export class DisputesService {
   }
 
   private mapToDto(d: any): DisputeResponseDto {
+    const reporterRole = d.reporter?.role || undefined;
+    const accusedRole = d.accused?.role || undefined;
+    const hasFleetContext = Boolean(
+      d.trip?.driver?.fleetId || d.reporter?.driver?.fleetId || d.accused?.driver?.fleetId,
+    );
+    const entityType = hasFleetContext
+      ? 'FLEET'
+      : reporterRole === 'VENDOR' || accusedRole === 'VENDOR'
+        ? 'VENDOR'
+        : reporterRole === 'CORPORATE' || accusedRole === 'CORPORATE'
+          ? 'CORPORATE'
+          : reporterRole || accusedRole || undefined;
+
     return {
       id: d.id,
       tripId: d.tripId,
@@ -440,6 +466,9 @@ export class DisputesService {
       updatedAt: d.updatedAt.toISOString(),
       reporterName: d.reporter?.fullName || undefined,
       accusedName: d.accused?.fullName || undefined,
+      reporterRole,
+      accusedRole,
+      entityType,
     };
   }
 }

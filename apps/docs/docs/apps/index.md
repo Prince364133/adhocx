@@ -17,6 +17,7 @@ from both perspectives:
 | [Admin](./admin/index.md) | Platform administrators | Govern users, supply, verification, pricing, finance and support | Next.js App Router, React, bearer-token API client |
 | [Ops](./ops/index.md) | Operations and safety staff | Monitor live fleet, reassign routes and manage incidents | Next.js App Router, corporate session/API integration |
 | [Corporate](./corporate/index.md) | Corporate transport/HR/finance staff | Manage employees, rosters, routes, billing and support | Next.js App Router, tenant/office/session state |
+| [Fleet](./fleet/index.md) | Fleet owners and fleet managers | Manage fleet drivers, Fleet Code, live operations, earnings/payouts, incentives and support | Next.js App Router (`apps/fleet`), NestJS `FleetDomainModule` (`apps/api/src/domains/fleet`), Prisma |
 | [Employee App](./employee-app/index.md) | Corporate commuters | Schedule, tracking, boarding, feedback and safety | Flutter, GoRouter, Provider, HTTP repositories |
 | [Mobile](./mobile/index.md) | Vendors and drivers | Requirements, offers, trips, KYC, wallet and corporate duties | Flutter, GoRouter, Provider, secure storage and SDK integrations |
 | [Marketing](./marketing/index.md) | Prospects and public users | Explain and sell AdhocX, collect enterprise leads | Astro, React islands, static SEO routes |
@@ -29,6 +30,7 @@ by Corporate, Employee, Mobile, Ops and the API.
 flowchart LR
   Public[Public/Marketing]
   Corporate[Corporate Portal]
+  Fleet[Fleet Portal]
   Employee[Employee App]
   Mobile[Vendor/Driver Mobile]
   Admin[Admin]
@@ -40,6 +42,7 @@ flowchart LR
 
   Public --> API
   Corporate --> API
+  Fleet --> API
   Employee --> API
   Mobile --> API
   Admin --> API

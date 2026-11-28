@@ -449,4 +449,32 @@ export class StorageService {
     }
     await this.deleteFile(filename);
   }
+
+  /**
+   * Generate a short-lived presigned PUT URL for Cloudflare R2 when configured;
+   * returns null in local-disk development/test mode so callers can route to multipart upload.
+   */
+  async getPresignedUploadUrl(
+    key: string,
+    mimeType: string,
+    expiresInSeconds = 300,
+  ): Promise<string | null> {
+    if (!this.s3Client) return null;
+    try {
+      return await getSignedUrl(
+        this.s3Client as any,
+        new PutObjectCommand({
+          Bucket: this.bucketName,
+          Key: key,
+          ContentType: mimeType,
+        }) as any,
+        { expiresIn: expiresInSeconds },
+      );
+    } catch (err: unknown) {
+      this.logger.warn(
+        `Presigning upload for ${key} failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
+      return null;
+    }
+  }
 }

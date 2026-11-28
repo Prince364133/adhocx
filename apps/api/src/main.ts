@@ -72,6 +72,7 @@ async function bootstrap() {
     'https://admin.adhocx.com',
     'https://ops.adhocx.com',
     'https://corporate.adhocx.com',
+    'https://fleet.adhocx.com',
     'https://adhocx.com',
     'https://www.adhocx.com',
     'https://api.adhocx.com',
@@ -82,6 +83,7 @@ async function bootstrap() {
           'http://localhost:7003',
           'http://localhost:7004',
           'http://localhost:7006',
+          'http://localhost:7008',
           'http://localhost:3000',
           'http://localhost:3001',
         ]

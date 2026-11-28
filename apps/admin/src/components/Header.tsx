@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useEffect, useState, useRef } from "react";
-import { usePathname, useRouter } from "next/navigation";
-import { Bell, CheckCheck, ExternalLink, X, Send, LogOut } from "lucide-react";
+import React, { Suspense, useEffect, useState, useRef } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { Bell, CheckCheck, ExternalLink, X, Send, LogOut, ShieldAlert } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
 import { ConfirmDialog } from "./common/ConfirmDialog";
 import { adminApi, getApiBaseUrl, getStoredAdminUser } from "../lib/api/client";
@@ -15,8 +16,61 @@ type HeaderProps = {
   subtitle?: string;
 };
 
-export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
+const CONTEXT_LABELS: Record<string, string> = {
+  driver: "Drivers",
+  fleet: "Fleet",
+  vendor: "Vendors",
+  corporate: "Corporate",
+};
+
+const HeaderTitleText: React.FC<{ title?: string }> = ({ title }) => {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const context = searchParams.get("context");
+  const contextPrefix = context && CONTEXT_LABELS[context] ? `${CONTEXT_LABELS[context]} · ` : "";
+
+  const getSectionTitle = () => {
+    if (title) return title;
+    if (pathname.startsWith("/dashboard")) return "Marketplace Overview";
+    if (pathname.startsWith("/analytics")) return "Platform Analytics";
+    if (pathname.startsWith("/business-insights"))
+      return `${contextPrefix}Business Insights`;
+    if (pathname.startsWith("/notifications"))
+      return "Push Notifications & Campaign Hub";
+    if (pathname.startsWith("/verifications"))
+      return `${contextPrefix}Verification Center`;
+    if (pathname.startsWith("/drivers")) return "Driver Fleet Management";
+    if (pathname.startsWith("/fleets")) return "Fleet Management";
+    if (pathname.startsWith("/companies")) return "Corporate Clients";
+    if (pathname.startsWith("/users") || pathname.startsWith("/vendors"))
+      return "Corporate Vendors";
+    if (pathname.startsWith("/safety/sos")) return "Emergency SOS";
+    if (pathname.startsWith("/requirements")) return "Requirements & Sourcing";
+    if (pathname.startsWith("/assignments")) return "Assignment Operations";
+    if (pathname.startsWith("/trips")) return "Trips & Telemetry Tracking";
+    if (pathname.startsWith("/coupons")) return "Coupons & Promotions";
+    if (pathname.startsWith("/blogs")) return "Blog CMS Publisher";
+    if (pathname.startsWith("/settlements"))
+      return `${contextPrefix}Financial Settlements & Payouts`;
+    if (pathname.startsWith("/finance"))
+      return "Finance & Accounting Operations";
+    if (pathname.startsWith("/reports"))
+      return "Finance & Accounting Operations";
+    if (pathname.startsWith("/feature-flags"))
+      return "Feature Flags & Platform Controls";
+    if (pathname.startsWith("/pricing")) return "Pricing Engine & Tariffs";
+    if (pathname.startsWith("/audit")) return "Audit Logs & Compliance";
+    if (pathname.startsWith("/disputes"))
+      return `${contextPrefix}Dispute Resolution Desk`;
+    if (pathname.startsWith("/support"))
+      return `${contextPrefix}Support & Helpdesk`;
+    return "Control Portal";
+  };
+
+  return <>{getSectionTitle()}</>;
+};
+
+export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
   const router = useRouter();
 
   // Admin user & session state
@@ -38,35 +92,6 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
   const [healthTooltip, setHealthTooltip] = useState(
     "Checking API health status...",
   );
-
-  const getSectionTitle = () => {
-    if (title) return title;
-    if (pathname.startsWith("/dashboard")) return "Marketplace Overview";
-    if (pathname.startsWith("/notifications"))
-      return "Push Notifications & Campaign Hub";
-    if (pathname.startsWith("/verifications")) return "Verification Center";
-    if (pathname.startsWith("/drivers")) return "Driver Fleet Management";
-    if (pathname.startsWith("/users") || pathname.startsWith("/vendors"))
-      return "Corporate Vendors";
-    if (pathname.startsWith("/requirements")) return "Requirements & Sourcing";
-    if (pathname.startsWith("/assignments")) return "Assignment Operations";
-    if (pathname.startsWith("/trips")) return "Trips & Telemetry Tracking";
-    if (pathname.startsWith("/coupons")) return "Coupons & Promotions";
-    if (pathname.startsWith("/blogs")) return "Blog CMS Publisher";
-    if (pathname.startsWith("/settlements"))
-      return "Financial Settlements & Payouts";
-    if (pathname.startsWith("/finance"))
-      return "Finance & Accounting Operations";
-    if (pathname.startsWith("/reports"))
-      return "Finance & Accounting Operations";
-    if (pathname.startsWith("/feature-flags"))
-      return "Feature Flags & Platform Controls";
-    if (pathname.startsWith("/pricing")) return "Pricing Engine & Tariffs";
-    if (pathname.startsWith("/audit")) return "Audit Logs & Compliance";
-    if (pathname.startsWith("/disputes")) return "Dispute Resolution Desk";
-    if (pathname.startsWith("/support")) return "Support & Helpdesk";
-    return "Control Portal";
-  };
 
   useEffect(() => {
     const user = getStoredAdminUser();
@@ -316,7 +341,9 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
             className="text-title-md font-bold text-primary m-0"
             style={{ letterSpacing: "-0.015em" }}
           >
-            {getSectionTitle()}
+            <Suspense fallback={<>{title || "Control Portal"}</>}>
+              <HeaderTitleText title={title} />
+            </Suspense>
           </h2>
           {subtitle && (
             <p
@@ -330,6 +357,22 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
       </div>
 
       <div className="flex items-center gap-2">
+        <Link
+          href="/safety/sos"
+          title="Emergency SOS Desk (P0)"
+          className="inline-flex items-center gap-1 rounded-md border px-2 font-bold no-underline"
+          style={{
+            height: "28px",
+            fontSize: "0.72rem",
+            background: "rgba(239, 68, 68, 0.08)",
+            borderColor: "rgba(239, 68, 68, 0.25)",
+            color: "#dc2626",
+          }}
+        >
+          <ShieldAlert size={13} />
+          <span>SOS</span>
+        </Link>
+
         {/* Notification Bell Dropdown */}
         <div className="relative" ref={dropdownRef}>
           <button

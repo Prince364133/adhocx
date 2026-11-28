@@ -19,3 +19,4 @@ export * from './telemetry.dto';
 export * from './digio.dto';
 export * from './feature-flag.dto';
 export * from './fleet.dto';
+export * from './fleet-portal';

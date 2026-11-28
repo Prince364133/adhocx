@@ -15,9 +15,11 @@ certified by this frontend inventory.
 
 | Route pattern | Functional purpose | Source file |
 |---|---|---|
+| `/analytics` | Dedicated platform growth and marketplace analytics workspace | `apps/admin/src/app/analytics/page.tsx` |
 | `/assignments/*` | Legacy Admin route that redirects to Ops `/assignments` | `apps/admin/src/app/assignments/[[...slug]]/page.tsx` |
 | `/audit` | Read and filter audit events; inspect an event payload | `apps/admin/src/app/audit/page.tsx` |
 | `/blogs` | Search, edit, publish and delete marketing content | `apps/admin/src/app/blogs/page.tsx` |
+| `/business-insights` | Contextual entity growth and micro-finance insights workspace | `apps/admin/src/app/business-insights/page.tsx` |
 | `/companies/:id` | View/edit tenant profile, offices, departments, zones and users | `apps/admin/src/app/companies/[id]/page.tsx` |
 | `/companies` | Search tenant directory and onboard a company | `apps/admin/src/app/companies/page.tsx` |
 | `/coupons` | Create, edit, activate and inspect coupon redemptions | `apps/admin/src/app/coupons/page.tsx` |
@@ -27,6 +29,7 @@ certified by this frontend inventory.
 | `/drivers/route-earnings` | Inspect a driver's route earnings derived from driver detail data | `apps/admin/src/app/drivers/route-earnings/page.tsx` |
 | `/feature-flags` | Inspect and change supported runtime feature flags | `apps/admin/src/app/feature-flags/page.tsx` |
 | `/finance` | Review finance summary, transactions and driver financial history | `apps/admin/src/app/finance/page.tsx` |
+| `/fleets` | Provision fleets, portal access users, shortfall claims, metrics, credentials and lifecycle | `apps/admin/src/app/fleets/page.tsx` |
 | `/login` | Authentication entry and session setup | `apps/admin/src/app/login/page.tsx` |
 | `/notifications` | Estimate audience, test and send push campaigns; inspect delivery | `apps/admin/src/app/notifications/page.tsx` |
 | `/` | Redirect to `/dashboard` | `apps/admin/src/app/page.tsx` |
@@ -37,8 +40,9 @@ certified by this frontend inventory.
 | `/pricing/vendor` | Shared pricing workspace opened in vendor billing mode | `apps/admin/src/app/pricing/vendor/page.tsx` |
 | `/reports` | Redirect to `/finance` | `apps/admin/src/app/reports/page.tsx` |
 | `/requirements/*` | Legacy Admin route that redirects to Ops `/requirements` | `apps/admin/src/app/requirements/[[...slug]]/page.tsx` |
-| `/settlements` | Review bank details and process settlements | `apps/admin/src/app/settlements/page.tsx` |
-| `/support` | Handle Corporate and on-demand support tickets | `apps/admin/src/app/support/page.tsx` |
+| `/safety/sos` | Quick-access emergency safety / SOS console | `apps/admin/src/app/safety/sos/page.tsx` |
+| `/settlements` | Review bank details, process driver settlements, and approve/settle/reject Fleet Owner payouts | `apps/admin/src/app/settlements/page.tsx` |
+| `/support` | Handle Corporate ETS, On-Demand, and Fleet Portal support tickets | `apps/admin/src/app/support/page.tsx` |
 | `/trips/*` | Legacy Admin route that redirects to Ops `/trips` | `apps/admin/src/app/trips/[[...slug]]/page.tsx` |
 | `/undefined/*` | Legacy malformed-path fallback that strips the `/undefined` prefix | `apps/admin/src/app/undefined/[[...slug]]/page.tsx` |
 | `/users` | Currently renders the same vendor view as `/vendors`; no user list is shown | `apps/admin/src/app/users/page.tsx` |

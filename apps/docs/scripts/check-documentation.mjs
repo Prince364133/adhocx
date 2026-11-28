@@ -205,6 +205,7 @@ async function main() {
     ['Admin', 'apps/admin'],
     ['Ops', 'apps/ops'],
     ['Corporate', 'apps/corporate'],
+    ['Fleet', 'apps/fleet'],
   ];
 
   for (const [label, app] of appRouteDocs) {

@@ -1,10 +1,12 @@
-﻿# 05 — UI/UX GUIDELINES
+# 05 — UI/UX GUIDELINES
 
 **Product:** AdhocX
 **Document:** UI/UX Guidelines
-**Status:** Source of Truth
-**Version:** V1
-**Last Updated:** 2026-09-02
+**Status:** Source of Truth (Synchronized with root `UX.md` & `apps/admin`)
+**Version:** V2 (Admin Reference Standard)
+**Last Updated:** 2026-11-27
+
+> **Canonical Reference:** All web dashboards across AdhocX (`apps/admin`, `apps/ops`, `apps/corporate`, and future portals) must strictly follow [`UX.md`](../../../../UX.md) and the 5-band `apps/admin` dashboard pattern (`AdminShell` -> `Sidebar` + `Header` + full-width `.admin-content` -> `<main className="admin-page">` -> `PageHeader` -> `SegmentedTabs` filter bar -> `KpiStrip` -> `Card` + `DataTable` -> `Drawer` / `ConfirmDialog`).
 
 ---
 

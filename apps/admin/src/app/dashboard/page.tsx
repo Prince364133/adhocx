@@ -11,12 +11,12 @@ import {
   Users,
   Wallet,
 } from "lucide-react";
+import Link from "next/link";
 import {
   Button,
   MetricCard,
   PageHeader,
 } from "../../components/common";
-import { AnalyticsTrendsSection } from "../../components/dashboard/AnalyticsTrendsSection";
 import { adminApi } from "../../lib/api/client";
 import type {
   AdminMetrics,
@@ -480,7 +480,28 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      <AnalyticsTrendsSection />
+      <section
+        className="card flex items-center justify-between flex-wrap gap-3"
+        style={{ padding: "1rem 1.25rem", marginTop: "0.5rem" }}
+        aria-label="Analytics & Business Insights shortcuts"
+      >
+        <div>
+          <h3 className="m-0 text-title-sm font-semibold text-primary">
+            Explore Detailed Growth & Financial Insights
+          </h3>
+          <p className="m-0 text-body-sm text-secondary" style={{ marginTop: "0.2rem" }}>
+            View company-wide trends in Analytics, consolidated ledgers in Finance, or module-level metrics in Business Insights.
+          </p>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Link href="/analytics" className="btn btn-secondary btn-sm">
+            Platform Analytics
+          </Link>
+          <Link href="/business-insights" className="btn btn-primary btn-sm">
+            Business Insights
+          </Link>
+        </div>
+      </section>
 
       <footer className="dashboard-footer-note">
         <Building2 size={14} />

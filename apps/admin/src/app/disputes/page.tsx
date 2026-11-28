@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useEffect, useState, useMemo } from "react";
+import React, { Suspense, useEffect, useState, useMemo } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   AlertCircle,
   Search,
@@ -32,7 +33,17 @@ const STATUS_TABS = [
   { id: "REJECTED", label: "Rejected" },
 ];
 
-export default function DisputesPage() {
+const DISPUTE_CONTEXT_TITLES: Record<string, string> = {
+  driver: "Drivers · Disputes & Claims",
+  fleet: "Fleet · Disputes & Claims",
+  vendor: "Vendors · Disputes & Claims",
+  corporate: "Corporate · Disputes & Claims",
+};
+
+function DisputesPageContent() {
+  const searchParams = useSearchParams();
+  const contextParam = searchParams.get("context");
+
   const [activeTab, setActiveTab] = useState("ALL");
   const [searchQuery, setSearchQuery] = useState("");
   const [disputes, setDisputes] = useState<DisputeListItem[]>([]);
@@ -73,12 +84,27 @@ export default function DisputesPage() {
     }
   }
 
+  const contextScopedDisputes = useMemo(() => {
+    const list = Array.isArray(disputes) ? disputes : [];
+    if (!contextParam) return list;
+    const target = contextParam.toUpperCase();
+    const hasRoleMetadata = list.some(
+      (d: any) => d.entityType || d.reporterRole || d.accusedRole,
+    );
+    if (!hasRoleMetadata) return list;
+    return list.filter((d: any) => {
+      const et = String(d.entityType || "").toUpperCase();
+      const rr = String(d.reporterRole || "").toUpperCase();
+      const ar = String(d.accusedRole || "").toUpperCase();
+      return et === target || rr === target || ar === target;
+    });
+  }, [disputes, contextParam]);
+
   // Filter disputes by search query
   const filteredDisputes = useMemo(() => {
-    const list = Array.isArray(disputes) ? disputes : [];
-    if (!searchQuery.trim()) return list;
+    if (!searchQuery.trim()) return contextScopedDisputes;
     const q = searchQuery.toLowerCase();
-    return list.filter(
+    return contextScopedDisputes.filter(
       (d) =>
         d.id.toLowerCase().includes(q) ||
         d.tripId.toLowerCase().includes(q) ||
@@ -87,18 +113,17 @@ export default function DisputesPage() {
         d.reason.toLowerCase().includes(q) ||
         d.description?.toLowerCase().includes(q),
     );
-  }, [disputes, searchQuery]);
+  }, [contextScopedDisputes, searchQuery]);
 
   // Calculate ticket metrics
   const metrics = useMemo(() => {
-    const list = Array.isArray(disputes) ? disputes : [];
-    const open = list.filter((d) => d.status === "OPEN").length;
-    const review = list.filter((d) => d.status === "UNDER_REVIEW").length;
-    const resolved = list.filter((d) => d.status === "RESOLVED").length;
-    const rejected = list.filter((d) => d.status === "REJECTED").length;
+    const open = contextScopedDisputes.filter((d) => d.status === "OPEN").length;
+    const review = contextScopedDisputes.filter((d) => d.status === "UNDER_REVIEW").length;
+    const resolved = contextScopedDisputes.filter((d) => d.status === "RESOLVED").length;
+    const rejected = contextScopedDisputes.filter((d) => d.status === "REJECTED").length;
 
     return { open, review, resolved, rejected };
-  }, [disputes]);
+  }, [contextScopedDisputes]);
 
   function requestResolveConfirm() {
     if (!selectedDispute) return;
@@ -161,7 +186,7 @@ export default function DisputesPage() {
 
       {/* Page Header */}
       <PageHeader
-        title="Disputes & Escalation Arbitration"
+        title={(contextParam && DISPUTE_CONTEXT_TITLES[contextParam]) || "Disputes & Escalation Arbitration"}
         subtitle="Investigate conflict tickets, toll disagreements, route deviations, and driver-customer escalations"
         liveStatus="Arbitration Desk Active"
       />
@@ -569,5 +594,19 @@ export default function DisputesPage() {
         }
       />
     </div>
+  );
+}
+
+export default function DisputesPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="admin-page">
+          <div className="text-muted text-body-lg p-6">Loading Disputes & Claims...</div>
+        </div>
+      }
+    >
+      <DisputesPageContent />
+    </Suspense>
   );
 }
